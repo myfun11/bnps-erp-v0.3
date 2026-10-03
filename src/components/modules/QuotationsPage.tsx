@@ -1,0 +1,551 @@
+import React, { useState } from 'react';
+import { erpStore } from '../../services/erpStore';
+import { useAuth } from '../../context/AuthContext';
+import { Quotation, QuotationStatusType } from '../../types/database';
+import { QuotationBuilderForm } from './quotations/QuotationBuilderForm';
+import { QuotationLetterheadDoc } from './quotations/QuotationLetterheadDoc';
+import { downloadQuotationTextDoc, triggerPrintQuotation } from '../../lib/quotationExport';
+import { 
+  FileText, 
+  Plus, 
+  Table, 
+  Eye, 
+  Search, 
+  Filter, 
+  Building2, 
+  Phone, 
+  MapPin, 
+  Check, 
+  Share2, 
+  FileCheck,
+  CheckCircle2,
+  Printer,
+  Download,
+  Save,
+  ArrowLeft,
+  X,
+  Sparkles
+} from 'lucide-react';
+
+export const QuotationsPage: React.FC = () => {
+  const { currentProfile } = useAuth();
+  const [quotations, setQuotations] = useState<Quotation[]>(erpStore.getQuotations());
+  
+  // Default view is BUILDER (Create Quotation) as requested
+  const [activeView, setActiveView] = useState<'BUILDER' | 'REGISTER' | 'PREVIEW'>('BUILDER');
+  const [selectedQuotation, setSelectedQuotation] = useState<Quotation | null>(quotations[0] || null);
+
+  // Filters for Quotation Register Table
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('ALL');
+  const [branchFilter, setBranchFilter] = useState<string>('ALL');
+
+  // Toast
+  const [actionSuccessMsg, setActionSuccessMsg] = useState<string | null>(null);
+
+  const showToast = (msg: string) => {
+    setActionSuccessMsg(msg);
+    setTimeout(() => setActionSuccessMsg(null), 5000);
+  };
+
+  const handleSaveQuotation = (newQuot: Quotation) => {
+    // Add to erpStore
+    const created = erpStore.createQuotation(newQuot);
+    setQuotations(erpStore.getQuotations());
+    setSelectedQuotation(created);
+    setActiveView('PREVIEW');
+    showToast(`Quotation ${created.quotation_no} created successfully! Official letterhead ready for print / save / download.`);
+  };
+
+  const handleConvertToProject = (q: Quotation) => {
+    const res = erpStore.convertQuotationToCustomer(q.id, currentProfile.id);
+    if (res.success) {
+      setQuotations(erpStore.getQuotations());
+      if (selectedQuotation && selectedQuotation.id === q.id) {
+        setSelectedQuotation({ ...selectedQuotation, status: 'CONVERTED' });
+      }
+      showToast(`Quotation converted to Live Customer (${res.customer?.customer_code}) & Project (${res.project?.project_code})!`);
+    }
+  };
+
+  const handleStatusChange = (qId: string, status: QuotationStatusType) => {
+    erpStore.updateQuotationStatus(qId, status);
+    setQuotations(erpStore.getQuotations());
+    if (selectedQuotation && selectedQuotation.id === qId) {
+      setSelectedQuotation({ ...selectedQuotation, status });
+    }
+    showToast(`Status updated to ${status}`);
+  };
+
+  const handleShareWhatsApp = (q: Quotation) => {
+    const text = encodeURIComponent(
+      `*BHUMI NIDHI POWAR SOLUTION - PM SURYA GHAR QUOTATION*\n` +
+      `Dear ${q.customer_name},\n` +
+      `Your official rooftop solar quotation is ready:\n\n` +
+      `📌 Quotation No: ${q.quotation_no}\n` +
+      `⚡ Capacity: ${q.capacity_kw} kW (${q.solar_brand || 'Tier-1'} ${q.module_quantity || 6} Panels)\n` +
+      `💰 Total Project Cost: ₹${q.total_project_cost.toLocaleString('en-IN')}\n` +
+      `🎁 Central DBT Subsidy: -₹${q.central_subsidy_amount.toLocaleString('en-IN')}\n` +
+      `🎁 State Subsidy (CG): -₹${q.state_subsidy_amount.toLocaleString('en-IN')}\n` +
+      `✅ *Net Customer Payable: ₹${q.net_customer_cost.toLocaleString('en-IN')}*\n` +
+      `💡 Monthly Bill Savings: ~₹${q.monthly_savings_est.toLocaleString('en-IN')}/month\n` +
+      `🏦 Bank Loan EMI: ~₹${(q.est_monthly_emi || 1650).toLocaleString('en-IN')}/month\n\n` +
+      `Head Office: Near By HDFC Bank, Jaijaipur, Chhattisgarh\n` +
+      `Helpline: 9691762929, 9131040126, 8305218826`
+    );
+    window.open(`https://api.whatsapp.com/send?text=${text}`, '_blank');
+  };
+
+  // Direct print from table
+  const handlePrintQuotation = (q: Quotation) => {
+    setSelectedQuotation(q);
+    setActiveView('PREVIEW');
+    setTimeout(() => {
+      triggerPrintQuotation();
+    }, 300);
+  };
+
+  // Direct download docket from table
+  const handleDownloadQuotation = (q: Quotation) => {
+    downloadQuotationTextDoc(q);
+    showToast(`Quotation ${q.quotation_no} docket downloaded successfully!`);
+  };
+
+  // Filtered list
+  const filteredQuotations = quotations.filter((q) => {
+    const matchesSearch = 
+      q.quotation_no.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      q.customer_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      q.phone.includes(searchQuery) ||
+      (q.consumer_number && q.consumer_number.toLowerCase().includes(searchQuery.toLowerCase()));
+
+    const matchesStatus = statusFilter === 'ALL' || q.status === statusFilter;
+    const matchesBranch = branchFilter === 'ALL' || q.branch === branchFilter;
+
+    return matchesSearch && matchesStatus && matchesBranch;
+  });
+
+  const totalPipeline = quotations.reduce((acc, q) => acc + q.total_project_cost, 0);
+  const totalSubsidiesSaved = quotations.reduce((acc, q) => acc + q.central_subsidy_amount + q.state_subsidy_amount, 0);
+  const convertedCount = quotations.filter((q) => q.status === 'CONVERTED').length;
+
+  const getStatusBadge = (status?: string) => {
+    switch (status) {
+      case 'ACCEPTED':
+        return 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30';
+      case 'CONVERTED':
+        return 'bg-sky-500/20 text-sky-300 border-sky-500/30';
+      case 'DRAFT':
+        return 'bg-slate-700 text-slate-300 border-slate-600';
+      case 'EXPIRED':
+        return 'bg-red-500/20 text-red-300 border-red-500/30';
+      case 'SENT':
+      default:
+        return 'bg-amber-500/20 text-amber-300 border-amber-500/30';
+    }
+  };
+
+  return (
+    <div className="space-y-6 animate-fade-in pb-12">
+      {/* Toast Notification */}
+      {actionSuccessMsg && (
+        <div className="fixed top-20 right-6 z-50 bg-emerald-500 text-slate-950 font-bold px-4 py-3 rounded-xl shadow-2xl flex items-center gap-3 border border-emerald-300 animate-bounce print:hidden">
+          <CheckCircle2 className="w-5 h-5 flex-shrink-0" />
+          <span className="text-sm">{actionSuccessMsg}</span>
+          <button onClick={() => setActionSuccessMsg(null)} className="ml-2 hover:opacity-75">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
+      {/* Main Page Top Navigation & Switcher Header */}
+      <div className="bg-slate-900/90 rounded-2xl p-5 border border-slate-800 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-lg print:hidden">
+        <div>
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400">
+              <FileText className="w-6 h-6" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-xl font-bold text-slate-100">
+                  {activeView === 'BUILDER' && 'Create Solar Quotation'}
+                  {activeView === 'REGISTER' && 'Quotation Register (Table View)'}
+                  {activeView === 'PREVIEW' && 'Official Quotation Document Preview'}
+                </h2>
+                <span className="text-xs px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-mono font-bold">
+                  PM Surya Ghar Subsidy
+                </span>
+              </div>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Bhumi Nidhi Powar Solution • Customer Quotation, Hardware BOM & Bank Estimate Suite
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* View Switcher: Front page shows Create Quotation, and View Quotation Register button opens the table */}
+        <div className="flex items-center gap-2.5 w-full md:w-auto">
+          {activeView !== 'BUILDER' && (
+            <button
+              onClick={() => setActiveView('BUILDER')}
+              className="flex-1 md:flex-initial flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs shadow-md shadow-amber-500/20 transition cursor-pointer"
+            >
+              <Plus className="w-4 h-4" />
+              <span>+ Create Quotation</span>
+            </button>
+          )}
+
+          {activeView !== 'REGISTER' && (
+            <button
+              onClick={() => setActiveView('REGISTER')}
+              className="flex-1 md:flex-initial flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-md shadow-blue-600/20 transition cursor-pointer"
+            >
+              <Table className="w-4 h-4" />
+              <span>View Quotation Register ({quotations.length})</span>
+            </button>
+          )}
+
+          {activeView === 'REGISTER' && selectedQuotation && (
+            <button
+              onClick={() => setActiveView('PREVIEW')}
+              className="flex-1 md:flex-initial flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs border border-slate-700 transition cursor-pointer"
+            >
+              <Eye className="w-4 h-4 text-amber-400" />
+              <span>View Letterhead ({selectedQuotation.quotation_no})</span>
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* VIEW 1: FRONT PAGE = CREATE QUOTATION (BUILDER) */}
+      {activeView === 'BUILDER' && (
+        <div className="space-y-4">
+          <div className="bg-gradient-to-r from-amber-500/10 via-slate-900 to-slate-900 rounded-2xl p-4 border border-amber-500/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow">
+            <div className="flex items-center gap-3">
+              <Sparkles className="w-5 h-5 text-amber-400 shrink-0" />
+              <div className="text-xs text-slate-300">
+                <strong className="text-slate-100">Create Solar Quotation:</strong> Enter customer name, address, capacity (kW), panel & inverter brands, equipment, installation, and transport charges. The system automatically computes the live estimate and generates official letterheads ready to print, save, or download.
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setActiveView('REGISTER')}
+              className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-amber-400 font-semibold text-xs border border-slate-700"
+            >
+              <Table className="w-3.5 h-3.5" />
+              <span>View Registered Quotations ({quotations.length})</span>
+            </button>
+          </div>
+
+          {/* Quotation Builder Component with All Requested Fields and Live Estimate */}
+          <QuotationBuilderForm
+            onSave={handleSaveQuotation}
+            onCancel={() => setActiveView('REGISTER')}
+          />
+        </div>
+      )}
+
+      {/* VIEW 2: QUOTATION REGISTER (CLEAN ROW TABLE AS REQUESTED) */}
+      {activeView === 'REGISTER' && (
+        <div className="space-y-4">
+          {/* Top Metrics Row in Register View */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 print:hidden">
+            <div className="bg-slate-900/80 rounded-xl p-3.5 border border-slate-800 shadow">
+              <div className="text-xs text-slate-400">Total Registered Quotations</div>
+              <div className="text-xl font-bold font-mono text-slate-100 mt-1">{quotations.length}</div>
+              <div className="text-[11px] text-amber-400 mt-0.5">Across 7 CG Branches</div>
+            </div>
+            <div className="bg-slate-900/80 rounded-xl p-3.5 border border-slate-800 shadow">
+              <div className="text-xs text-slate-400">Pipeline Gross Turnkey</div>
+              <div className="text-xl font-bold font-mono text-amber-400 mt-1">₹{(totalPipeline / 100000).toFixed(2)} Lakh</div>
+              <div className="text-[11px] text-slate-400 mt-0.5">Solar Project Value</div>
+            </div>
+            <div className="bg-slate-900/80 rounded-xl p-3.5 border border-slate-800 shadow">
+              <div className="text-xs text-slate-400">Total Subsidies Benefit</div>
+              <div className="text-xl font-bold font-mono text-emerald-400 mt-1">₹{(totalSubsidiesSaved / 100000).toFixed(2)} Lakh</div>
+              <div className="text-[11px] text-emerald-400 mt-0.5">Central DBT + State CG</div>
+            </div>
+            <div className="bg-slate-900/80 rounded-xl p-3.5 border border-slate-800 shadow">
+              <div className="text-xs text-slate-400">Converted to Projects</div>
+              <div className="text-xl font-bold font-mono text-sky-400 mt-1">{convertedCount}</div>
+              <div className="text-[11px] text-sky-400 mt-0.5">Installation Active</div>
+            </div>
+          </div>
+
+          {/* Search & Filter Toolbar */}
+          <div className="bg-slate-900/80 rounded-xl p-4 border border-slate-800 flex flex-col md:flex-row items-center gap-3">
+            <div className="relative flex-1 w-full">
+              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search by customer name, phone, quotation number (BNPS/QTN/...), or CSPDCL consumer no..."
+                className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-9 pr-4 py-2 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-amber-500"
+              />
+            </div>
+
+            <div className="flex items-center gap-2 w-full md:w-auto">
+              <div className="flex items-center gap-1.5 bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs">
+                <Building2 className="w-3.5 h-3.5 text-slate-400" />
+                <select
+                  value={branchFilter}
+                  onChange={(e) => setBranchFilter(e.target.value)}
+                  className="bg-transparent text-slate-200 focus:outline-none text-xs"
+                >
+                  <option value="ALL">All Branches (7)</option>
+                  <option value="Sakti">Sakti</option>
+                  <option value="Jaijaipur">Jaijaipur</option>
+                  <option value="Korba">Korba</option>
+                  <option value="Bilaspur">Bilaspur</option>
+                  <option value="Janjgir-Champa">Janjgir-Champa</option>
+                  <option value="Raigarh">Raigarh</option>
+                  <option value="Raipur">Raipur</option>
+                </select>
+              </div>
+
+              <div className="flex items-center gap-1.5 bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs">
+                <Filter className="w-3.5 h-3.5 text-slate-400" />
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="bg-transparent text-slate-200 focus:outline-none text-xs"
+                >
+                  <option value="ALL">All Statuses</option>
+                  <option value="SENT">Sent to Customer</option>
+                  <option value="ACCEPTED">Customer Accepted</option>
+                  <option value="CONVERTED">Converted to Project</option>
+                  <option value="DRAFT">Draft</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {/* Clean Row Table View */}
+          <div className="overflow-x-auto border border-slate-800 rounded-2xl shadow-xl bg-slate-900/90">
+            <table className="w-full text-xs text-left">
+              <thead className="bg-slate-950 text-slate-400 font-semibold border-b border-slate-800 text-[11px] uppercase tracking-wider">
+                <tr>
+                  <th className="p-3.5">Quotation No / Date</th>
+                  <th className="p-3.5">Customer Details</th>
+                  <th className="p-3.5">System Size & Type</th>
+                  <th className="p-3.5">Brand & Hardware</th>
+                  <th className="p-3.5 text-right">Project Cost</th>
+                  <th className="p-3.5 text-right">Subsidies</th>
+                  <th className="p-3.5 text-right">Net Payable</th>
+                  <th className="p-3.5 text-center">Status</th>
+                  <th className="p-3.5 text-center min-w-[210px]">Print / Save / Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-800/80 text-slate-200">
+                {filteredQuotations.map((q) => (
+                  <tr key={q.id} className="hover:bg-slate-800/40 transition-colors">
+                    {/* Quotation No & Date */}
+                    <td className="p-3.5">
+                      <div className="font-mono font-bold text-amber-400">{q.quotation_no}</div>
+                      <div className="text-[11px] text-slate-400 mt-0.5">
+                        {new Date(q.created_at || Date.now()).toLocaleDateString('en-IN', {
+                          day: '2-digit',
+                          month: 'short',
+                          year: 'numeric'
+                        })}
+                      </div>
+                      <div className="text-[10px] text-slate-500 font-mono">
+                        Valid: {q.valid_until || '30 Days'}
+                      </div>
+                    </td>
+
+                    {/* Customer Details */}
+                    <td className="p-3.5">
+                      <div className="font-bold text-slate-100 text-sm">{q.customer_name}</div>
+                      <div className="text-xs text-slate-400 flex items-center gap-1 mt-0.5 font-mono">
+                        <Phone className="w-3 h-3 text-slate-500" />
+                        <span>{q.phone}</span>
+                      </div>
+                      <div className="text-[11px] text-slate-400 flex items-center gap-1 mt-0.5">
+                        <MapPin className="w-3 h-3 text-amber-400 shrink-0" />
+                        <span className="truncate max-w-[180px]">{q.address_line || q.district || 'Chhattisgarh'} ({q.branch || 'Sakti'})</span>
+                      </div>
+                      {q.consumer_number && (
+                        <div className="text-[10px] font-mono text-slate-500 mt-0.5">
+                          BP: {q.consumer_number}
+                        </div>
+                      )}
+                    </td>
+
+                    {/* System Size & Type */}
+                    <td className="p-3.5">
+                      <div className="inline-block px-2 py-0.5 rounded font-mono font-bold text-xs bg-amber-500/10 text-amber-300 border border-amber-500/30">
+                        {q.capacity_kw} kW Plant
+                      </div>
+                      <div className="text-[11px] text-slate-300 mt-1 font-medium">
+                        {q.system_type || 'On-Grid'}
+                      </div>
+                      <div className="text-[10px] text-slate-400">
+                        {q.cell_type || 'Bifacial DCR'}
+                      </div>
+                    </td>
+
+                    {/* Hardware Brand */}
+                    <td className="p-3.5">
+                      <div className="font-medium text-slate-200">
+                        {q.solar_brand || 'Tier-1 Solar'}
+                      </div>
+                      <div className="text-[11px] text-slate-400">
+                        {q.module_quantity || 6} Panels ({q.module_wattage_wp || 550}Wp)
+                      </div>
+                      <div className="text-[11px] text-amber-400/90 mt-0.5 truncate max-w-[160px]">
+                        Inv: {q.inverter_brand || 'Growatt'} ({q.inverter_kw || q.capacity_kw} kW)
+                      </div>
+                    </td>
+
+                    {/* Turnkey Project Cost */}
+                    <td className="p-3.5 text-right font-mono font-semibold text-slate-100">
+                      ₹{q.total_project_cost.toLocaleString('en-IN')}
+                    </td>
+
+                    {/* Subsidies */}
+                    <td className="p-3.5 text-right">
+                      <div className="font-mono text-emerald-400 font-bold">
+                        -₹{(q.central_subsidy_amount + q.state_subsidy_amount).toLocaleString('en-IN')}
+                      </div>
+                      <div className="text-[10px] text-slate-400">
+                        DBT: ₹{q.central_subsidy_amount.toLocaleString('en-IN')}
+                      </div>
+                    </td>
+
+                    {/* Net Customer Cost */}
+                    <td className="p-3.5 text-right">
+                      <div className="font-mono font-bold text-amber-300 text-sm">
+                        ₹{q.net_customer_cost.toLocaleString('en-IN')}
+                      </div>
+                      <div className="text-[10px] text-sky-400">
+                        EMI: ₹{(q.est_monthly_emi || 1650).toLocaleString('en-IN')}/mo
+                      </div>
+                    </td>
+
+                    {/* Status */}
+                    <td className="p-3.5 text-center">
+                      <span className={`inline-block px-2.5 py-0.5 rounded-full font-mono text-[10px] font-bold border ${getStatusBadge(q.status)}`}>
+                        {q.status || 'SENT'}
+                      </span>
+                      <div className="mt-1">
+                        <select
+                          value={q.status || 'SENT'}
+                          onChange={(e) => handleStatusChange(q.id, e.target.value as QuotationStatusType)}
+                          className="bg-slate-950 border border-slate-800 rounded px-1.5 py-0.5 text-[10px] text-slate-300 focus:outline-none cursor-pointer"
+                        >
+                          <option value="SENT">Sent</option>
+                          <option value="ACCEPTED">Accepted</option>
+                          <option value="CONVERTED">Converted</option>
+                          <option value="DRAFT">Draft</option>
+                        </select>
+                      </div>
+                    </td>
+
+                    {/* Print / Save / Download / Actions */}
+                    <td className="p-3.5 text-center">
+                      <div className="flex items-center justify-center gap-1.5 flex-wrap">
+                        {/* View Letterhead */}
+                        <button
+                          onClick={() => {
+                            setSelectedQuotation(q);
+                            setActiveView('PREVIEW');
+                          }}
+                          className="p-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold transition shadow-sm"
+                          title="View Official Letterhead"
+                        >
+                          <Eye className="w-3.5 h-3.5" />
+                        </button>
+
+                        {/* Print */}
+                        <button
+                          onClick={() => handlePrintQuotation(q)}
+                          className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-amber-300 border border-slate-700 transition"
+                          title="Print Quotation"
+                        >
+                          <Printer className="w-3.5 h-3.5" />
+                        </button>
+
+                        {/* Save as PDF */}
+                        <button
+                          onClick={() => handlePrintQuotation(q)}
+                          className="p-1.5 rounded-lg bg-blue-600/30 hover:bg-blue-600 text-blue-300 hover:text-white border border-blue-500/40 transition"
+                          title="Save as PDF"
+                        >
+                          <Save className="w-3.5 h-3.5" />
+                        </button>
+
+                        {/* Download File */}
+                        <button
+                          onClick={() => handleDownloadQuotation(q)}
+                          className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-emerald-400 border border-slate-700 transition"
+                          title="Download Quotation Docket (.txt)"
+                        >
+                          <Download className="w-3.5 h-3.5" />
+                        </button>
+
+                        {/* WhatsApp Share */}
+                        <button
+                          onClick={() => handleShareWhatsApp(q)}
+                          className="p-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white transition"
+                          title="Share on WhatsApp"
+                        >
+                          <Share2 className="w-3.5 h-3.5" />
+                        </button>
+
+                        {/* Convert to Project */}
+                        {q.status !== 'CONVERTED' ? (
+                          <button
+                            onClick={() => handleConvertToProject(q)}
+                            className="p-1.5 rounded-lg bg-sky-600 hover:bg-sky-500 text-white transition"
+                            title="Convert to Live Project & Customer"
+                          >
+                            <FileCheck className="w-3.5 h-3.5" />
+                          </button>
+                        ) : (
+                          <span className="p-1 text-emerald-400" title="Project Created">
+                            <Check className="w-3.5 h-3.5" />
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {filteredQuotations.length === 0 && (
+            <div className="p-12 text-center bg-slate-900/60 rounded-2xl border border-slate-800 text-slate-400 space-y-3">
+              <FileText className="w-12 h-12 text-slate-600 mx-auto" />
+              <div className="text-base font-semibold text-slate-200">No Quotations Found in Register</div>
+              <p className="text-xs text-slate-400 max-w-sm mx-auto">
+                No solar quotations match your current search query or filter. Click below to create a new quotation.
+              </p>
+              <button
+                onClick={() => setActiveView('BUILDER')}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-500 text-slate-950 font-bold text-xs"
+              >
+                <Plus className="w-4 h-4" />
+                <span>+ Create New Quotation</span>
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* VIEW 3: OFFICIAL LETTERHEAD DOCUMENT PREVIEW WITH PRINT / SAVE / DOWNLOAD */}
+      {activeView === 'PREVIEW' && selectedQuotation && (
+        <QuotationLetterheadDoc
+          quotation={selectedQuotation}
+          onPrint={() => triggerPrintQuotation()}
+          onShareWhatsApp={handleShareWhatsApp}
+          onConvertToProject={handleConvertToProject}
+          onBack={() => setActiveView('REGISTER')}
+        />
+      )}
+    </div>
+  );
+};

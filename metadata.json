@@ -1,0 +1,6 @@
+{
+  "name": "BNPS ERP v0.3",
+  "description": "Enterprise Resource Planning system for Bhumi Nidhi Powar Solution - PM Surya Ghar Rooftop Solar operations.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
