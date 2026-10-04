@@ -1,0 +1,10 @@
+<svg viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <path d="M100 16 L154 68 H132 V132 H114 V94 L100 106 L86 94 V132 H68 V68 H46 Z" fill="#0e2b54" />
+  <rect x="44" y="138" width="112" height="8" rx="2" fill="#0e2b54" />
+  <rect x="36" y="148" width="128" height="6" rx="2" fill="#0e2b54" />
+  <path d="M50 106 C42 86 64 68 84 82 C88 94 82 114 66 118 C58 120 52 114 50 106 Z" fill="#d97706" />
+  <path d="M54 104 C64 96 74 92 84 92" stroke="#f59e0b" stroke-width="2.5" stroke-linecap="round" />
+  <path d="M150 106 C158 86 136 68 116 82 C112 94 118 114 134 118 C142 120 148 114 150 106 Z" fill="#d97706" />
+  <path d="M146 104 C136 96 126 92 116 92" stroke="#f59e0b" stroke-width="2.5" stroke-linecap="round" />
+  <polygon points="106,20 86,72 108,72 94,124 134,62 110,62" fill="#f59e0b" />
+</svg>
