@@ -1,4 +1,5 @@
-import { 
+import
+ { 
   Customer, 
   Lead, 
   Agent, 
@@ -35,6 +36,15 @@ import {
   StaffMember,
   BRANCHES_LIST
 } from './mockData';
+import { isSupabaseConfigured } from '../lib/supabaseClient';
+import { leadService } from './leadService';
+import { customerService } from './customerService';
+import { pmsgService } from './pmsgService';
+import { projectService } from './projectService';
+import { installationService } from './installationService';
+import { loanService } from './loanService';
+import { paymentService } from './paymentService';
+import { commissionService } from './commissionService';
 
 class ErpDataStore {
   private agents: Agent[] = [...INITIAL_AGENTS];
@@ -52,6 +62,48 @@ class ErpDataStore {
   private staffMembers: StaffMember[] = [...INITIAL_STAFF_MEMBERS];
   private activeBranchFilter: BranchLocation | 'ALL' = 'ALL';
   private listeners: Set<() => void> = new Set();
+  private isSyncing: boolean = false;
+
+  constructor() {
+    if (isSupabaseConfigured) {
+      this.fetchRemoteData().catch((err) => {
+        console.error('[ErpDataStore] Initial remote sync error:', err);
+      });
+    }
+  }
+
+  /**
+   * Fetches authoritative production data from Supabase PostgreSQL tables
+   */
+  public async fetchRemoteData(): Promise<void> {
+    if (!isSupabaseConfigured || this.isSyncing) return;
+    this.isSyncing = true;
+    try {
+      const [leads, customers, pmsg, projects, installations, loans, payments] = await Promise.all([
+        leadService.fetchLeads(),
+        customerService.fetchCustomers(),
+        pmsgService.fetchPmsgTracking(),
+        projectService.fetchProjects(),
+        installationService.fetchInstallations(),
+        loanService.fetchLoans(),
+        paymentService.fetchPayments(),
+      ]);
+
+      this.leads = leads;
+      this.customers = customers;
+      this.pmsgTracking = pmsg;
+      this.projects = projects;
+      this.installations = installations;
+      this.loans = loans;
+      this.payments = payments;
+
+      this.notify();
+    } catch (err) {
+      console.error('[ErpDataStore.fetchRemoteData] Error:', err);
+    } finally {
+      this.isSyncing = false;
+    }
+  }
 
   public subscribe(listener: () => void): () => void {
     this.listeners.add(listener);
@@ -154,7 +206,7 @@ class ErpDataStore {
     };
 
     const newStaff: StaffMember = {
-      id: `stf-${Date.now()}`,
+      id: crypto.randomUUID(),
       employee_code: empCode,
       full_name: staffInput.full_name,
       role: staffInput.role,
@@ -170,7 +222,7 @@ class ErpDataStore {
     this.staffMembers.unshift(newStaff);
 
     this.auditLogs.unshift({
-      id: `audit-${Date.now()}`,
+      id: crypto.randomUUID(),
       actor_id: actorProfileId,
       action: 'STAFF_APPOINTED',
       entity_type: 'staff_members',
@@ -198,12 +250,14 @@ class ErpDataStore {
 
   /**
    * ATOMIC LEAD CONVERSION COMMAND
+   * When Supabase is configured, delegates directly to PostgreSQL RPC convert_lead_atomic.
+   * Otherwise falls back to deterministic local state transition.
    */
-  public convertLeadAtomic(
+  public async convertLeadAtomic(
     leadId: string,
     consumerNumberOverride?: string,
     actorProfileId?: string
-  ): { success: boolean; customer?: Customer; error?: StandardErpErrorCode; message?: string } {
+  ): Promise<{ success: boolean; customer?: Customer; error?: StandardErpErrorCode; message?: string }> {
     const leadIndex = this.leads.findIndex((l) => l.id === leadId);
     if (leadIndex === -1) {
       return { success: false, error: 'RECORD_NOT_FOUND', message: 'Lead not found' };
@@ -223,7 +277,46 @@ class ErpDataStore {
       return { success: false, error: 'DOCUMENTS_INCOMPLETE', message: 'Consumer Number is required for conversion' };
     }
 
-    // 1. Check for Duplicate Customer by Mobile or Consumer Number (Single Master Invariant)
+    // 1. Authoritative Supabase PostgreSQL RPC Execution
+    if (isSupabaseConfigured) {
+      try {
+        const rpcRes = await customerService.convertLeadAtomic(
+          leadId,
+          finalConsumerNumber,
+          actorProfileId || 'prof-super-admin-01'
+        );
+
+        if (!rpcRes.success) {
+          return { success: false, error: 'INVALID_TRANSITION', message: rpcRes.message || 'RPC conversion failed' };
+        }
+
+        // Synchronize local reactive state
+        this.leads[leadIndex] = {
+          ...lead,
+          stage: 'CONVERTED',
+          converted_customer_id: rpcRes.customer_id,
+          consumer_number: finalConsumerNumber,
+          updated_at: new Date().toISOString(),
+        };
+
+        if (rpcRes.customer) {
+          const custIdx = this.customers.findIndex((c) => c.id === rpcRes.customer_id);
+          if (custIdx >= 0) {
+            this.customers[custIdx] = rpcRes.customer;
+          } else {
+            this.customers.unshift(rpcRes.customer);
+          }
+        }
+
+        this.notify();
+        return { success: true, customer: rpcRes.customer };
+      } catch (err: any) {
+        console.error('[erpStore.convertLeadAtomic] Error during RPC conversion:', err);
+        return { success: false, error: 'INVALID_TRANSITION', message: err.message };
+      }
+    }
+
+    // 2. Check for Duplicate Customer by Mobile or Consumer Number (Single Master Invariant)
     const existingCustomer = this.customers.find(
       (c) => c.primary_mobile === lead.mobile || c.consumer_number === finalConsumerNumber
     );
@@ -241,14 +334,16 @@ class ErpDataStore {
       const customerCode = `BNPS-CUST-${yy}${mm}-${randomSeq}`;
 
       customerToLink = {
-        id: `cust-${Date.now()}`,
+        id: crypto.randomUUID(),
         customer_code: customerCode,
+        branch: lead.branch,
         full_name: lead.full_name,
         primary_mobile: lead.mobile,
         alternate_mobile: lead.alternate_phone,
         email: lead.email,
         discom_name: lead.discom_name || 'CSPDCL (Raipur Circle)',
         consumer_number: finalConsumerNumber,
+        sanctioned_load_kw: lead.sanctioned_load_kw,
         installation_address: lead.address_line || 'Address Pending Site Survey',
         state: lead.state || 'Chhattisgarh',
         district: lead.district || 'Raipur',
@@ -265,24 +360,6 @@ class ErpDataStore {
       this.customers.unshift(customerToLink);
     }
 
-    // 3. Initialize PMSG Tracking for Customer
-    const existingPmsg = this.pmsgTracking.find((p) => p.customer_id === customerToLink.id);
-    if (!existingPmsg) {
-      const newPmsg: PmsgTracking = {
-        id: `pmsg-${Date.now()}`,
-        customer_id: customerToLink.id,
-        stage: 'INITIATED',
-        registered_capacity_kw: lead.proposed_capacity_kw || 3.0,
-        subsidy_amount_eligible: 78000,
-        subsidy_disbursed_amount: 0,
-        discom_subdivision: `CSPDCL ${customerToLink.district} Sub-division`,
-        is_test: lead.is_test,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      };
-      this.pmsgTracking.unshift(newPmsg);
-    }
-
     // 4. Update Lead to CONVERTED atomically
     this.leads[leadIndex] = {
       ...lead,
@@ -294,7 +371,7 @@ class ErpDataStore {
 
     // 5. Append Immutable Business Audit Entry
     this.auditLogs.unshift({
-      id: `audit-${Date.now()}`,
+      id: crypto.randomUUID(),
       actor_id: actorProfileId || 'prof-super-admin-01',
       action: 'LEAD_CONVERTED',
       entity_type: 'leads',
@@ -314,12 +391,57 @@ class ErpDataStore {
   }
 
   /**
-   * CREATE LEAD COMMAND (WITH CHHATTISGARH ADDRESS HIERARCHY)
+   * CREATE LEAD COMMAND
+   *
+   * Supabase mode:
+   *   PostgreSQL RPC is authoritative.
+   *   Local cache is updated only after DB success.
+   *
+   * Local/mock mode:
+   *   Retained only when Supabase is not configured.
    */
-  public createLead(
+  public async createLead(
     leadInput: Omit<Lead, 'id' | 'lead_code' | 'created_at' | 'updated_at'>,
     actorProfileId?: string
-  ): { success: boolean; lead?: Lead; error?: StandardErpErrorCode; message?: string } {
+  ): Promise<{ success: boolean; lead?: Lead; error?: StandardErpErrorCode; message?: string }> {
+
+    // ========================================================================
+    // SUPABASE MODE — AUTHORITATIVE DATABASE
+    // ========================================================================
+    if (isSupabaseConfigured) {
+      try {
+        const createdLead = await leadService.createLead(leadInput);
+
+        // Update local cache only AFTER authoritative DB success.
+        this.leads = [
+          createdLead,
+          ...this.leads.filter((lead) => lead.id !== createdLead.id),
+        ];
+
+        this.notify();
+
+        return {
+          success: true,
+          lead: createdLead,
+        };
+      } catch (err: any) {
+        console.error('[erpStore.createLead] Supabase RPC error:', err);
+
+        // No local Lead is created when the authoritative DB command fails.
+        return {
+          success: false,
+          message: err?.message || 'Failed to create lead.',
+        };
+      }
+    }
+
+    // ========================================================================
+    // LOCAL / MOCK MODE
+    // ========================================================================
+    // Used only when Supabase is not configured.
+    // Production Supabase mode never reaches this section.
+    // ========================================================================
+
     const count = this.leads.length + 1;
     const now = new Date();
     const yy = String(now.getFullYear()).slice(-2);
@@ -332,26 +454,34 @@ class ErpDataStore {
       state: leadInput.state || 'Chhattisgarh',
       district: leadInput.district || 'Raipur',
       discom_name: leadInput.discom_name || 'CSPDCL (Raipur)',
-      id: `lead-${Date.now()}`,
+      id: crypto.randomUUID(),
       lead_code: leadCode,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
+      created_at: now.toISOString(),
+      updated_at: now.toISOString(),
     };
 
     this.leads.unshift(newLead);
 
     this.auditLogs.unshift({
-      id: `audit-${Date.now()}`,
+      id: crypto.randomUUID(),
       actor_id: actorProfileId,
       action: 'LEAD_CREATED',
       entity_type: 'leads',
       entity_id: newLead.id,
-      new_data: { lead_code: leadCode, full_name: newLead.full_name, mobile: newLead.mobile },
-      created_at: new Date().toISOString(),
+      new_data: {
+        lead_code: leadCode,
+        full_name: newLead.full_name,
+        mobile: newLead.mobile,
+      },
+      created_at: now.toISOString(),
     });
 
     this.notify();
-    return { success: true, lead: newLead };
+
+    return {
+      success: true,
+      lead: newLead,
+    };
   }
 
   /**
@@ -380,8 +510,15 @@ class ErpDataStore {
       updated_at: new Date().toISOString(),
     };
 
+    // Asynchronously persist to Supabase if configured
+    if (isSupabaseConfigured) {
+      leadService.updateLeadStage(leadId, newStage, lostReason).catch((err) => {
+        console.error('[erpStore.updateLeadStage] Supabase persist error:', err);
+      });
+    }
+
     this.auditLogs.unshift({
-      id: `audit-${Date.now()}`,
+      id: crypto.randomUUID(),
       actor_id: actorProfileId,
       action: 'LEAD_STAGE_UPDATED',
       entity_type: 'leads',
@@ -416,8 +553,8 @@ class ErpDataStore {
   ): { success: boolean; agent?: Agent; message?: string } {
     const seq = String(this.agents.length + 1).padStart(5, '0');
     const agentCode = `AGT${seq}`;
-    const agentId = `ag-${Date.now()}`;
-    const profileId = `prof-${Date.now()}`;
+    const agentId = crypto.randomUUID();
+    const profileId = crypto.randomUUID();
     const generatedPassword = agentInput.login_password || `${agentInput.full_name.split(' ')[0]}@Agent2026`;
 
     // Rule: Hierarchy Position is NOT entered manually.
@@ -463,7 +600,7 @@ class ErpDataStore {
     this.agents.push(newAgent);
 
     this.auditLogs.unshift({
-      id: `audit-${Date.now()}`,
+      id: crypto.randomUUID(),
       actor_id: actorProfileId,
       action: 'AGENT_ONBOARDED',
       entity_type: 'agents',
@@ -479,17 +616,102 @@ class ErpDataStore {
   /**
    * UPDATE PMSG TRACKING
    */
-  public updatePmsgTracking(
+  public async createPmsgTracking(
+    customerId: string,
+    actorProfileId?: string
+  ): Promise<{ success: boolean; pmsg?: PmsgTracking; error?: StandardErpErrorCode; message?: string }> {
+    const customer = this.customers.find((c) => c.id === customerId);
+
+    if (!customer) {
+      return { success: false, error: 'RECORD_NOT_FOUND' };
+    }
+
+    const existing = this.pmsgTracking.find((p) => p.customer_id === customerId);
+
+    if (existing) {
+      return { success: false, error: 'INVALID_STATUS', message: 'PMSG tracking already exists for this customer.' };
+    }
+
+    const now = new Date().toISOString();
+
+    const newPmsg: PmsgTracking = {
+      id: crypto.randomUUID(),
+      customer_id: customerId,
+      stage: 'INITIATED',
+      feasibility_status: 'PENDING',
+      subsidy_amount_eligible: 0,
+      subsidy_disbursed_amount: 0,
+      is_test: customer.is_test,
+      created_at: now,
+      updated_at: now,
+    };
+
+    if (isSupabaseConfigured) {
+      try {
+        const persisted = await pmsgService.createPmsgTracking(
+          customerId,
+          customer.is_test
+        );
+        newPmsg.id = persisted.id;
+        newPmsg.created_at = persisted.created_at;
+        newPmsg.updated_at = persisted.updated_at;
+        newPmsg.stage = persisted.stage;
+        newPmsg.feasibility_status = persisted.feasibility_status;
+        newPmsg.subsidy_amount_eligible = persisted.subsidy_amount_eligible;
+        newPmsg.subsidy_disbursed_amount = persisted.subsidy_disbursed_amount;
+        newPmsg.is_test = persisted.is_test;
+      } catch (err) {
+        console.error('[erpStore.createPmsgTracking] Supabase persist error:', err);
+        return { success: false, message: err instanceof Error ? err.message : 'Failed to persist PMSG tracking.' };
+      }
+    }
+
+    this.pmsgTracking.unshift(newPmsg);
+
+    this.auditLogs.unshift({
+      id: crypto.randomUUID(),
+      actor_id: actorProfileId,
+      action: 'PMSG_TRACKING_CREATED',
+      entity_type: 'pmsg_tracking',
+      entity_id: newPmsg.id,
+      new_data: {
+        customer_id: customerId,
+        stage: newPmsg.stage,
+        is_test: newPmsg.is_test,
+      },
+      created_at: now,
+    });
+
+    this.notify();
+
+    return { success: true, pmsg: newPmsg };
+  }
+
+  public async updatePmsgTracking(
     customerId: string,
     updates: Partial<PmsgTracking>,
     actorProfileId?: string
-  ): { success: boolean; error?: StandardErpErrorCode } {
+  ): Promise<{ success: boolean; error?: StandardErpErrorCode; message?: string }> {
     const index = this.pmsgTracking.findIndex((p) => p.customer_id === customerId);
     if (index === -1) {
       return { success: false, error: 'RECORD_NOT_FOUND' };
     }
 
     const current = this.pmsgTracking[index];
+
+    if (isSupabaseConfigured && updates.portal_application_no) {
+      const result = await pmsgService.updatePortalStatus(
+        customerId,
+        updates.portal_application_no,
+        updates.portal_remarks
+      );
+
+      if (!result.success) {
+        console.error('[erpStore.updatePmsgTracking] Supabase persist error:', result.message);
+        return { success: false, message: result.message || 'Failed to update PMSG portal status.' };
+      }
+    }
+
     this.pmsgTracking[index] = {
       ...current,
       ...updates,
@@ -497,7 +719,7 @@ class ErpDataStore {
     };
 
     this.auditLogs.unshift({
-      id: `audit-${Date.now()}`,
+      id: crypto.randomUUID(),
       actor_id: actorProfileId,
       action: 'PMSG_TRACKING_UPDATED',
       entity_type: 'pmsg_tracking',
@@ -523,7 +745,7 @@ class ErpDataStore {
 
     const newQuot: Quotation = {
       ...quotation,
-      id: `quot-${Date.now()}`,
+      id: crypto.randomUUID(),
       quotation_no: qtnNo,
       status: quotation.status || 'SENT',
       valid_until: quotation.valid_until || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
@@ -532,7 +754,7 @@ class ErpDataStore {
     this.quotations.unshift(newQuot);
 
     this.auditLogs.unshift({
-      id: `audit-${Date.now()}`,
+      id: crypto.randomUUID(),
       action: 'QUOTATION_GENERATED',
       entity_type: 'quotations',
       entity_id: newQuot.id,
@@ -586,7 +808,7 @@ class ErpDataStore {
       const custCount = this.customers.length + 1;
       const custCode = `BNPS-CUST-${String(custCount).padStart(4, '0')}`;
       const newCust: Customer = {
-        id: `cust-${Date.now()}`,
+        id: crypto.randomUUID(),
         customer_code: custCode,
         branch: (q.branch as BranchLocation) || 'Sakti',
         full_name: q.customer_name,
@@ -609,23 +831,6 @@ class ErpDataStore {
       };
       this.customers.unshift(newCust);
       targetCustomer = newCust;
-
-      // Create PMSG tracking record
-      this.pmsgTracking.unshift({
-        id: `pmsg-${Date.now()}`,
-        customer_id: newCust.id,
-        portal_application_no: `CG-PMSG-2026-${Date.now().toString().slice(-6)}`,
-        application_submission_date: new Date().toISOString().split('T')[0],
-        registered_capacity_kw: q.capacity_kw,
-        stage: 'APPLICATION_SUBMITTED',
-        feasibility_status: 'IN_PROCESS',
-        discom_subdivision: `${q.district || 'Raipur'} Subdivision`,
-        subsidy_amount_eligible: q.central_subsidy_amount,
-        subsidy_disbursed_amount: 0,
-        is_test: false,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      });
     }
 
     // Mark quotation converted
@@ -634,7 +839,7 @@ class ErpDataStore {
     // Create Project
     const prjCount = this.projects.length + 1;
     const newPrj: Project = {
-      id: `prj-${Date.now()}`,
+      id: crypto.randomUUID(),
       project_code: `PRJ-CG-2026-${String(prjCount).padStart(3, '0')}`,
       customer_id: targetCustomer.id,
       primary_agent_id: 'ag-mukesh-101',
@@ -651,7 +856,7 @@ class ErpDataStore {
     this.projects.unshift(newPrj);
 
     this.auditLogs.unshift({
-      id: `audit-${Date.now()}`,
+      id: crypto.randomUUID(),
       actor_id: actorProfileId,
       action: 'QUOTATION_CONVERTED_TO_PROJECT',
       entity_type: 'quotations',
@@ -676,7 +881,7 @@ class ErpDataStore {
     const expCode = `EXP-CG-${Date.now().toString().slice(-4)}`;
     const newExp: Expense = {
       ...expense,
-      id: `exp-${Date.now()}`,
+      id: crypto.randomUUID(),
       expense_code: expCode,
     };
     this.expenses.unshift(newExp);
@@ -702,7 +907,7 @@ class ErpDataStore {
     ];
 
     this.auditLogs.unshift({
-      id: `audit-${Date.now()}`,
+      id: crypto.randomUUID(),
       actor_id: 'prof-super-admin-01',
       action: 'COMMISSION_TEST_RUN',
       entity_type: 'commission_engine',

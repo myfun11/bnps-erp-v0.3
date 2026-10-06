@@ -16,7 +16,6 @@ import { MultiBranchSetup } from './userAdmin/MultiBranchSetup';
 import { RbacMatrix } from './userAdmin/RbacMatrix';
 import { AppointmentOrdersList } from './userAdmin/AppointmentOrdersList';
 import { useAuth } from '../../context/AuthContext';
-import { UserRoleType } from '../../types/database';
 import { 
   ShieldCheck, 
   Users, 
@@ -32,7 +31,7 @@ import {
 } from 'lucide-react';
 
 export const UserAdministrationPage: React.FC = () => {
-  const { switchRole, userRole } = useAuth();
+  const { userRole } = useAuth();
 
   // Active Tab State
   const [activeSubTab, setActiveSubTab] = useState<'USERS' | 'BRANCHES' | 'RBAC' | 'ORDERS'>('USERS');
@@ -44,63 +43,6 @@ export const UserAdministrationPage: React.FC = () => {
   const [rbacPermissions, setRbacPermissions] = useState<RbacPermissionRow[]>(INITIAL_RBAC_PERMISSIONS);
   const [appointmentOrders, setAppointmentOrders] = useState<AppointmentOrder[]>(INITIAL_APPOINTMENT_ORDERS);
 
-  // 6 Specified Active Personas for Switch Active Role
-  const ACTIVE_PERSONAS = [
-    {
-      roleKey: 'super_admin' as UserRoleType,
-      title: 'Admin (Master Control)',
-      subtitle: 'BNPS Administrator · All controls, branches & appointments',
-      badge: 'Master Control',
-      badgeColor: 'bg-purple-500/20 text-purple-300 border-purple-500/30',
-      activeBorder: 'border-purple-500 ring-2 ring-purple-500/30 bg-purple-950/20',
-      idleBorder: 'border-slate-800 hover:border-purple-500/50 hover:bg-slate-850',
-    },
-    {
-      roleKey: 'branch_manager' as UserRoleType,
-      title: 'Branch Manager',
-      subtitle: 'Rajesh Kumar Yadav · Jaijaipur Branch Lead & Registration',
-      badge: 'Jaijaipur Lead',
-      badgeColor: 'bg-blue-500/20 text-blue-300 border-blue-500/30',
-      activeBorder: 'border-blue-500 ring-2 ring-blue-500/30 bg-blue-950/20',
-      idleBorder: 'border-slate-800 hover:border-blue-500/50 hover:bg-slate-850',
-    },
-    {
-      roleKey: 'operational_manager' as UserRoleType,
-      title: 'Operational Manager',
-      subtitle: 'Om Prakash Dewangan · Central Operations & Net Metering',
-      badge: 'Central Ops',
-      badgeColor: 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30',
-      activeBorder: 'border-indigo-500 ring-2 ring-indigo-500/30 bg-indigo-950/20',
-      idleBorder: 'border-slate-800 hover:border-indigo-500/50 hover:bg-slate-850',
-    },
-    {
-      roleKey: 'receptionist' as UserRoleType,
-      title: 'Receptionist',
-      subtitle: 'Sagar Kumar Yadav · Front Desk & Customer Registration',
-      badge: 'Front Desk',
-      badgeColor: 'bg-teal-500/20 text-teal-300 border-teal-500/30',
-      activeBorder: 'border-teal-500 ring-2 ring-teal-500/30 bg-teal-950/20',
-      idleBorder: 'border-slate-800 hover:border-teal-500/50 hover:bg-slate-850',
-    },
-    {
-      roleKey: 'backoffice' as UserRoleType,
-      title: 'Back Office & Documentation',
-      subtitle: 'Ravi Kumar · Sakti Branch & Loan Verification',
-      badge: 'Sakti Branch',
-      badgeColor: 'bg-amber-500/20 text-amber-300 border-amber-500/30',
-      activeBorder: 'border-amber-500 ring-2 ring-amber-500/30 bg-amber-950/20',
-      idleBorder: 'border-slate-800 hover:border-amber-500/50 hover:bg-slate-850',
-    },
-    {
-      roleKey: 'agent' as UserRoleType,
-      title: 'Solar Agent',
-      subtitle: 'Lead creation & document upload (Registration restricted)',
-      badge: 'Field Agent',
-      badgeColor: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
-      activeBorder: 'border-emerald-500 ring-2 ring-emerald-500/30 bg-emerald-950/20',
-      idleBorder: 'border-slate-800 hover:border-emerald-500/50 hover:bg-slate-850',
-    },
-  ];
 
   // Modals
   const [showCreateUserModal, setShowCreateUserModal] = useState(false);
@@ -263,18 +205,6 @@ export const UserAdministrationPage: React.FC = () => {
     );
   };
 
-  const handleRoleSwitchFromUser = (role: string) => {
-    const roleMapping: Record<string, UserRoleType> = {
-      MASTER_CONTROL: 'super_admin',
-      BRANCH_MANAGER: 'branch_manager',
-      OPERATIONAL_MANAGER: 'operational_manager',
-      RECEPTIONIST: 'receptionist',
-      BACKOFFICE: 'backoffice',
-    };
-    const target = roleMapping[role] || 'super_admin';
-    switchRole(target);
-    showToast(`Switched active persona to ${role}`);
-  };
 
   const handleAppointStaffForBranch = (branchName: string) => {
     setAppointBranchContext(branchName);
@@ -378,65 +308,6 @@ export const UserAdministrationPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Switch Active Role Card Grid matching user specification */}
-        <div className="bg-slate-950/70 rounded-xl p-4 border border-slate-800 space-y-3">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800/80 pb-2.5">
-            <div className="flex items-center gap-2">
-              <ShieldCheck className="w-4 h-4 text-amber-400" />
-              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-200">
-                Switch Active Role
-              </h4>
-            </div>
-            <div className="text-[11px] text-slate-400">
-              Current Session: <span className="font-mono font-bold text-amber-400 capitalize">{userRole.replace('_', ' ')}</span>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 pt-1">
-            {ACTIVE_PERSONAS.map((persona) => {
-              const isCurrent = userRole === persona.roleKey;
-              return (
-                <button
-                  key={persona.roleKey}
-                  type="button"
-                  onClick={() => {
-                    switchRole(persona.roleKey);
-                    showToast(`Switched active role to ${persona.title}: ${persona.subtitle.split('·')[0].trim()}`);
-                  }}
-                  className={`text-left p-3.5 rounded-xl border transition-all duration-200 cursor-pointer relative group ${
-                    isCurrent
-                      ? persona.activeBorder
-                      : `bg-slate-900/80 ${persona.idleBorder}`
-                  }`}
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-bold text-slate-100 group-hover:text-amber-300 transition-colors">
-                          {persona.title}
-                        </span>
-                        <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded border ${persona.badgeColor}`}>
-                          {persona.badge}
-                        </span>
-                      </div>
-                      <div className="text-[11px] text-slate-400 mt-1 leading-snug">
-                        {persona.subtitle}
-                      </div>
-                    </div>
-
-                    {isCurrent && (
-                      <span className="shrink-0 flex items-center gap-1 text-[10px] font-bold font-mono px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
-                        ACTIVE
-                      </span>
-                    )}
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
         {/* 4 Horizontal Sub-Tabs Matching 13.PNG, 14.PNG, 15.PNG, 17.PNG */}
         <div className="flex border-b border-slate-800 overflow-x-auto gap-2 custom-scrollbar pt-2">
           <button
@@ -496,7 +367,6 @@ export const UserAdministrationPage: React.FC = () => {
           onOpenLetter={(letterId) => {
             setActiveSubTab('ORDERS');
           }}
-          onOpenRoleSwitch={handleRoleSwitchFromUser}
           onUpdateStatus={handleUpdateUserStatus}
         />
       )}

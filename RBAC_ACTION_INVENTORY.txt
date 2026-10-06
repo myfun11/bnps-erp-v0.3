@@ -1,0 +1,950 @@
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\App.tsx:7:import { CommissionTestModal } from './components/modals/CommissionTestModal';
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\App.tsx:15:import { PmsgTrackingPage } from './components/modules/PmsgTrackingPage';
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\App.tsx:17:import { ProjectsPage } from './components/modules/ProjectsPage';
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\App.tsx:18:import { InstallationsPage } from './components/modules/InstallationsPage';
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\App.tsx:20:import { PaymentsPage } from './components/modules/PaymentsPage';
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\App.tsx:21:import { CommissionsPage } from './components/modules/CommissionsPage';
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\App.tsx:37:  const [isCommissionTestOpen, setIsCommissionTestOpen] = useState(false);
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\App.tsx:52:    if (type === 'customer' || type === 'pmsg') {
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\App.tsx:76:          onRunCommissionTest={() => setIsCommissionTestOpen(true)}
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\App.tsx:102:                onRunCommissionTest={() => setIsCommissionTestOpen(true)}
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\App.tsx:130:            {activeTab === 'pmsg' && (
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\App.tsx:131:              <PmsgTrackingPage />
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\App.tsx:138:            {activeTab === 'projects' && (
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\App.tsx:139:              <ProjectsPage />
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\App.tsx:142:            {activeTab === 'installations' && (
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\App.tsx:143:              <InstallationsPage />
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\App.tsx:150:            {activeTab === 'payments' && (
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\App.tsx:151:              <PaymentsPage />
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\App.tsx:154:            {activeTab === 'commissions' && (
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\App.tsx:155:              <CommissionsPage />
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\App.tsx:195:      {/* Commission Test Modal */}
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\App.tsx:196:      <CommissionTestModal
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\App.tsx:197:        isOpen={isCommissionTestOpen}
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\App.tsx:198:        onClose={() => setIsCommissionTestOpen(false)}
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\GlobalSearch.tsx:39:              type: item.entity_type as 'customer' | 'lead' | 'agent' | 'pmsg',
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\GlobalSearch.tsx:140:                      {item.type === 'pmsg' && <ExternalLink className="w-4 h-4" />}
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\agents\AgentNetwork.tsx:5:import { STANDARD_COMMISSION_RATES } from '../../lib/constants';
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\agents\AgentNetwork.tsx:39:  const [showCommissionRules, setShowCommissionRules] = useState(false);
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\agents\AgentNetwork.tsx:94:      setSuccessBanner(`Agent ${res.agent.agent_code} (${newAgentForm.full_name}) successfully onboarded! Login credentials generated.`);
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\agents\AgentNetwork.tsx:148:                Official Agent Credentials Generated ({newlyCreatedAgent.agent_code})
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\agents\AgentNetwork.tsx:207:            onClick={() => setShowCommissionRules(!showCommissionRules)}
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\agents\AgentNetwork.tsx:211:            <span>{showCommissionRules ? 'Hide 10-Tier Rules' : '10-Tier Rules'}</span>
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\agents\AgentNetwork.tsx:224:      {/* Collapsible Commission Structure Rules */}
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\agents\AgentNetwork.tsx:225:      {showCommissionRules && (
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\agents\AgentNetwork.tsx:229:            <span>Active 10-Tier Commission Rules (BNPS Specification)</span>
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\agents\AgentNetwork.tsx:232:            {Object.entries(STANDARD_COMMISSION_RATES).map(([pos, data]) => (
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\agents\AgentNetwork.tsx:351:              <th className="p-3.5 text-right">Commission Earned</th>
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\agents\AgentNetwork.tsx:418:                    {/* Commission Earned */}
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\agents\AgentNetwork.tsx:420:                      ?{agent.total_commission_earned.toLocaleString('en-IN')}
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\agents\AgentNetwork.tsx:425:                      ?{agent.total_commission_paid.toLocaleString('en-IN')}
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\agents\AgentNetwork.tsx:569:                    placeholder="Leave empty for auto-generated"
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\agents\AgentTreeView.tsx:105:            Whenever payment is received for any project, the commission engine traces the sponsor chain starting from Position 10 upwards. In every transaction, the current tree snapshot is permanently frozen as JSONB, ensuring that historical financial calculations and audit trails remain completely immutable even if upline sponsors change in the future.
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\branches\BranchStaffManagement.tsx:364:                    placeholder="auto-generated if empty"
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\branches\BranchStaffManagement.tsx:380:                    placeholder="e.g. Jaijaipur@2026 (auto-generated if empty)"
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\branches\BranchStaffManagement.tsx:401:                  Appoint Staff & Generate Credentials
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\customers\CustomerDetailDrawer.tsx:32:  const [editingPmsg, setEditingPmsg] = useState(false);
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\customers\CustomerDetailDrawer.tsx:38:  const pmsg = erpStore.getPmsgByCustomerId(customer.id);
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\customers\CustomerDetailDrawer.tsx:39:  const isFinalized = Boolean(pmsg && (pmsg.portal_application_no || pmsg.stage !== 'INITIATED'));
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\customers\CustomerDetailDrawer.tsx:40:  const canCreatePmsg = hasPermission('pmsg.create');
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\customers\CustomerDetailDrawer.tsx:42:  const handleCreatePmsg = async () => {
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\customers\CustomerDetailDrawer.tsx:43:    if (!canCreatePmsg || pmsg || saving) return;
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\customers\CustomerDetailDrawer.tsx:47:    const result = await erpStore.createPmsgTracking(
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\customers\CustomerDetailDrawer.tsx:55:      console.error('[CustomerDetailDrawer] PMSG registration failed:', result.error);
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\customers\CustomerDetailDrawer.tsx:59:  const handleSavePmsg = async () => {
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\customers\CustomerDetailDrawer.tsx:62:      const result = await erpStore.updatePmsgTracking(
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\customers\CustomerDetailDrawer.tsx:75:      setEditingPmsg(false);
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\customers\CustomerDetailDrawer.tsx:130:              <span className="text-slate-400 block">Installation Address</span>
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\customers\CustomerDetailDrawer.tsx:132:                {customer.installation_address}, {customer.district}, {customer.state} - {customer.pincode}
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\customers\CustomerDetailDrawer.tsx:163:              {pmsg && !editingPmsg && (
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\customers\CustomerDetailDrawer.tsx:172:                      setPortalAppNo(pmsg.portal_application_no || '');
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\customers\CustomerDetailDrawer.tsx:173:                      setEditingPmsg(true);
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\customers\CustomerDetailDrawer.tsx:184:            {pmsg ? (
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\customers\CustomerDetailDrawer.tsx:186:                {editingPmsg ? (
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\customers\CustomerDetailDrawer.tsx:200:                        onClick={() => setEditingPmsg(false)}
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\customers\CustomerDetailDrawer.tsx:206:                        onClick={handleSavePmsg}
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\customers\CustomerDetailDrawer.tsx:218:                        {pmsg.portal_application_no || 'Pending Portal Submission'}
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\customers\CustomerDetailDrawer.tsx:223:                      <span className="text-amber-300 font-medium font-mono">{pmsg.stage}</span>
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\customers\CustomerDetailDrawer.tsx:227:                      <span className="text-slate-100">{pmsg.registered_capacity_kw ? `${pmsg.registered_capacity_kw} kW` : 'Not entered'}</span>
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\customers\CustomerDetailDrawer.tsx:232:                        ?{pmsg.subsidy_amount_eligible > 0 ? pmsg.subsidy_amount_eligible.toLocaleString('en-IN') : 'Not calculated'}
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\customers\CustomerDetailDrawer.tsx:238:                {pmsg.portal_remarks && (
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\customers\CustomerDetailDrawer.tsx:240:                    Remarks: {pmsg.portal_remarks}
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\customers\CustomerDetailDrawer.tsx:249:                    Registration creates the initial PMSG tracking record only.
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\customers\CustomerDetailDrawer.tsx:253:                {canCreatePmsg && (
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\customers\CustomerDetailDrawer.tsx:256:                    onClick={handleCreatePmsg}
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\customers\CustomerDetailDrawer.tsx:272:              This Customer ID is the authoritative single identity across BNPS ERP. PM Surya Ghar portal registration, solar installation, bank loan processing, and commissions all reference this master record.
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\customers\CustomerList.tsx:26:  const [viewMode, setViewMode] = useState<'ALL' | 'PMSG_REGISTERED'>('ALL');
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\customers\CustomerList.tsx:47:  const pmsgRecords = erpStore.getPmsgTracking();
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\customers\CustomerList.tsx:48:  const pmsgCustomerIds = new Set(
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\customers\CustomerList.tsx:49:    pmsgRecords
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\customers\CustomerList.tsx:55:    // Mode Filter: All vs PMSG Registered
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\customers\CustomerList.tsx:56:    if (viewMode === 'PMSG_REGISTERED' && !pmsgCustomerIds.has(cust.id)) {
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\customers\CustomerList.tsx:101:        {/* Operational View Switcher (All vs PMSG Registered View) */}
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\customers\CustomerList.tsx:114:            onClick={() => setViewMode('PMSG_REGISTERED')}
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\customers\CustomerList.tsx:116:              viewMode === 'PMSG_REGISTERED'
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\customers\CustomerList.tsx:121:            <span>PMSG Registered Filter</span>
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\customers\CustomerList.tsx:123:              {pmsgCustomerIds.size}
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\customers\CustomerList.tsx:201:                <th className="px-4 py-3">PMSG Portal Status</th>
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\customers\CustomerList.tsx:214:                  const pmsg = erpStore.getPmsgByCustomerId(cust.id);
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\customers\CustomerList.tsx:262:                          cust.lifecycle_status === 'COMMISSIONED' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' :
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\customers\CustomerList.tsx:271:                      {/* PMSG Portal */}
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\customers\CustomerList.tsx:273:                        {pmsg?.portal_application_no ? (
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\customers\CustomerList.tsx:276:                              {pmsg.portal_application_no}
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\customers\CustomerList.tsx:279:                              Stage: {pmsg.stage}
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\dashboard\OverviewDashboard.tsx:25:  onRunCommissionTest: () => void;
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\dashboard\OverviewDashboard.tsx:31:  onRunCommissionTest,
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\dashboard\OverviewDashboard.tsx:36:    convertedCustomers: 3,
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\dashboard\OverviewDashboard.tsx:38:    solarInstallations: '2 / 2',
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\dashboard\OverviewDashboard.tsx:40:    vendorPayments: 'All Cleared',
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\dashboard\OverviewDashboard.tsx:41:    commissionGenerated: '?25,000',
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\dashboard\OverviewDashboard.tsx:48:    const pmsg = erpStore.getPmsgTracking();
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\dashboard\OverviewDashboard.tsx:51:    const converted = leads.filter((l) => l.stage === 'CONVERTED').length;
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\dashboard\OverviewDashboard.tsx:52:    const pending = pmsg.filter((p) => !p.portal_application_no && p.stage === 'INITIATED').length;
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\dashboard\OverviewDashboard.tsx:56:      convertedCustomers: customers.length,
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\dashboard\OverviewDashboard.tsx:58:      solarInstallations: '2 / 2',
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\dashboard\OverviewDashboard.tsx:60:      vendorPayments: 'All Cleared',
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\dashboard\OverviewDashboard.tsx:61:      commissionGenerated: '?25,000',
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\dashboard\OverviewDashboard.tsx:92:              <span className="text-amber-400 font-semibold">Project</span> ?{' '}
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\dashboard\OverviewDashboard.tsx:93:              <span className="text-amber-400 font-semibold">Installation</span> ?{' '}
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\dashboard\OverviewDashboard.tsx:95:              <span className="text-amber-400 font-semibold">Payment</span> ?{' '}
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\dashboard\OverviewDashboard.tsx:96:              <span className="text-amber-400 font-semibold">Commission</span> ?{' '}
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\dashboard\OverviewDashboard.tsx:116:              <span>Generate Quote</span>
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\dashboard\OverviewDashboard.tsx:120:              onClick={onRunCommissionTest}
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\dashboard\OverviewDashboard.tsx:124:              <span>Run Commission Test</span>
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\dashboard\OverviewDashboard.tsx:152:        {/* Card 2: CONVERTED CUSTOMERS */}
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\dashboard\OverviewDashboard.tsx:158:            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">CONVERTED CUSTOMERS</span>
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\dashboard\OverviewDashboard.tsx:164:            {stats.convertedCustomers}
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\dashboard\OverviewDashboard.tsx:174:          onClick={() => onNavigate('pmsg')}
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\dashboard\OverviewDashboard.tsx:192:        {/* Card 4: SOLAR INSTALLATIONS */}
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\dashboard\OverviewDashboard.tsx:194:          onClick={() => onNavigate('installations')}
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\dashboard\OverviewDashboard.tsx:198:            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">SOLAR INSTALLATIONS</span>
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\dashboard\OverviewDashboard.tsx:204:            {stats.solarInstallations}
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\dashboard\OverviewDashboard.tsx:207:            <span>0 pending installation</span>
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\dashboard\OverviewDashboard.tsx:232:        {/* Card 6: VENDOR PAYMENTS */}
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\dashboard\OverviewDashboard.tsx:234:          onClick={() => onNavigate('payments')}
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\dashboard\OverviewDashboard.tsx:238:            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">VENDOR PAYMENTS</span>
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\dashboard\OverviewDashboard.tsx:244:            {stats.vendorPayments}
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\dashboard\OverviewDashboard.tsx:252:        {/* Card 7: COMMISSION GENERATED */}
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\dashboard\OverviewDashboard.tsx:254:          onClick={() => onNavigate('commissions')}
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\dashboard\OverviewDashboard.tsx:258:            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">COMMISSION GENERATED</span>
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\dashboard\OverviewDashboard.tsx:264:            {stats.commissionGenerated}
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\dashboard\OverviewDashboard.tsx:293:      {/* 3. Monthly Solar Installations Bar Chart & Top Performing Agents (From 2.PNG) */}
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\dashboard\OverviewDashboard.tsx:295:        {/* Monthly Installations Chart Card */}
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\dashboard\OverviewDashboard.tsx:301:                  Monthly Solar Installations (FY 2026)
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\dashboard\OverviewDashboard.tsx:340:            <span>CSPDCL Feeder Synchronized Installations</span>
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\dashboard\OverviewDashboard.tsx:362:              Ranked by total verified installations in Chhattisgarh
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\layout\Footer.tsx:63:                CSPDCL Approved Solar Vendor
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\layout\Header.tsx:22:  onRunCommissionTest: () => void;
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\layout\Header.tsx:29:  onRunCommissionTest,
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\layout\Header.tsx:72:              <span>Search Customer, Mobile, KNO, Agent ID, Project, Loan...</span>
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\layout\Header.tsx:99:          {/* Commission Test Action Button */}
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\layout\Header.tsx:101:            onClick={onRunCommissionTest}
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\layout\Header.tsx:105:            <span>Commission Test</span>
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\layout\Sidebar.tsx:48:    { id: 'pmsg', num: '7', label: 'PM Surya Ghar Tracking', icon: Sun },
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\layout\Sidebar.tsx:50:    { id: 'projects', num: '9', label: 'Projects', icon: FolderKanban },
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\layout\Sidebar.tsx:51:    { id: 'installations', num: '10', label: 'Installations', icon: Wrench },
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\layout\Sidebar.tsx:53:    { id: 'payments', num: '12', label: 'Payments', icon: CreditCard },
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\layout\Sidebar.tsx:54:    { id: 'commissions', num: '13', label: 'Commission & Payout', icon: Percent },
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\leads\ConvertLeadModal.tsx:16:interface ConvertLeadModalProps {
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\leads\ConvertLeadModal.tsx:23:export const ConvertLeadModal: React.FC<ConvertLeadModalProps> = ({
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\leads\ConvertLeadModal.tsx:51:  const handleConvert = async () => {
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\leads\ConvertLeadModal.tsx:61:    const res = await erpStore.convertLeadAtomic(lead.id, consumerNumber.trim(), currentProfile.id);
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\leads\ConvertLeadModal.tsx:157:                <li>Lead status is permanently transitioned to CONVERTED</li>
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\leads\ConvertLeadModal.tsx:182:            onClick={handleConvert}
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\leads\ConvertLeadModal.tsx:189:                <span>Converting...</span>
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\leads\LeadList.tsx:6:import { ConvertLeadModal } from './ConvertLeadModal';
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\leads\LeadList.tsx:34:  const { currentProfile, currentAgent, userRole, canConvertLeads } = useAuth();
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\leads\LeadList.tsx:38:  const [convertTargetLead, setConvertTargetLead] = useState<Lead | null>(null);
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\leads\LeadList.tsx:264:            const isConverted = lead.stage === 'CONVERTED';
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\leads\LeadList.tsx:271:                  isConverted
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\leads\LeadList.tsx:336:                  {isConverted ? (
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\leads\LeadList.tsx:340:                        Customer Converted
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\leads\LeadList.tsx:342:                      {lead.converted_customer_id && (
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\leads\LeadList.tsx:344:                          onClick={() => onOpenCustomer(lead.converted_customer_id!)}
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\leads\LeadList.tsx:372:                      {/* Convert Button */}
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\leads\LeadList.tsx:373:                      {canConvertLeads && (
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\leads\LeadList.tsx:375:                          onClick={() => setConvertTargetLead(lead)}
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\leads\LeadList.tsx:378:                          <span>Convert</span>
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\leads\LeadList.tsx:391:      {/* Convert Lead Modal */}
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\leads\LeadList.tsx:392:      <ConvertLeadModal
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\leads\LeadList.tsx:393:        lead={convertTargetLead}
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\leads\LeadList.tsx:394:        isOpen={!!convertTargetLead}
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\leads\LeadList.tsx:395:        onClose={() => setConvertTargetLead(null)}
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\leads\LeadList.tsx:397:          setSuccessBanner(`Successfully converted! Customer Code: ${customerCode}`);
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modals\CommissionTestModal.tsx:5:interface CommissionTestModalProps {
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modals\CommissionTestModal.tsx:10:export const CommissionTestModal: React.FC<CommissionTestModalProps> = ({ isOpen, onClose }) => {
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modals\CommissionTestModal.tsx:13:  const testResult = erpStore.runCommissionTest();
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modals\CommissionTestModal.tsx:25:                10-Tier Commission Engine Idempotency Test
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modals\CommissionTestModal.tsx:65:            If two accountants click "Generate Commission" simultaneously on the same project and stage, the composite unique constraint (`project_id`, `payment_stage`, `position`, `agent_id`) ensures only one transaction executes while duplicate payouts are strictly rejected.
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\CommissionsPage.tsx:5:export const CommissionsPage: React.FC = () => {
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\CommissionsPage.tsx:14:            <span>Commission & Agent Payout Ledger (10-Tier Multi-Level)</span>
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\CommissionsPage.tsx:17:            Idempotent PostgreSQL execution • Gross commission, 5% TDS deduction (Sec 194H), and Net Payable
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\CommissionsPage.tsx:35:                <th className="px-4 py-3">Earned Commission</th>
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\CommissionsPage.tsx:44:                const netAvail = Math.max(0, ag.total_commission_earned - ag.total_commission_paid - ag.outstanding_advance);
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\CommissionsPage.tsx:60:                      ?{ag.total_commission_earned.toLocaleString('en-IN')}
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\CommissionsPage.tsx:64:                      ?{ag.total_commission_paid.toLocaleString('en-IN')}
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\DocumentsPage.tsx:10:  status: 'VERIFIED' | 'UPLOADED' | 'REJECTED';
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\DocumentsPage.tsx:67:          onClick={() => alert('Document upload modal: Select Aadhaar or CSPDCL bill')}
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\FinanceExpensesPage.tsx:24:      payment_mode: 'UPI',
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\FinanceExpensesPage.tsx:73:                <th className="px-4 py-3">Payment Mode</th>
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\FinanceExpensesPage.tsx:91:                  <td className="px-4 py-3.5 text-slate-400">{exp.payment_mode}</td>
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\InstallationsPage.tsx:5:export const InstallationsPage: React.FC = () => {
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\InstallationsPage.tsx:6:  const installations = erpStore.getInstallations();
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\InstallationsPage.tsx:7:  const projects = erpStore.getProjects();
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\InstallationsPage.tsx:16:            <span>Technical Installations & CSPDCL Net Meter Sign-offs</span>
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\InstallationsPage.tsx:29:        {installations.map((inst) => {
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\InstallationsPage.tsx:30:          const proj = projects.find((p) => p.id === inst.project_id);
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\InstallationsPage.tsx:38:                  <span className="text-xs font-mono text-amber-400">{proj?.project_code}</span>
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\PaymentsPage.tsx:5:export const PaymentsPage: React.FC = () => {
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\PaymentsPage.tsx:6:  const payments = erpStore.getPayments();
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\PaymentsPage.tsx:15:            <span>Customer Payments & Financial Ledger (Immutable State Machine)</span>
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\PaymentsPage.tsx:35:                <th className="px-4 py-3">Payment Milestone Stage</th>
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\PaymentsPage.tsx:42:              {payments.map((pay) => {
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\PaymentsPage.tsx:48:                      {pay.payment_reference_no}
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\PaymentsPage.tsx:63:                      <div className="text-slate-200">{pay.payment_mode}</div>
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\PmsgTrackingPage.tsx:6:export const PmsgTrackingPage: React.FC = () => {
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\PmsgTrackingPage.tsx:8:  const pmsgList = erpStore.getPmsgTracking();
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\PmsgTrackingPage.tsx:16:  const canCreatePmsg = hasPermission('pmsg.create');
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\PmsgTrackingPage.tsx:18:  const filtered = pmsgList.filter((p) => {
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\PmsgTrackingPage.tsx:29:    pmsgList.map((p) => p.customer_id)
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\PmsgTrackingPage.tsx:46:  const handleCreatePmsg = async () => {
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\PmsgTrackingPage.tsx:47:    if (!canCreatePmsg || !selectedCustomerId || saving) return;
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\PmsgTrackingPage.tsx:51:    const result = await erpStore.createPmsgTracking(
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\PmsgTrackingPage.tsx:59:      console.error('[PmsgTrackingPage] PMSG registration failed:', result.error);
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\PmsgTrackingPage.tsx:82:          {canCreatePmsg && (
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\PmsgTrackingPage.tsx:106:      {showRegister && canCreatePmsg && (
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\PmsgTrackingPage.tsx:114:                Select an existing customer. Registration creates the initial PMSG tracking record only.
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\PmsgTrackingPage.tsx:180:                onClick={handleCreatePmsg}
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\PmsgTrackingPage.tsx:272:                    No PMSG tracking records found.
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\ProjectsPage.tsx:5:export const ProjectsPage: React.FC = () => {
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\ProjectsPage.tsx:6:  const projects = erpStore.getProjects();
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\ProjectsPage.tsx:16:            <span>Solar Rooftop Projects (Installation & Grid Sync Pipeline)</span>
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\ProjectsPage.tsx:19:            Full project engineering cycle • Capacity kW • Customer contract values & subsidy deductions
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\ProjectsPage.tsx:25:        {projects.map((proj) => {
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\ProjectsPage.tsx:33:                  <span className="text-xs font-mono text-amber-400 font-bold">{proj.project_code}</span>
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\ProjectsPage.tsx:59:                  <span className="text-slate-400 block">Commission Distributed:</span>
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\ProjectsPage.tsx:61:                    {proj.commission_distributed ? 'Idempotent Locked' : 'Pending'}
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\QuotationsPage.tsx:60:  const handleConvertToProject = (q: Quotation) => {
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\QuotationsPage.tsx:61:    const res = erpStore.convertQuotationToCustomer(q.id, currentProfile.id);
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\QuotationsPage.tsx:65:        setSelectedQuotation({ ...selectedQuotation, status: 'CONVERTED' });
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\QuotationsPage.tsx:67:      showToast(`Quotation converted to Live Customer (${res.customer?.customer_code}) & Project (${res.project?.project_code})!`);
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\QuotationsPage.tsx:87:      `?? Total Project Cost: ?${q.total_project_cost.toLocaleString('en-IN')}\n` +
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\QuotationsPage.tsx:128:  const totalPipeline = quotations.reduce((acc, q) => acc + q.total_project_cost, 0);
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\QuotationsPage.tsx:130:  const convertedCount = quotations.filter((q) => q.status === 'CONVERTED').length;
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\QuotationsPage.tsx:136:      case 'CONVERTED':
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\QuotationsPage.tsx:227:                <strong className="text-slate-100">Create Solar Quotation:</strong> Enter customer name, address, capacity (kW), panel & inverter brands, equipment, installation, and transport charges. The system automatically computes the live estimate and generates official letterheads ready to print, save, or download.
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\QuotationsPage.tsx:262:              <div className="text-[11px] text-slate-400 mt-0.5">Solar Project Value</div>
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\QuotationsPage.tsx:270:              <div className="text-xs text-slate-400">Converted to Projects</div>
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\QuotationsPage.tsx:271:              <div className="text-xl font-bold font-mono text-sky-400 mt-1">{convertedCount}</div>
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\QuotationsPage.tsx:272:              <div className="text-[11px] text-sky-400 mt-0.5">Installation Active</div>
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\QuotationsPage.tsx:318:                  <option value="CONVERTED">Converted to Project</option>
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\QuotationsPage.tsx:334:                  <th className="p-3.5 text-right">Project Cost</th>
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\QuotationsPage.tsx:403:                    {/* Turnkey Project Cost */}
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\QuotationsPage.tsx:405:                      ?{q.total_project_cost.toLocaleString('en-IN')}
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\QuotationsPage.tsx:441:                          <option value="CONVERTED">Converted</option>
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\QuotationsPage.tsx:498:                        {/* Convert to Project */}
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\QuotationsPage.tsx:499:                        {q.status !== 'CONVERTED' ? (
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\QuotationsPage.tsx:501:                            onClick={() => handleConvertToProject(q)}
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\QuotationsPage.tsx:503:                            title="Convert to Live Project & Customer"
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\QuotationsPage.tsx:508:                          <span className="p-1 text-emerald-400" title="Project Created">
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\QuotationsPage.tsx:545:          onConvertToProject={handleConvertToProject}
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\ReportsPage.tsx:8:  const projects = erpStore.getProjects();
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\ReportsPage.tsx:10:  const totalKw = projects.reduce((sum, p) => sum + p.capacity_kw, 0) + 355; // Historical + Live
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\ReportsPage.tsx:21:            Aggregated metrics • PM Surya Ghar installation performance and district-level breakdown
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\ReportsPage.tsx:59:          <span>District-Wise Installation Progress (Chhattisgarh)</span>
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\ReportsPage.tsx:72:                <span className="font-mono text-slate-400">{d.kw} kW ({d.count} Installations)</span>
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\UserAdministrationPage.tsx:130:    showToast(`Office user ${newUserName} created & Appointment Order ${letterId} generated!`);
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\UserAdministrationPage.tsx:513:                * An official Appointment Order (APPT-BNPS-...) will be generated and signed automatically under Admin authority.
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\quotations\QuotationBuilderForm.tsx:72:  // 6. Installation & Other / Freight Charges (Editable)
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\quotations\QuotationBuilderForm.tsx:73:  const [installationCharge, setInstallationCharge] = useState<number>(15000);
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\quotations\QuotationBuilderForm.tsx:83:    { id: 'eq-net-meter', name: 'CSPDCL DLMS Smart Net Meter & Modem Kit', category: 'OTHER', spec: 'Discom Approved', quantity: 1, unit: 'Set', unit_price: 6500, total_price: 6500, is_editable: true },
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\quotations\QuotationBuilderForm.tsx:139:  const subtotalBeforeTax = totalPanelsCost + inverterPrice + structurePrice + totalOtherEquipmentCost + installationCharge + transportOtherCharge;
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\quotations\QuotationBuilderForm.tsx:208:      installation_charge: installationCharge,
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\quotations\QuotationBuilderForm.tsx:215:      total_project_cost: grossTotalCost,
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\quotations\QuotationBuilderForm.tsx:654:      {/* 6. Installation Charge & Other / Transport Charge */}
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\quotations\QuotationBuilderForm.tsx:657:          <span>6. Installation & Other Charges / Freight</span>
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\quotations\QuotationBuilderForm.tsx:663:              <span className="flex items-center gap-1.5"><Wrench className="w-3.5 h-3.5 text-amber-400" /> Installation & Civil Labor Charge (?) *</span>
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\quotations\QuotationBuilderForm.tsx:668:              value={installationCharge}
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\quotations\QuotationBuilderForm.tsx:669:              onChange={(e) => setInstallationCharge(Number(e.target.value))}
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\quotations\QuotationBuilderForm.tsx:726:              <span>Installation & Civil Charges:</span>
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\quotations\QuotationBuilderForm.tsx:727:              <span className="font-mono font-semibold">?{installationCharge.toLocaleString('en-IN')}</span>
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\quotations\QuotationBuilderForm.tsx:747:                <span>Gross Project Cost:</span>
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\quotations\QuotationBuilderForm.tsx:788:            <span>Generate Official Quotation & Estimate Letterhead</span>
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\quotations\QuotationLetterheadDoc.tsx:20:  onConvertToProject: (q: Quotation) => void;
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\quotations\QuotationLetterheadDoc.tsx:28:  onConvertToProject,
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\quotations\QuotationLetterheadDoc.tsx:46:  const totalAmount = quotation.total_project_cost || 200000;
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\quotations\QuotationLetterheadDoc.tsx:55:  // Item 2: Installation and Commissioning with BOS Material (HSN 9954, 18% GST)
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\quotations\QuotationLetterheadDoc.tsx:152:          {quotation.status !== 'CONVERTED' && (
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\quotations\QuotationLetterheadDoc.tsx:154:              onClick={() => onConvertToProject(quotation)}
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\quotations\QuotationLetterheadDoc.tsx:158:              <span>Convert to Project</span>
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\quotations\QuotationLetterheadDoc.tsx:300:                {/* Row 2: Installation, Mounting & BOS */}
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\quotations\QuotationLetterheadDoc.tsx:305:                      INSTALLATION AND COMMISSIONING WITH ALL BOS MATERIAL
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\quotations\QuotationLetterheadDoc.tsx:313:                      Transportation and Installation)
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\quotations\QuotationLetterheadDoc.tsx:439:                <strong>Payment Schedule:</strong><br />
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\quotations\QuotationLetterheadDoc.tsx:440:                100% advance payment at the time of order confirmation (or 20% Booking, 70% Material Dispatch, 10% Net Metering).
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\quotations\QuotationLetterheadDoc.tsx:447:                Installation workmanship: 5 year
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\quotations\QuotationLetterheadDoc.tsx:451:                <strong>Delivery& Installation:</strong> Material delivery within 7- 15 working days after advance payment (subject to ability).<br />
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\quotations\QuotationLetterheadDoc.tsx:452:                Installation timeline depends on site readiness and weather conditions.
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\quotations\QuotationLetterheadDoc.tsx:491:                  <div className="text-[7px] text-indigo-700 font-serif italic">Approved</div>
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\quotations\QuotationLetterheadDoc.tsx:511:              CSPDCL Approved
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\quotations\QuotationLetterheadDoc.tsx:517:              <div className="text-slate-500 text-[10px]">Gross Turnkey Project Cost</div>
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\userAdmin\AppointmentOrdersList.tsx:139:                <div><strong>Approved Remuneration:</strong> <span className="font-bold text-emerald-800">{selectedOrder.remuneration_text}</span></div>
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\userAdmin\RbacMatrix.tsx:111:          <strong className="text-blue-100">Notice on Solar Agent Permissions:</strong> Per requirement, Agents have permissions restricted to <strong className="text-white">Lead Creation & Document Uploading</strong>. Customer Registration on the PM Surya Ghar portal is restricted (INACTIVE for Agent) and handled by authorized office staff (Branch Manager, Operational Manager, Receptionist, or Admin).
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\context\AuthContext.tsx:16:  canConvertLeads: boolean;
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\context\AuthContext.tsx:17:  canApprovePayments: boolean;
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\context\AuthContext.tsx:18:  canGenerateCommissions: boolean;
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\context\AuthContext.tsx:165:      return !['commission.distribute_manual'].includes(permissionCode);
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\context\AuthContext.tsx:168:      return ['payment.approve', 'payment.mark_paid', 'commission.view', 'payout.process'].includes(permissionCode);
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\context\AuthContext.tsx:171:      return ['lead.create', 'lead.update', 'lead.convert', 'document.upload', 'pmsg.create'].includes(permissionCode);
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\context\AuthContext.tsx:174:      return ['pmsg.create'].includes(permissionCode);
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\context\AuthContext.tsx:177:      return ['installation.update', 'net_meter.record'].includes(permissionCode);
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\context\AuthContext.tsx:180:      return ['lead.create', 'lead.view_own', 'commission.view_own'].includes(permissionCode);
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\context\AuthContext.tsx:183:      return ['lead.create', 'lead.view_own', 'pmsg.create'].includes(permissionCode);
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\context\AuthContext.tsx:192:  const canConvertLeads = useMemo(() => {
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\context\AuthContext.tsx:196:  const canApprovePayments = useMemo(() => {
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\context\AuthContext.tsx:200:  const canGenerateCommissions = useMemo(() => {
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\context\AuthContext.tsx:217:        canConvertLeads,
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\context\AuthContext.tsx:218:        canApprovePayments,
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\context\AuthContext.tsx:219:        canGenerateCommissions,
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\lib\constants.ts:6:import { StandardErpErrorCode, PaymentStageType, LeadStageType, UserRoleType } from '../types/database';
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\lib\constants.ts:15:export const STANDARD_COMMISSION_RATES: Record<number, { title: string; ratePercent: number }> = {
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\lib\constants.ts:28:export const PAYMENT_STAGES: Record<PaymentStageType, { label: string; description: string }> = {
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\lib\constants.ts:30:    label: 'First Payment (Advance)',
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\lib\constants.ts:33:  SECOND_INSTALLATION: {
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\lib\constants.ts:34:    label: 'Second Payment (Pre-Installation)',
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\lib\constants.ts:35:    description: 'Received before material dispatch & installation commencement',
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\lib\constants.ts:38:    label: 'Final Payment (Net Metering)',
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\lib\constants.ts:39:    description: 'Received post Net Meter installation and Discom testing',
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\lib\constants.ts:42:    label: 'Single Full Payment',
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\lib\constants.ts:53:  CONVERTED: { label: 'Converted to Customer', color: 'bg-emerald-100 text-emerald-800' },
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\lib\constants.ts:61:  PAYMENT_NOT_APPROVED: 'Payment not approved: Milestone payment must be fully approved and PAID before generating commission.',
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\lib\constants.ts:62:  PAYMENT_ALREADY_PAID: 'Payment immutable: Once PAID, financial values cannot be edited directly. Corrections require reversal.',
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\lib\constants.ts:63:  INSTALLATION_NOT_COMPLETED: 'Installation incomplete: Project cannot be completed without Net Meter and CSPDCL inspection sign-off.',
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\lib\constants.ts:64:  COMMISSION_ALREADY_GENERATED: 'Commission already distributed: Commission for this stage has already been disbursed (Idempotency Locked).',
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\lib\numberToWords.ts:2: * Converts a number into Indian currency words
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\lib\numberToWords.ts:14:  function convertLessThanOneThousand(n: number): string {
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\lib\numberToWords.ts:45:    words += convertLessThanOneThousand(crore) + ' Crore ';
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\lib\numberToWords.ts:48:    words += convertLessThanOneThousand(lakh) + ' Lakh ';
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\lib\numberToWords.ts:51:    words += convertLessThanOneThousand(thousand) + ' Thousand ';
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\lib\numberToWords.ts:54:    words += convertLessThanOneThousand(hundreds) + ' ';
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\lib\quotationExport.ts:25:1. CUSTOMER & INSTALLATION SITE DETAILS
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\lib\quotationExport.ts:46:3. PROJECT ESTIMATE & PM SURYA GHAR SUBSIDY BREAKDOWN
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\lib\quotationExport.ts:48:Gross Turnkey Project Cost             : ?${q.total_project_cost.toLocaleString('en-IN')}
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\commissionService.ts:2:import { CommissionTransaction, PaymentStageType } from '../types/database';
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\commissionService.ts:4:export interface CommissionResult {
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\commissionService.ts:7:  project_id?: string;
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\commissionService.ts:8:  payment_stage?: PaymentStageType;
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\commissionService.ts:9:  commissions_created?: number;
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\commissionService.ts:10:  total_commission_distributed?: number;
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\commissionService.ts:22:export const commissionService = {
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\commissionService.ts:25:  async fetchCommissions(): Promise<CommissionTransaction[]> {
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\commissionService.ts:28:      .from('commission_transactions')
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\commissionService.ts:33:      console.error('[commissionService.fetchCommissions] Error:', error.message);
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\commissionService.ts:36:    return (data || []) as CommissionTransaction[];
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\commissionService.ts:40:   * Authoritative Multi-Tier Commission Generation RPC.
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\commissionService.ts:41:   * Calls PostgreSQL generate_project_commission_atomic() function which transactionally:
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\commissionService.ts:42:   * 1. Verifies that the triggering payment stage is verified PAID.
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\commissionService.ts:46:   * 5. Atomically updates agent total_commission_earned totals and writes audit logs.
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\commissionService.ts:48:  async generateCommissionAtomic(
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\commissionService.ts:49:    projectId: string,
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\commissionService.ts:50:    paymentStage: PaymentStageType,
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\commissionService.ts:52:  ): Promise<CommissionResult> {
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\commissionService.ts:57:    const { data, error } = await supabase.rpc('generate_project_commission_atomic', {
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\commissionService.ts:58:      p_project_id: projectId,
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\commissionService.ts:59:      p_payment_stage: paymentStage,
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\commissionService.ts:64:      console.error('[commissionService.generateCommissionAtomic] RPC Error:', error.message);
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\commissionService.ts:75:      project_id: result?.project_id,
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\commissionService.ts:76:      payment_stage: result?.payment_stage,
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\commissionService.ts:77:      commissions_created: result?.commissions_created,
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\commissionService.ts:78:      total_commission_distributed: result?.total_commission_distributed,
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\customerService.ts:4:export interface ConvertLeadResult {
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\customerService.ts:46:   * Executes Authoritative Atomic Lead Conversion via PostgreSQL RPC convert_lead_atomic.
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\customerService.ts:52:   * 5. Initializes pmsg_tracking record in INITIATED stage
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\customerService.ts:53:   * 6. Marks lead as CONVERTED
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\customerService.ts:56:  async convertLeadAtomic(
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\customerService.ts:60:  ): Promise<ConvertLeadResult> {
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\customerService.ts:65:    const { data, error } = await supabase.rpc('convert_lead_atomic', {
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\customerService.ts:72:      console.error('[customerService.convertLeadAtomic] RPC Error:', error.message);
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\erpStore.ts:6:  PmsgTracking, 
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\erpStore.ts:7:  Project,
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\erpStore.ts:8:  Installation,
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\erpStore.ts:10:  Payment,
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\erpStore.ts:19:  PmsgStageType,
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\erpStore.ts:26:  INITIAL_PMSG_TRACKING, 
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\erpStore.ts:27:  INITIAL_PROJECTS,
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\erpStore.ts:28:  INITIAL_INSTALLATIONS,
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\erpStore.ts:30:  INITIAL_PAYMENTS,
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\erpStore.ts:42:import { pmsgService } from './pmsgService';
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\erpStore.ts:43:import { projectService } from './projectService';
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\erpStore.ts:44:import { installationService } from './installationService';
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\erpStore.ts:46:import { paymentService } from './paymentService';
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\erpStore.ts:47:import { commissionService } from './commissionService';
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\erpStore.ts:53:  private pmsgTracking: PmsgTracking[] = [...INITIAL_PMSG_TRACKING];
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\erpStore.ts:54:  private projects: Project[] = [...INITIAL_PROJECTS];
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\erpStore.ts:55:  private installations: Installation[] = [...INITIAL_INSTALLATIONS];
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\erpStore.ts:57:  private payments: Payment[] = [...INITIAL_PAYMENTS];
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\erpStore.ts:82:      const [leads, customers, pmsg, projects, installations, loans, payments] = await Promise.all([
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\erpStore.ts:85:        pmsgService.fetchPmsgTracking(),
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\erpStore.ts:86:        projectService.fetchProjects(),
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\erpStore.ts:87:        installationService.fetchInstallations(),
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\erpStore.ts:89:        paymentService.fetchPayments(),
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\erpStore.ts:94:      this.pmsgTracking = pmsg;
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\erpStore.ts:95:      this.projects = projects;
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\erpStore.ts:96:      this.installations = installations;
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\erpStore.ts:98:      this.payments = payments;
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\erpStore.ts:130:  public getPmsgTracking(): PmsgTracking[] {
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\erpStore.ts:131:    return [...this.pmsgTracking];
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\erpStore.ts:134:  public getProjects(): Project[] {
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\erpStore.ts:135:    return [...this.projects];
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\erpStore.ts:138:  public getInstallations(): Installation[] {
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\erpStore.ts:139:    return [...this.installations];
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\erpStore.ts:146:  public getPayments(): Payment[] {
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\erpStore.ts:147:    return [...this.payments];
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\erpStore.ts:198:    const generatedPassword = staffInput.login_password || `${staffInput.full_name.split(' ')[0]}@${staffInput.branch}2026`;
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\erpStore.ts:217:      login_password: generatedPassword,
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\erpStore.ts:243:  public getPmsgByCustomerId(customerId: string): PmsgTracking | undefined {
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\erpStore.ts:244:    return this.pmsgTracking.find((p) => p.customer_id === customerId);
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\erpStore.ts:253:   * When Supabase is configured, delegates directly to PostgreSQL RPC convert_lead_atomic.
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\erpStore.ts:256:  public async convertLeadAtomic(
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\erpStore.ts:267:    if (lead.stage === 'CONVERTED') {
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\erpStore.ts:268:      return { success: false, error: 'INVALID_TRANSITION', message: 'Lead is already converted' };
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\erpStore.ts:272:      return { success: false, error: 'INVALID_TRANSITION', message: 'Cannot convert LOST lead' };
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\erpStore.ts:283:        const rpcRes = await customerService.convertLeadAtomic(
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\erpStore.ts:296:          stage: 'CONVERTED',
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\erpStore.ts:297:          converted_customer_id: rpcRes.customer_id,
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\erpStore.ts:314:        console.error('[erpStore.convertLeadAtomic] Error during RPC conversion:', err);
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\erpStore.ts:329:      // 2. Generate Deterministic Customer Code: BNPS-CUST-YYMM-XXXXX
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\erpStore.ts:347:        installation_address: lead.address_line || 'Address Pending Site Survey',
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\erpStore.ts:363:    // 4. Update Lead to CONVERTED atomically
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\erpStore.ts:366:      stage: 'CONVERTED',
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\erpStore.ts:367:      converted_customer_id: customerToLink.id,
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\erpStore.ts:376:      action: 'LEAD_CONVERTED',
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\erpStore.ts:468:      action: 'LEAD_CREATED',
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\erpStore.ts:502:    if (currentLead.stage === 'CONVERTED' && newStage !== 'CONVERTED') {
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\erpStore.ts:503:      return { success: false, error: 'INVALID_TRANSITION', message: 'Converted lead cannot be reverted' };
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\erpStore.ts:558:    const generatedPassword = agentInput.login_password || `${agentInput.full_name.split(' ')[0]}@Agent2026`;
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\erpStore.ts:577:      total_commission_earned: 0,
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\erpStore.ts:578:      total_commission_paid: 0,
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\erpStore.ts:592:        login_password: generatedPassword,
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\erpStore.ts:617:   * UPDATE PMSG TRACKING
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\erpStore.ts:619:  public async createPmsgTracking(
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\erpStore.ts:622:  ): Promise<{ success: boolean; pmsg?: PmsgTracking; error?: StandardErpErrorCode; message?: string }> {
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\erpStore.ts:629:    const existing = this.pmsgTracking.find((p) => p.customer_id === customerId);
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\erpStore.ts:632:      return { success: false, error: 'INVALID_STATUS', message: 'PMSG tracking already exists for this customer.' };
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\erpStore.ts:637:    const newPmsg: PmsgTracking = {
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\erpStore.ts:651:        const persisted = await pmsgService.createPmsgTracking(
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\erpStore.ts:655:        newPmsg.id = persisted.id;
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\erpStore.ts:656:        newPmsg.created_at = persisted.created_at;
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\erpStore.ts:657:        newPmsg.updated_at = persisted.updated_at;
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\erpStore.ts:658:        newPmsg.stage = persisted.stage;
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\erpStore.ts:659:        newPmsg.feasibility_status = persisted.feasibility_status;
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\erpStore.ts:660:        newPmsg.subsidy_amount_eligible = persisted.subsidy_amount_eligible;
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\erpStore.ts:661:        newPmsg.subsidy_disbursed_amount = persisted.subsidy_disbursed_amount;
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\erpStore.ts:662:        newPmsg.is_test = persisted.is_test;
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\erpStore.ts:664:        console.error('[erpStore.createPmsgTracking] Supabase persist error:', err);
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\erpStore.ts:665:        return { success: false, message: err instanceof Error ? err.message : 'Failed to persist PMSG tracking.' };
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\erpStore.ts:669:    this.pmsgTracking.unshift(newPmsg);
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\erpStore.ts:674:      action: 'PMSG_TRACKING_CREATED',
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\erpStore.ts:675:      entity_type: 'pmsg_tracking',
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\erpStore.ts:676:      entity_id: newPmsg.id,
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\erpStore.ts:679:        stage: newPmsg.stage,
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\erpStore.ts:680:        is_test: newPmsg.is_test,
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\erpStore.ts:687:    return { success: true, pmsg: newPmsg };
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\erpStore.ts:690:  public async updatePmsgTracking(
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\erpStore.ts:692:    updates: Partial<PmsgTracking>,
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\erpStore.ts:695:    const index = this.pmsgTracking.findIndex((p) => p.customer_id === customerId);
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\erpStore.ts:700:    const current = this.pmsgTracking[index];
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\erpStore.ts:703:      const result = await pmsgService.updatePortalStatus(
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\erpStore.ts:710:        console.error('[erpStore.updatePmsgTracking] Supabase persist error:', result.message);
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\erpStore.ts:711:        return { success: false, message: result.message || 'Failed to update PMSG portal status.' };
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\erpStore.ts:715:    this.pmsgTracking[index] = {
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\erpStore.ts:724:      action: 'PMSG_TRACKING_UPDATED',
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\erpStore.ts:725:      entity_type: 'pmsg_tracking',
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\erpStore.ts:758:      action: 'QUOTATION_GENERATED',
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\erpStore.ts:765:        total_project_cost: newQuot.total_project_cost,
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\erpStore.ts:799:   * CONVERT QUOTATION TO LIVE CUSTOMER & PROJECT
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\erpStore.ts:801:  public convertQuotationToCustomer(quotationId: string, actorProfileId?: string) {
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\erpStore.ts:820:        installation_address: q.address_line || `${q.panchayat_village || ''}, ${q.tehsil || ''}`,
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\erpStore.ts:836:    // Mark quotation converted
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\erpStore.ts:837:    this.updateQuotationStatus(q.id, 'CONVERTED');
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\erpStore.ts:839:    // Create Project
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\erpStore.ts:840:    const prjCount = this.projects.length + 1;
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\erpStore.ts:841:    const newPrj: Project = {
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\erpStore.ts:843:      project_code: `PRJ-CG-2026-${String(prjCount).padStart(3, '0')}`,
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\erpStore.ts:847:      total_contract_amount: q.total_project_cost,
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\erpStore.ts:851:      commission_distributed: false,
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\erpStore.ts:856:    this.projects.unshift(newPrj);
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\erpStore.ts:861:      action: 'QUOTATION_CONVERTED_TO_PROJECT',
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\erpStore.ts:867:        project_id: newPrj.id,
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\erpStore.ts:868:        project_code: newPrj.project_code,
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\erpStore.ts:874:    return { success: true, customer: targetCustomer, project: newPrj };
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\erpStore.ts:893:   * RUN COMMISSION TEST SIMULATION (Idempotent 10-Tier Test)
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\erpStore.ts:895:  public runCommissionTest(): { success: boolean; message: string; results: Array<{ level: number; agent: string; rate: string; amount: string }> } {
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\erpStore.ts:912:      action: 'COMMISSION_TEST_RUN',
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\erpStore.ts:913:      entity_type: 'commission_engine',
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\erpStore.ts:922:      message: '10-Tier Commission Engine passed concurrency & idempotency test on ?1,50,000 base contract!',
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\erpStore.ts:935:      type: 'customer' | 'lead' | 'agent' | 'pmsg';
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\erpStore.ts:996:    // Search PMSG
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\erpStore.ts:997:    this.pmsgTracking.forEach((p) => {
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\erpStore.ts:1001:          type: 'pmsg',
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\erpStore.ts:1003:          primary: `PMSG: ${p.portal_application_no}`,
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\installationService.ts:2:import { Installation } from '../types/database';
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\installationService.ts:4:export const installationService = {
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\installationService.ts:7:  async fetchInstallations(): Promise<Installation[]> {
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\installationService.ts:10:      .from('installations')
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\installationService.ts:15:      console.error('[installationService.fetchInstallations] Error:', error.message);
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\installationService.ts:18:    return (data || []) as Installation[];
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\installationService.ts:21:  async fetchInstallationByProjectId(projectId: string): Promise<Installation | null> {
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\installationService.ts:24:      .from('installations')
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\installationService.ts:26:      .eq('project_id', projectId)
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\installationService.ts:30:      console.error('[installationService.fetchInstallationByProjectId] Error:', error.message);
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\installationService.ts:33:    return data as Installation | null;
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\installationService.ts:36:  async updateInstallation(
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\installationService.ts:37:    installationId: string,
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\installationService.ts:38:    updates: Partial<Installation>
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\installationService.ts:39:  ): Promise<Installation> {
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\installationService.ts:45:      .from('installations')
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\installationService.ts:50:      .eq('id', installationId)
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\installationService.ts:55:      console.error('[installationService.updateInstallation] Error:', error.message);
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\installationService.ts:58:    return data as Installation;
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\mockData.ts:5:  PmsgTracking, 
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\mockData.ts:6:  Project, 
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\mockData.ts:7:  Installation,
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\mockData.ts:9:  Payment,
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\mockData.ts:249:    total_commission_earned: 42500,
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\mockData.ts:250:    total_commission_paid: 25000,
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\mockData.ts:280:    total_commission_earned: 160000,
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\mockData.ts:281:    total_commission_paid: 120000,
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\mockData.ts:311:    total_commission_earned: 79000,
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\mockData.ts:312:    total_commission_paid: 60000,
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\mockData.ts:344:    installation_address: 'House No 42, Telibandha, VIP Road',
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\mockData.ts:364:    installation_address: 'Near Old Bus Stand, Nehru Nagar',
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\mockData.ts:383:    installation_address: 'Dewangan Para, Link Road',
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\mockData.ts:390:    lifecycle_status: 'COMMISSIONED',
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\mockData.ts:490:    stage: 'CONVERTED',
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\mockData.ts:491:    converted_customer_id: 'cust-001',
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\mockData.ts:492:    notes: 'Converted to BNPS-CUST-2601-10024.',
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\mockData.ts:523:export const INITIAL_PMSG_TRACKING: PmsgTracking[] = [
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\mockData.ts:525:    id: 'pmsg-001',
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\mockData.ts:531:    feasibility_status: 'APPROVED',
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\mockData.ts:541:    id: 'cust-002-pmsg',
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\mockData.ts:546:    stage: 'FEASIBILITY_APPROVED',
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\mockData.ts:547:    feasibility_status: 'APPROVED',
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\mockData.ts:551:    portal_remarks: 'Installation work completed. Net Meter testing scheduled.',
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\mockData.ts:557:    id: 'cust-003-pmsg',
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\mockData.ts:563:    feasibility_status: 'APPROVED',
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\mockData.ts:575:export const INITIAL_PROJECTS: Project[] = [
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\mockData.ts:578:    project_code: 'PRJ-CG-2026-001',
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\mockData.ts:585:    status: 'INSTALLATION_COMPLETED',
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\mockData.ts:586:    commission_distributed: true,
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\mockData.ts:593:    project_code: 'PRJ-CG-2026-002',
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\mockData.ts:601:    commission_distributed: true,
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\mockData.ts:608:export const INITIAL_INSTALLATIONS: Installation[] = [
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\mockData.ts:611:    project_id: 'prj-001',
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\mockData.ts:630:    project_id: 'prj-002',
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\mockData.ts:652:    project_id: 'prj-001',
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\mockData.ts:669:    project_id: 'prj-002',
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\mockData.ts:686:export const INITIAL_PAYMENTS: Payment[] = [
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\mockData.ts:689:    payment_reference_no: 'PAY-CG-2026-001',
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\mockData.ts:690:    project_id: 'prj-001',
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\mockData.ts:694:    payment_mode: 'UPI / NEFT',
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\mockData.ts:704:    payment_reference_no: 'PAY-CG-2026-002',
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\mockData.ts:705:    project_id: 'prj-001',
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\mockData.ts:709:    payment_mode: 'BANK_TRANSFER',
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\mockData.ts:746:    total_project_cost: 160000,
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\mockData.ts:789:    total_project_cost: 240000,
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\mockData.ts:832:    total_project_cost: 440000,
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\mockData.ts:843:    status: 'CONVERTED',
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\mockData.ts:846:    notes: 'Converted to live project PRJ-CG-2026-004. Installation ongoing.',
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\mockData.ts:875:    total_project_cost: 282000,
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\mockData.ts:918:    total_project_cost: 144000,
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\mockData.ts:944:    payment_mode: 'UPI',
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\mockData.ts:955:    payment_mode: 'BANK_TRANSFER',
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\mockData.ts:999:    action: 'LEAD_CONVERTED',
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\mockData.ts:1013:    action: 'PAYMENT_PAID',
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\mockData.ts:1014:    entity_type: 'payments',
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\paymentService.ts:2:import { Payment, PaymentStatusType } from '../types/database';
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\paymentService.ts:4:export const paymentService = {
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\paymentService.ts:7:  async fetchPayments(): Promise<Payment[]> {
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\paymentService.ts:10:      .from('payments')
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\paymentService.ts:15:      console.error('[paymentService.fetchPayments] Error:', error.message);
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\paymentService.ts:18:    return (data || []) as Payment[];
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\paymentService.ts:22:   * Approves or updates payment status.
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\paymentService.ts:23:   * Note: In accordance with PostgreSQL schema immutability, PAID payments cannot be mutated.
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\paymentService.ts:25:  async updatePaymentStatus(
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\paymentService.ts:26:    paymentId: string,
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\paymentService.ts:27:    status: PaymentStatusType,
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\paymentService.ts:28:    approverProfileId?: string,
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\paymentService.ts:30:  ): Promise<{ success: boolean; payment?: Payment; message?: string }> {
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\paymentService.ts:36:    const { data: currentPayment, error: fetchErr } = await supabase
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\paymentService.ts:37:      .from('payments')
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\paymentService.ts:39:      .eq('id', paymentId)
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\paymentService.ts:42:    if (fetchErr || !currentPayment) {
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\paymentService.ts:43:      return { success: false, message: 'Payment record not found.' };
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\paymentService.ts:46:    if (currentPayment.status === 'PAID') {
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\paymentService.ts:49:        message: 'IMMUTABLE_RECORD: Verified PAID payment records are strictly immutable and cannot be updated.',
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\paymentService.ts:55:      remarks: remarks || currentPayment.remarks,
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\paymentService.ts:59:    if (status === 'APPROVED' || status === 'PAID') {
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\paymentService.ts:60:      updates.approved_by = approverProfileId;
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\paymentService.ts:65:      .from('payments')
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\paymentService.ts:67:      .eq('id', paymentId)
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\paymentService.ts:72:      console.error('[paymentService.updatePaymentStatus] Error:', error.message);
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\paymentService.ts:78:      payment: data as Payment,
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\pmsgService.ts:2:import { PmsgTracking, PmsgStageType } from '../types/database';
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\pmsgService.ts:4:export const pmsgService = {
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\pmsgService.ts:7:  async createPmsgTracking(
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\pmsgService.ts:10:  ): Promise<PmsgTracking> {
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\pmsgService.ts:16:      .from('pmsg_tracking')
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\pmsgService.ts:22:      console.error('[pmsgService.createPmsgTracking] Duplicate check error:', existingError.message);
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\pmsgService.ts:27:      throw new Error('PMSG registration already exists for this customer.');
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\pmsgService.ts:31:      .from('pmsg_tracking')
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\pmsgService.ts:41:      console.error('[pmsgService.createPmsgTracking] Error:', error.message);
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\pmsgService.ts:45:    return data as PmsgTracking;
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\pmsgService.ts:47:  async fetchPmsgTracking(): Promise<PmsgTracking[]> {
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\pmsgService.ts:50:      .from('pmsg_tracking')
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\pmsgService.ts:55:      console.error('[pmsgService.fetchPmsgTracking] Error:', error.message);
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\pmsgService.ts:58:    return (data || []) as PmsgTracking[];
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\pmsgService.ts:61:  async fetchPmsgByCustomerId(customerId: string): Promise<PmsgTracking | null> {
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\pmsgService.ts:64:      .from('pmsg_tracking')
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\pmsgService.ts:70:      console.error('[pmsgService.fetchPmsgByCustomerId] Error:', error.message);
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\pmsgService.ts:73:    return data as PmsgTracking | null;
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\pmsgService.ts:84:  ): Promise<{ success: boolean; pmsg?: PmsgTracking; message?: string }> {
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\pmsgService.ts:90:    const current = await this.fetchPmsgByCustomerId(customerId);
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\pmsgService.ts:92:      return { success: false, message: 'PMSG record not found for this customer.' };
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\pmsgService.ts:104:    const nextStage: PmsgStageType = 'APPLICATION_SUBMITTED';
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\pmsgService.ts:107:      .from('pmsg_tracking')
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\pmsgService.ts:121:      console.error('[pmsgService.updatePortalStatus] Error:', error.message);
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\pmsgService.ts:127:      pmsg: data as PmsgTracking,
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\pmsgService.ts:132:    pmsgId: string,
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\pmsgService.ts:133:    stage: PmsgStageType,
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\pmsgService.ts:135:  ): Promise<PmsgTracking> {
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\pmsgService.ts:141:      .from('pmsg_tracking')
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\pmsgService.ts:148:      .eq('id', pmsgId)
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\pmsgService.ts:153:      console.error('[pmsgService.updateStage] Error:', error.message);
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\pmsgService.ts:156:    return data as PmsgTracking;
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\projectService.ts:2:import { Project, ProjectStatusType } from '../types/database';
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\projectService.ts:4:export const projectService = {
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\projectService.ts:7:  async fetchProjects(): Promise<Project[]> {
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\projectService.ts:10:      .from('projects')
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\projectService.ts:15:      console.error('[projectService.fetchProjects] Error:', error.message);
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\projectService.ts:18:    return (data || []) as Project[];
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\projectService.ts:21:  async fetchProjectById(projectId: string): Promise<Project | null> {
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\projectService.ts:24:      .from('projects')
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\projectService.ts:26:      .eq('id', projectId)
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\projectService.ts:30:      console.error('[projectService.fetchProjectById] Error:', error.message);
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\projectService.ts:33:    return data as Project | null;
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\projectService.ts:36:  async createProject(projectInput: Partial<Project>): Promise<Project> {
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\projectService.ts:42:      .from('projects')
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\projectService.ts:43:      .insert([projectInput])
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\projectService.ts:48:      console.error('[projectService.createProject] Error:', error.message);
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\projectService.ts:51:    return data as Project;
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\projectService.ts:54:  async updateProjectStatus(
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\projectService.ts:55:    projectId: string,
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\projectService.ts:56:    status: ProjectStatusType
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\projectService.ts:57:  ): Promise<{ success: boolean; project?: Project; message?: string }> {
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\projectService.ts:63:      .from('projects')
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\projectService.ts:68:      .eq('id', projectId)
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\projectService.ts:73:      console.error('[projectService.updateProjectStatus] Error:', error.message);
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\projectService.ts:79:      project: data as Project,
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\searchService.ts:4:  entity_type: 'customer' | 'lead' | 'project' | 'pmsg_application' | 'agent' | string;
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\searchService.ts:17:   * customers, leads, projects, and PMSG records.
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\userAdminData.ts:252:  { id: 'p-crm-1', category: 'CRM', action: 'CONVERT', description: 'Convert raw lead into official customer', global_status: 'ACTIVE', admin: true, branch_mgr: true, ops_mgr: true, backoffice: true, receptionist: true, agent: false },
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\userAdminData.ts:259:  // Commission
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\userAdminData.ts:260:  { id: 'p-com-1', category: 'Commission', action: 'CREATE', description: 'Generate 7-tier commission transactions', global_status: 'ACTIVE', admin: true, branch_mgr: false, ops_mgr: false, backoffice: true, receptionist: false, agent: false },
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\userAdminData.ts:261:  { id: 'p-com-2', category: 'Commission', action: 'EXPORT', description: 'Export commission payouts summary', global_status: 'ACTIVE', admin: true, branch_mgr: true, ops_mgr: true, backoffice: true, receptionist: false, agent: false },
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\userAdminData.ts:262:  { id: 'p-com-3', category: 'Commission', action: 'REVIEW', description: 'Review & audit commission payouts', global_status: 'ACTIVE', admin: true, branch_mgr: true, ops_mgr: false, backoffice: true, receptionist: false, agent: false },
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\userAdminData.ts:263:  { id: 'p-com-4', category: 'Commission', action: 'VIEW', description: 'View commission balances and payouts', global_status: 'ACTIVE', admin: true, branch_mgr: true, ops_mgr: true, backoffice: true, receptionist: false, agent: true },
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\userAdminData.ts:282:  { id: 'p-fin-1', category: 'Finance', action: 'APPROVE', description: 'Authorize office vouchers and payments', global_status: 'ACTIVE', admin: true, branch_mgr: false, ops_mgr: false, backoffice: true, receptionist: false, agent: false },
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\userAdminData.ts:283:  { id: 'p-fin-2', category: 'Finance', action: 'CREATE', description: 'Record office expense, travel or payment', global_status: 'ACTIVE', admin: true, branch_mgr: true, ops_mgr: true, backoffice: true, receptionist: true, agent: false },
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\userAdminData.ts:289:  { id: 'p-lead-2', category: 'Lead', action: 'DOCUMENT_UPLOAD', description: 'Upload customer electricity bill, Aadhaar, Bank docs', global_status: 'ACTIVE', admin: true, branch_mgr: true, ops_mgr: true, backoffice: true, receptionist: true, agent: true },
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\userAdminData.ts:294:  { id: 'p-psg-1', category: 'PSG', action: 'APPROVE', description: 'Final portal approval & verify customer registration', global_status: 'ACTIVE', admin: true, branch_mgr: true, ops_mgr: true, backoffice: true, receptionist: false, agent: false },
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\userAdminData.ts:299:  { id: 'p-psg-6', category: 'PSG', action: 'REJECT', description: 'Mark application rejected / document deficiency', global_status: 'ACTIVE', admin: true, branch_mgr: true, ops_mgr: true, backoffice: true, receptionist: false, agent: false },
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\userAdminData.ts:304:  // Project
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\userAdminData.ts:305:  { id: 'p-prj-1', category: 'Project', action: 'APPROVE', description: 'Approve site design, structural layout & BOM', global_status: 'ACTIVE', admin: true, branch_mgr: true, ops_mgr: true, backoffice: false, receptionist: false, agent: false },
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\userAdminData.ts:306:  { id: 'p-prj-2', category: 'Project', action: 'EXPORT', description: 'Export project milestones & inventory', global_status: 'ACTIVE', admin: true, branch_mgr: true, ops_mgr: true, backoffice: true, receptionist: false, agent: false },
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\userAdminData.ts:307:  { id: 'p-prj-3', category: 'Project', action: 'FORWARD', description: 'Forward site to installation team', global_status: 'ACTIVE', admin: true, branch_mgr: true, ops_mgr: true, backoffice: true, receptionist: false, agent: false },
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\userAdminData.ts:308:  { id: 'p-prj-4', category: 'Project', action: 'REJECT', description: 'Reject infeasible rooftop site', global_status: 'ACTIVE', admin: true, branch_mgr: true, ops_mgr: true, backoffice: false, receptionist: false, agent: false },
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\userAdminData.ts:309:  { id: 'p-prj-5', category: 'Project', action: 'REVIEW', description: 'Review site survey and shading report', global_status: 'ACTIVE', admin: true, branch_mgr: true, ops_mgr: true, backoffice: true, receptionist: false, agent: false },
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\userAdminData.ts:310:  { id: 'p-prj-6', category: 'Project', action: 'UPDATE', description: 'Update project progress & inventory consumption', global_status: 'ACTIVE', admin: true, branch_mgr: true, ops_mgr: true, backoffice: true, receptionist: false, agent: false },
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\userAdminData.ts:311:  { id: 'p-prj-7', category: 'Project', action: 'VIEW', description: 'View project tracking & technical details', global_status: 'ACTIVE', admin: true, branch_mgr: true, ops_mgr: true, backoffice: true, receptionist: true, agent: true },
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\userAdminData.ts:331:      'Authority to approve appointment orders, role privileges, and banking credentials.',
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\userAdminData.ts:347:      'Ensure CSPDCL feasibility submissions and timely milestone payment collections.',
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\services\userAdminData.ts:390:      'Central engineering supervision for all technical solar rooftop installations.',
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\types\database.ts:35:  | 'CONVERTED'
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\types\database.ts:42:  | 'COMMISSIONED'
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\types\database.ts:45:export type PmsgStageType = 
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\types\database.ts:49:  | 'FEASIBILITY_APPROVED'
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\types\database.ts:53:  | 'REJECTED';
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\types\database.ts:55:export type ProjectStatusType = 
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\types\database.ts:58:  | 'APPROVED'
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\types\database.ts:60:  | 'INSTALLATION_IN_PROGRESS'
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\types\database.ts:61:  | 'INSTALLATION_COMPLETED'
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\types\database.ts:67:export type PaymentStageType = 
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\types\database.ts:69:  | 'SECOND_INSTALLATION'
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\types\database.ts:73:export type PaymentStatusType = 
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\types\database.ts:75:  | 'APPROVED'
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\types\database.ts:85:  | 'REJECTED';
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\types\database.ts:90:  | 'REJECTED';
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\types\database.ts:94:  | 'APPROVED'
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\types\database.ts:128:  total_commission_earned: number;
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\types\database.ts:129:  total_commission_paid: number;
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\types\database.ts:162:  converted_customer_id?: string;
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\types\database.ts:181:  installation_address: string;
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\types\database.ts:204:export interface PmsgTracking {
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\types\database.ts:210:  stage: PmsgStageType;
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\types\database.ts:223:export interface Project {
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\types\database.ts:225:  project_code: string;
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\types\database.ts:233:  status: ProjectStatusType;
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\types\database.ts:234:  commission_distributed: boolean;
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\types\database.ts:240:export interface Installation {
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\types\database.ts:242:  project_id: string;
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\types\database.ts:252:  installation_start_date?: string;
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\types\database.ts:253:  installation_completed_date?: string;
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\types\database.ts:267:  project_id: string;
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\types\database.ts:278:  rejection_reason?: string;
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\types\database.ts:284:export interface Payment {
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\types\database.ts:286:  payment_reference_no: string;
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\types\database.ts:287:  project_id: string;
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\types\database.ts:289:  stage: PaymentStageType;
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\types\database.ts:291:  payment_mode: string;
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\types\database.ts:293:  status: PaymentStatusType;
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\types\database.ts:294:  approved_by?: string;
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\types\database.ts:295:  approved_at?: string;
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\types\database.ts:297:  reversal_parent_payment_id?: string;
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\types\database.ts:304:export interface CommissionRate {
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\types\database.ts:313:export interface CommissionTransaction {
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\types\database.ts:315:  project_id: string;
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\types\database.ts:316:  payment_stage: PaymentStageType;
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\types\database.ts:321:  gross_commission: number;
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\types\database.ts:324:  net_commission: number;
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\types\database.ts:344:  rejection_reason?: string;
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\types\database.ts:362:export type QuotationStatusType = 'DRAFT' | 'SENT' | 'ACCEPTED' | 'CONVERTED' | 'EXPIRED';
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\types\database.ts:411:  installation_charge?: number;
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\types\database.ts:419:  total_project_cost: number;
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\types\database.ts:442:  payment_mode: string;
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\types\database.ts:461:  | 'PAYMENT_NOT_APPROVED'
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\types\database.ts:462:  | 'PAYMENT_ALREADY_PAID'
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\types\database.ts:463:  | 'INSTALLATION_NOT_COMPLETED'
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\types\database.ts:464:  | 'COMMISSION_ALREADY_GENERATED'
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\01_phase1_ddl_and_constraints.sql:35:        'CONVERTED',
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\01_phase1_ddl_and_constraints.sql:45:        'COMMISSIONED',
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\01_phase1_ddl_and_constraints.sql:51:    CREATE TYPE pmsg_stage_type AS ENUM (
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\01_phase1_ddl_and_constraints.sql:55:        'FEASIBILITY_APPROVED',
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\01_phase1_ddl_and_constraints.sql:59:        'REJECTED'
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\01_phase1_ddl_and_constraints.sql:64:    CREATE TYPE project_status_type AS ENUM (
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\01_phase1_ddl_and_constraints.sql:67:        'APPROVED',
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\01_phase1_ddl_and_constraints.sql:69:        'INSTALLATION_IN_PROGRESS',
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\01_phase1_ddl_and_constraints.sql:70:        'INSTALLATION_COMPLETED',
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\01_phase1_ddl_and_constraints.sql:79:    CREATE TYPE payment_stage_type AS ENUM (
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\01_phase1_ddl_and_constraints.sql:81:        'SECOND_INSTALLATION',
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\01_phase1_ddl_and_constraints.sql:88:    CREATE TYPE payment_status_type AS ENUM (
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\01_phase1_ddl_and_constraints.sql:90:        'APPROVED',
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\01_phase1_ddl_and_constraints.sql:103:        'REJECTED'
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\01_phase1_ddl_and_constraints.sql:111:        'REJECTED'
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\01_phase1_ddl_and_constraints.sql:118:        'APPROVED',
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\01_phase1_ddl_and_constraints.sql:145:    code VARCHAR(64) UNIQUE NOT NULL, -- e.g., 'payment.approve', 'lead.convert', 'commission.generate'
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\01_phase1_ddl_and_constraints.sql:183:    total_commission_earned NUMERIC(14, 2) NOT NULL DEFAULT 0.00,
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\01_phase1_ddl_and_constraints.sql:184:    total_commission_paid NUMERIC(14, 2) NOT NULL DEFAULT 0.00,
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\01_phase1_ddl_and_constraints.sql:223:    converted_customer_id UUID, -- Circular ref resolved via FK alter after customer table
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\01_phase1_ddl_and_constraints.sql:246:    installation_address TEXT NOT NULL,
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\01_phase1_ddl_and_constraints.sql:261:    FOREIGN KEY (converted_customer_id) REFERENCES customers(id) ON DELETE SET NULL;
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\01_phase1_ddl_and_constraints.sql:280:CREATE TABLE IF NOT EXISTS pmsg_tracking (
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\01_phase1_ddl_and_constraints.sql:286:    stage pmsg_stage_type NOT NULL DEFAULT 'INITIATED',
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\01_phase1_ddl_and_constraints.sql:299:CREATE INDEX IF NOT EXISTS idx_pmsg_portal_no ON pmsg_tracking(portal_application_no);
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\01_phase1_ddl_and_constraints.sql:300:CREATE INDEX IF NOT EXISTS idx_pmsg_stage ON pmsg_tracking(stage);
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\01_phase1_ddl_and_constraints.sql:302:CREATE OR REPLACE FUNCTION check_pmsg_portal_immutability()
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\01_phase1_ddl_and_constraints.sql:306:        RAISE EXCEPTION 'PMSG customer linkage is immutable.';
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\01_phase1_ddl_and_constraints.sql:310:        RAISE EXCEPTION 'PMSG stage cannot return to INITIATED after submission.';
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\01_phase1_ddl_and_constraints.sql:317:        RAISE EXCEPTION 'PMSG Portal/Application fields are read-only after submission.';
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\01_phase1_ddl_and_constraints.sql:324:DROP TRIGGER IF EXISTS trg_pmsg_portal_immutability ON pmsg_tracking;
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\01_phase1_ddl_and_constraints.sql:325:CREATE TRIGGER trg_pmsg_portal_immutability
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\01_phase1_ddl_and_constraints.sql:326:    BEFORE UPDATE ON pmsg_tracking
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\01_phase1_ddl_and_constraints.sql:328:    EXECUTE FUNCTION check_pmsg_portal_immutability();
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\01_phase1_ddl_and_constraints.sql:331:-- Operational View for PMSG Registered Customers (Filtered View, NOT a duplicate master)
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\01_phase1_ddl_and_constraints.sql:332:CREATE OR REPLACE VIEW view_pmsg_registered_customers AS
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\01_phase1_ddl_and_constraints.sql:344:    p.stage AS pmsg_stage,
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\01_phase1_ddl_and_constraints.sql:353:INNER JOIN pmsg_tracking p ON p.customer_id = c.id
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\01_phase1_ddl_and_constraints.sql:361:-- 7. VENDORS, PROJECTS & TECHNICAL INSTALLATIONS
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\01_phase1_ddl_and_constraints.sql:376:CREATE TABLE IF NOT EXISTS projects (
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\01_phase1_ddl_and_constraints.sql:378:    project_code VARCHAR(32) UNIQUE NOT NULL,
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\01_phase1_ddl_and_constraints.sql:386:    status project_status_type NOT NULL DEFAULT 'PLANNING',
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\01_phase1_ddl_and_constraints.sql:387:    commission_distributed BOOLEAN NOT NULL DEFAULT false,
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\01_phase1_ddl_and_constraints.sql:393:CREATE INDEX IF NOT EXISTS idx_projects_customer ON projects(customer_id);
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\01_phase1_ddl_and_constraints.sql:394:CREATE INDEX IF NOT EXISTS idx_projects_status ON projects(status);
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\01_phase1_ddl_and_constraints.sql:396:CREATE TABLE IF NOT EXISTS installations (
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\01_phase1_ddl_and_constraints.sql:398:    project_id UUID NOT NULL UNIQUE REFERENCES projects(id) ON DELETE CASCADE,
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\01_phase1_ddl_and_constraints.sql:408:    installation_start_date DATE,
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\01_phase1_ddl_and_constraints.sql:409:    installation_completed_date DATE,
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\01_phase1_ddl_and_constraints.sql:421:-- INVARIANT TRIGGER: Project cannot transition to 'COMPLETED' without net meter verified
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\01_phase1_ddl_and_constraints.sql:422:CREATE OR REPLACE FUNCTION check_project_completion_net_meter()
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\01_phase1_ddl_and_constraints.sql:431:        FROM installations
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\01_phase1_ddl_and_constraints.sql:432:        WHERE project_id = NEW.id;
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\01_phase1_ddl_and_constraints.sql:435:            RAISE EXCEPTION 'BUSINESS_RULE_VIOLATION: Cannot mark Project as COMPLETED without Net Meter Installation and DISCOM signoff verified.'
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\01_phase1_ddl_and_constraints.sql:443:DROP TRIGGER IF EXISTS trg_check_project_completion ON projects;
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\01_phase1_ddl_and_constraints.sql:444:CREATE TRIGGER trg_check_project_completion
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\01_phase1_ddl_and_constraints.sql:445:    BEFORE UPDATE OF status ON projects
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\01_phase1_ddl_and_constraints.sql:447:    EXECUTE FUNCTION check_project_completion_net_meter();
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\01_phase1_ddl_and_constraints.sql:455:    project_id UUID NOT NULL REFERENCES projects(id) ON DELETE RESTRICT,
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\01_phase1_ddl_and_constraints.sql:466:    rejection_reason TEXT,
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\01_phase1_ddl_and_constraints.sql:472:CREATE INDEX IF NOT EXISTS idx_loans_project ON loans(project_id);
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\01_phase1_ddl_and_constraints.sql:475:-- 9. PAYMENTS & IMMUTABILITY ENFORCEMENT
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\01_phase1_ddl_and_constraints.sql:478:CREATE TABLE IF NOT EXISTS payments (
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\01_phase1_ddl_and_constraints.sql:480:    payment_reference_no VARCHAR(64) UNIQUE NOT NULL,
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\01_phase1_ddl_and_constraints.sql:481:    project_id UUID NOT NULL REFERENCES projects(id) ON DELETE RESTRICT,
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\01_phase1_ddl_and_constraints.sql:483:    stage payment_stage_type NOT NULL,
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\01_phase1_ddl_and_constraints.sql:485:    payment_mode VARCHAR(32) NOT NULL DEFAULT 'BANK_TRANSFER', -- UPI, NEFT, CHEQUE, ONLINE
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\01_phase1_ddl_and_constraints.sql:487:    status payment_status_type NOT NULL DEFAULT 'PENDING_APPROVAL',
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\01_phase1_ddl_and_constraints.sql:488:    approved_by UUID REFERENCES profiles(id) ON DELETE RESTRICT,
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\01_phase1_ddl_and_constraints.sql:489:    approved_at TIMESTAMPTZ,
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\01_phase1_ddl_and_constraints.sql:491:    reversal_parent_payment_id UUID REFERENCES payments(id) ON DELETE RESTRICT,
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\01_phase1_ddl_and_constraints.sql:498:CREATE INDEX IF NOT EXISTS idx_payments_project ON payments(project_id);
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\01_phase1_ddl_and_constraints.sql:499:CREATE INDEX IF NOT EXISTS idx_payments_status ON payments(status);
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\01_phase1_ddl_and_constraints.sql:501:-- IMMUTABILITY TRIGGER: Paid payment cannot be directly mutated or deleted
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\01_phase1_ddl_and_constraints.sql:502:CREATE OR REPLACE FUNCTION check_payment_immutability()
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\01_phase1_ddl_and_constraints.sql:507:            RAISE EXCEPTION 'PAYMENT_ALREADY_PAID: Cannot delete a finalized payment record. Use business reversal mechanism.'
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\01_phase1_ddl_and_constraints.sql:516:            IF (OLD.amount <> NEW.amount OR OLD.project_id <> NEW.project_id OR OLD.customer_id <> NEW.customer_id) THEN
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\01_phase1_ddl_and_constraints.sql:517:                RAISE EXCEPTION 'PAYMENT_ALREADY_PAID: Finalized payment financial fields are immutable.'
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\01_phase1_ddl_and_constraints.sql:527:DROP TRIGGER IF EXISTS trg_payment_immutability ON payments;
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\01_phase1_ddl_and_constraints.sql:528:CREATE TRIGGER trg_payment_immutability
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\01_phase1_ddl_and_constraints.sql:529:    BEFORE UPDATE OR DELETE ON payments
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\01_phase1_ddl_and_constraints.sql:531:    EXECUTE FUNCTION check_payment_immutability();
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\01_phase1_ddl_and_constraints.sql:534:-- 10. MULTI-TIER COMMISSIONS & IDEMPOTENT LEDGER
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\01_phase1_ddl_and_constraints.sql:537:CREATE TABLE IF NOT EXISTS commission_rates (
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\01_phase1_ddl_and_constraints.sql:547:INSERT INTO commission_rates (position, position_title, default_rate_percent)
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\01_phase1_ddl_and_constraints.sql:561:CREATE TABLE IF NOT EXISTS commission_transactions (
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\01_phase1_ddl_and_constraints.sql:563:    project_id UUID NOT NULL REFERENCES projects(id) ON DELETE RESTRICT,
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\01_phase1_ddl_and_constraints.sql:564:    payment_stage payment_stage_type NOT NULL,
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\01_phase1_ddl_and_constraints.sql:569:    gross_commission NUMERIC(12, 2) NOT NULL CHECK (gross_commission >= 0),
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\01_phase1_ddl_and_constraints.sql:572:    net_commission NUMERIC(12, 2) NOT NULL CHECK (net_commission >= 0),
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\01_phase1_ddl_and_constraints.sql:578:    CONSTRAINT uq_commission_idempotency UNIQUE (project_id, payment_stage, position, agent_id)
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\01_phase1_ddl_and_constraints.sql:581:CREATE INDEX IF NOT EXISTS idx_commission_agent ON commission_transactions(agent_id);
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\01_phase1_ddl_and_constraints.sql:582:CREATE INDEX IF NOT EXISTS idx_commission_project ON commission_transactions(project_id);
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\01_phase1_ddl_and_constraints.sql:605:    gross_commission_total NUMERIC(12, 2) NOT NULL CHECK (gross_commission_total >= 0),
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\01_phase1_ddl_and_constraints.sql:632:    entity_type VARCHAR(64) NOT NULL, -- 'lead', 'customer', 'project', 'agent', 'installation', 'loan'
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\01_phase1_ddl_and_constraints.sql:642:    rejection_reason TEXT,
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\01_phase1_ddl_and_constraints.sql:656:    action VARCHAR(64) NOT NULL, -- 'LEAD_CONVERTED', 'PAYMENT_APPROVED', 'PAYMENT_PAID', 'COMMISSION_GENERATED', 'PAYOUT_PROCESSED'
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\01_phase1_ddl_and_constraints.sql:679:    ('commission_config', '{"base_calculation": "contract_value", "max_positions": 10, "default_tds_percent": 5.0}', 'Commission calculation engine params'),
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\01_phase1_ddl_and_constraints.sql:680:    ('pmsg_config', '{"portal_url": "https://pmsuryaghar.gov.in", "auto_track": true}', 'PM Surya Ghar national portal integration params')
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\02_rls_and_security.sql:7:CREATE OR REPLACE FUNCTION current_auth_profile_id()
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\02_rls_and_security.sql:16:CREATE OR REPLACE FUNCTION current_user_role()
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\02_rls_and_security.sql:25:CREATE OR REPLACE FUNCTION has_erp_permission(perm_code TEXT)
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\02_rls_and_security.sql:79:ALTER TABLE pmsg_tracking ENABLE ROW LEVEL SECURITY;
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\02_rls_and_security.sql:80:ALTER TABLE projects ENABLE ROW LEVEL SECURITY;
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\02_rls_and_security.sql:81:ALTER TABLE installations ENABLE ROW LEVEL SECURITY;
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\02_rls_and_security.sql:83:ALTER TABLE payments ENABLE ROW LEVEL SECURITY;
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\02_rls_and_security.sql:84:ALTER TABLE commission_transactions ENABLE ROW LEVEL SECURITY;
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\02_rls_and_security.sql:208:CREATE OR REPLACE FUNCTION prevent_last_active_super_admin_change()
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\02_rls_and_security.sql:300:-- 4. CUSTOMERS & PMSG TRACKING POLICIES
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\02_rls_and_security.sql:313:CREATE POLICY pmsg_tracking_insert_policy ON pmsg_tracking
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\02_rls_and_security.sql:317:CREATE POLICY pmsg_tracking_update_policy ON pmsg_tracking
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\02_rls_and_security.sql:324:CREATE POLICY pmsg_tracking_select_policy ON pmsg_tracking
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\02_rls_and_security.sql:335:-- 5. PROJECTS & INSTALLATIONS POLICIES
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\02_rls_and_security.sql:338:CREATE POLICY projects_select_policy ON projects
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\02_rls_and_security.sql:346:CREATE POLICY installations_select_policy ON installations
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\02_rls_and_security.sql:350:        OR project_id IN (
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\02_rls_and_security.sql:351:            SELECT id FROM projects WHERE primary_agent_id IN (
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\02_rls_and_security.sql:358:-- 6. PAYMENTS & FINANCIAL AUDIT POLICIES
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\02_rls_and_security.sql:361:CREATE POLICY payments_select_policy ON payments
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\02_rls_and_security.sql:364:        OR project_id IN (
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\02_rls_and_security.sql:365:            SELECT id FROM projects WHERE primary_agent_id IN (
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\02_rls_and_security.sql:371:-- Only Accountant or Office/Super Admin can insert or update payments
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\02_rls_and_security.sql:372:CREATE POLICY payments_insert_policy ON payments
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\02_rls_and_security.sql:377:CREATE POLICY payments_update_policy ON payments
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\02_rls_and_security.sql:383:-- 7. COMMISSION TRANSACTIONS POLICIES
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\02_rls_and_security.sql:386:-- Agents can only see their own earned commission records.
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\02_rls_and_security.sql:387:CREATE POLICY commission_select_policy ON commission_transactions
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\02_rls_and_security.sql:395:-- Commissions are strictly generated by server-side RPC functions
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\02_rls_and_security.sql:396:CREATE POLICY commission_insert_policy ON commission_transactions
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\03_business_rpc_functions.sql:7:CREATE OR REPLACE FUNCTION convert_lead_atomic(
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\03_business_rpc_functions.sql:27:    IF v_lead.stage = 'CONVERTED' THEN
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\03_business_rpc_functions.sql:28:        RAISE EXCEPTION 'INVALID_TRANSITION: Lead % is already converted', v_lead.lead_code USING ERRCODE = 'P0003';
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\03_business_rpc_functions.sql:32:        RAISE EXCEPTION 'INVALID_TRANSITION: Cannot convert LOST lead %', v_lead.lead_code USING ERRCODE = 'P0003';
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\03_business_rpc_functions.sql:46:        -- Generate Customer Code (BNPS-CUST-YYYY-XXXXX)
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\03_business_rpc_functions.sql:59:            installation_address,
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\03_business_rpc_functions.sql:101:        'Converted from Lead ' || v_lead.lead_code,
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\03_business_rpc_functions.sql:108:    SET stage = 'CONVERTED',
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\03_business_rpc_functions.sql:109:        converted_customer_id = v_customer_id,
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\03_business_rpc_functions.sql:122:        'LEAD_CONVERTED',
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\03_business_rpc_functions.sql:140:-- 2. ATOMIC MULTI-TIER COMMISSION GENERATION
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\03_business_rpc_functions.sql:141:CREATE OR REPLACE FUNCTION generate_project_commission_atomic(
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\03_business_rpc_functions.sql:142:    p_project_id UUID,
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\03_business_rpc_functions.sql:143:    p_payment_stage payment_stage_type,
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\03_business_rpc_functions.sql:148:    v_project RECORD;
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\03_business_rpc_functions.sql:149:    v_payment_paid BOOLEAN;
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\03_business_rpc_functions.sql:162:    -- 1. Lock Project Record
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\03_business_rpc_functions.sql:163:    SELECT * INTO v_project FROM projects WHERE id = p_project_id FOR UPDATE;
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\03_business_rpc_functions.sql:165:        RAISE EXCEPTION 'RECORD_NOT_FOUND: Project % not found', p_project_id USING ERRCODE = 'P0002';
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\03_business_rpc_functions.sql:168:    -- 2. Validate Payment is PAID for this stage
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\03_business_rpc_functions.sql:170:        SELECT 1 FROM payments 
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\03_business_rpc_functions.sql:171:        WHERE project_id = p_project_id 
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\03_business_rpc_functions.sql:172:          AND stage = p_payment_stage 
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\03_business_rpc_functions.sql:174:    ) INTO v_payment_paid;
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\03_business_rpc_functions.sql:176:    IF NOT v_payment_paid THEN
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\03_business_rpc_functions.sql:177:        RAISE EXCEPTION 'PAYMENT_NOT_APPROVED: Cannot generate commission until payment stage % is PAID', p_payment_stage 
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\03_business_rpc_functions.sql:181:    -- 3. Check for existing commission generation to prevent duplicate race conditions
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\03_business_rpc_functions.sql:183:        SELECT 1 FROM commission_transactions
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\03_business_rpc_functions.sql:184:        WHERE project_id = p_project_id AND payment_stage = p_payment_stage
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\03_business_rpc_functions.sql:185:    ) INTO v_payment_paid;
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\03_business_rpc_functions.sql:187:    IF v_payment_paid THEN
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\03_business_rpc_functions.sql:188:        RAISE EXCEPTION 'COMMISSION_ALREADY_GENERATED: Commission for stage % on project % already generated', p_payment_stage, v_project.project_code
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\03_business_rpc_functions.sql:193:    v_base_amount := v_project.total_contract_amount;
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\03_business_rpc_functions.sql:194:    v_current_agent_id := v_project.primary_agent_id;
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\03_business_rpc_functions.sql:200:        FROM commission_rates WHERE position = v_curr_level;
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\03_business_rpc_functions.sql:229:        -- Insert Commission Transaction (Deterministic Idempotency Key)
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\03_business_rpc_functions.sql:230:        INSERT INTO commission_transactions (
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\03_business_rpc_functions.sql:231:            project_id,
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\03_business_rpc_functions.sql:232:            payment_stage,
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\03_business_rpc_functions.sql:237:            gross_commission,
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\03_business_rpc_functions.sql:240:            net_commission,
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\03_business_rpc_functions.sql:244:            p_project_id,
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\03_business_rpc_functions.sql:245:            p_payment_stage,
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\03_business_rpc_functions.sql:255:            v_project.is_test
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\03_business_rpc_functions.sql:260:        SET total_commission_earned = total_commission_earned + v_net,
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\03_business_rpc_functions.sql:269:    -- Update project commission flag
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\03_business_rpc_functions.sql:270:    UPDATE projects SET commission_distributed = true WHERE id = p_project_id;
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\03_business_rpc_functions.sql:274:    VALUES (p_actor_id, 'COMMISSION_GENERATED', 'projects', p_project_id, jsonb_build_object(
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\03_business_rpc_functions.sql:275:        'payment_stage', p_payment_stage,
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\03_business_rpc_functions.sql:276:        'positions_generated', v_count,
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\03_business_rpc_functions.sql:282:        'project_code', v_project.project_code,
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\03_business_rpc_functions.sql:283:        'payment_stage', p_payment_stage,
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\03_business_rpc_functions.sql:291:CREATE OR REPLACE FUNCTION global_erp_search(p_query TEXT, p_max_limit INT DEFAULT 20)
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\03_business_rpc_functions.sql:335:    -- 3. Search Projects
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\03_business_rpc_functions.sql:337:        'project'::TEXT,
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\03_business_rpc_functions.sql:339:        (pr.project_code || ' • ' || pr.capacity_kw::TEXT || ' kW')::TEXT,
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\03_business_rpc_functions.sql:343:    FROM projects pr
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\03_business_rpc_functions.sql:344:    WHERE pr.project_code ILIKE '%' || v_clean_q || '%'
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\03_business_rpc_functions.sql:348:    -- 4. Search PMSG Applications
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\03_business_rpc_functions.sql:350:        'pmsg_application'::TEXT,
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\03_business_rpc_functions.sql:352:        ('PMSG: ' || pm.portal_application_no)::TEXT,
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\03_business_rpc_functions.sql:356:    FROM pmsg_tracking pm
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\03_business_rpc_functions.sql:372:--   - Lead ID is generated by PostgreSQL.
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\03_business_rpc_functions.sql:373:--   - Lead code is generated server-side.
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\03_business_rpc_functions.sql:380:CREATE OR REPLACE FUNCTION create_lead_atomic(
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\03_business_rpc_functions.sql:611:        'LEAD_CREATED',
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\04_seed_test_verification.sql:40:    v_cust_result := convert_lead_atomic(v_lead_id, '11029384756', v_admin_id);
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\04_seed_test_verification.sql:42:    RAISE NOTICE 'Lead Converted Successfully: Customer ID = %', v_cust_id;
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\04_seed_test_verification.sql:44:    RAISE NOTICE '--- TEST 3: PROJECT CREATION & INSTALLATION LINK ---';
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\04_seed_test_verification.sql:45:    INSERT INTO projects (
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\04_seed_test_verification.sql:46:        project_code, customer_id, primary_agent_id, capacity_kw, 
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\04_seed_test_verification.sql:50:        150000.00, 78000.00, 72000.00, 'INSTALLATION_IN_PROGRESS', true
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\04_seed_test_verification.sql:53:    INSERT INTO installations (
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\04_seed_test_verification.sql:54:        project_id, structure_type, net_meter_installed, discom_inspection_signoff
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\04_seed_test_verification.sql:59:    RAISE NOTICE '--- TEST 4: INVARIANT TEST: PREVENT PREMATURE PROJECT COMPLETION ---';
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\04_seed_test_verification.sql:61:        UPDATE projects SET status = 'COMPLETED' WHERE id = v_proj_id;
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\04_seed_test_verification.sql:67:    RAISE NOTICE '--- TEST 5: PAYMENT LIFECYCLE & IMMUTABILITY ENFORCEMENT ---';
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\04_seed_test_verification.sql:68:    INSERT INTO payments (
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\04_seed_test_verification.sql:69:        payment_reference_no, project_id, customer_id, stage, amount, status, is_test
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\04_seed_test_verification.sql:74:    -- Try to mutate amount of PAID payment (Must fail)
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\04_seed_test_verification.sql:76:        UPDATE payments SET amount = 20000.00 WHERE id = v_pay_id;
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\04_seed_test_verification.sql:77:        RAISE EXCEPTION 'TEST FAILED: Paid payment was mutated!';
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\04_seed_test_verification.sql:79:        RAISE NOTICE 'SUCCESS: Invariant verified - PAID payment amount is strictly immutable.';
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\04_seed_test_verification.sql:82:    RAISE NOTICE '--- TEST 6: COMMISSION GENERATION IDEMPOTENCY ---';
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\04_seed_test_verification.sql:83:    v_comm_result := generate_project_commission_atomic(v_proj_id, 'FIRST_ADVANCE', v_admin_id);
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\04_seed_test_verification.sql:84:    RAISE NOTICE 'Commission Generated: %', v_comm_result;
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\04_seed_test_verification.sql:86:    -- Try generating duplicate commission on same stage (Must fail)
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\04_seed_test_verification.sql:88:        v_comm_result := generate_project_commission_atomic(v_proj_id, 'FIRST_ADVANCE', v_admin_id);
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\04_seed_test_verification.sql:89:        RAISE EXCEPTION 'TEST FAILED: Duplicate commission generated!';
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\04_seed_test_verification.sql:91:        RAISE NOTICE 'SUCCESS: Invariant verified - Concurrency & Duplicate Commission blocked deterministically.';
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\05_dynamic_rbac.sql:94:    ('technician', 'Technician', 'Installation and technical authority', true),
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\05_dynamic_rbac.sql:148:CREATE OR REPLACE FUNCTION has_erp_permission(perm_code TEXT)
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\05_dynamic_rbac.sql:261:CREATE OR REPLACE FUNCTION is_current_super_admin()

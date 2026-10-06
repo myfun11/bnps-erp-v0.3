@@ -31,7 +31,7 @@ export const LeadList: React.FC<LeadListProps> = ({
   openNewLeadDirectly = false,
   onCloseNewLeadDirectly 
 }) => {
-  const { currentProfile, userRole, canConvertLeads } = useAuth();
+  const { currentProfile, currentAgent, userRole, canConvertLeads } = useAuth();
   const [leads, setLeads] = useState<Lead[]>([]);
   const [selectedStage, setSelectedStage] = useState<string>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
@@ -67,19 +67,24 @@ export const LeadList: React.FC<LeadListProps> = ({
   });
 
   const loadData = () => {
-    if (userRole === 'agent') {
-      const agentLeads = erpStore.getLeadsForAgent('ag-mukesh-101');
-      setLeads(agentLeads.length > 0 ? agentLeads : erpStore.getLeads());
-    } else {
-      setLeads(erpStore.getLeads());
+  if (userRole === 'agent') {
+    if (!currentAgent?.id) {
+      setLeads([]);
+      return;
     }
-  };
+
+    setLeads(erpStore.getLeadsForAgent(currentAgent.id));
+    return;
+  }
+
+  setLeads(erpStore.getLeads());
+};
 
   useEffect(() => {
     loadData();
     const unsubscribe = erpStore.subscribe(loadData);
     return () => unsubscribe();
-  }, [userRole]);
+  }, [userRole, currentAgent?.id]);
 
   // Filter leads
   const filteredLeads = leads.filter((lead) => {
@@ -101,16 +106,18 @@ export const LeadList: React.FC<LeadListProps> = ({
     }
   };
 
-  const handleCreateLead = (e: React.FormEvent) => {
+  const handleCreateLead = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newLeadForm.full_name || !newLeadForm.mobile) {
       alert('Please enter applicant name and mobile number');
       return;
     }
 
-    const res = erpStore.createLead(
+ const res = await erpStore.createLead(
       {
-        source_agent_id: userRole === 'agent' ? 'ag-mukesh-101' : 'ag-mukesh-101',
+      source_agent_id: userRole === 'agent'
+  ? currentAgent?.id
+  : undefined,
         assigned_officer_id: currentProfile.id,
         full_name: newLeadForm.full_name,
         mobile: newLeadForm.mobile,

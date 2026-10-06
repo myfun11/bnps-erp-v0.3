@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { erpStore } from '../services/erpStore';
+import { searchService } from '../services/searchService';
 import { Search, X, Users, UserPlus, Layers, ExternalLink, ArrowRight } from 'lucide-react';
 
 interface GlobalSearchProps {
@@ -23,12 +24,37 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({ isOpen, onClose, onS
   }, [isOpen]);
 
   useEffect(() => {
+    let active = true;
     if (query.trim().length > 1) {
-      const res = erpStore.searchGlobal(query);
-      setResults(res);
+      // 1. Initial fast local cache search
+      const localResults = erpStore.searchGlobal(query);
+      setResults(localResults);
+
+      // 2. Authoritative PostgreSQL RPC global_erp_search query if Supabase connected
+      if (searchService.isConfigured()) {
+        searchService.searchGlobal(query).then((remoteItems) => {
+          if (!active) return;
+          if (remoteItems && remoteItems.length > 0) {
+            const mapped = remoteItems.map((item) => ({
+              type: item.entity_type as 'customer' | 'lead' | 'agent' | 'pmsg',
+              id: item.entity_id,
+              primary: item.primary_label,
+              secondary: item.secondary_label,
+              badge: item.status_label,
+            }));
+            setResults(mapped);
+          }
+        }).catch((err) => {
+          console.error('[GlobalSearch] RPC search error:', err);
+        });
+      }
     } else {
       setResults([]);
     }
+
+    return () => {
+      active = false;
+    };
   }, [query]);
 
   // Keyboard shortcut listener for escape

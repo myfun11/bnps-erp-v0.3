@@ -30,10 +30,10 @@ BEGIN
     RAISE NOTICE '--- TEST 2: CREATE LEAD & ATOMIC CONVERSION ---';
     INSERT INTO leads (
         lead_code, source_agent_id, full_name, mobile, consumer_number, 
-        sanctioned_load_kw, proposed_capacity_kw, stage, is_test
+        sanctioned_load_kw, proposed_capacity_kw, stage, branch, district, pincode, is_test
     ) VALUES (
-        'LD-JAIPUR-001', v_agent_id, 'Ramesh Chandra Sharma', '9414012345', '11029384756',
-        5.00, 3.00, 'READY_FOR_REGISTRATION', true
+        'LD-CG-TEST-001', v_agent_id, 'Ramesh Chandra Sharma', '9414012345', '11029384756',
+        5.00, 3.00, 'READY_FOR_REGISTRATION', 'Jaijaipur', 'Janjgir-Champa', '495685', true
     ) RETURNING id INTO v_lead_id;
 
     -- Execute Atomic Conversion RPC

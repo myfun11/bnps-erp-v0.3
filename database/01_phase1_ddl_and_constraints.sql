@@ -14,9 +14,13 @@ DO $$ BEGIN
     CREATE TYPE user_role_type AS ENUM (
         'super_admin',
         'office_admin',
+        'branch_manager',
+        'operational_manager',
         'accountant',
         'field_officer',
         'technician',
+        'receptionist',
+        'backoffice',
         'agent'
     );
 EXCEPTION WHEN duplicate_object THEN null; END $$;
@@ -128,6 +132,8 @@ CREATE TABLE IF NOT EXISTS profiles (
     email CITEXT UNIQUE,
     phone VARCHAR(20) NOT NULL,
     role user_role_type NOT NULL DEFAULT 'agent',
+    branch VARCHAR(64),
+    employee_code VARCHAR(32),
     is_active BOOLEAN NOT NULL DEFAULT true,
     is_test BOOLEAN NOT NULL DEFAULT false,
     created_at TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(),
@@ -165,6 +171,7 @@ CREATE TABLE IF NOT EXISTS agents (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     profile_id UUID NOT NULL UNIQUE REFERENCES profiles(id) ON DELETE RESTRICT,
     agent_code VARCHAR(32) UNIQUE NOT NULL,
+    branch VARCHAR(64),
     sponsor_agent_id UUID REFERENCES agents(id) ON DELETE RESTRICT, -- Upline Sponsor
     hierarchy_level INT NOT NULL DEFAULT 10 CHECK (hierarchy_level BETWEEN 1 AND 10),
     pan_number VARCHAR(10) CHECK (pan_number IS NULL OR pan_number ~ '^[A-Z]{5}[0-9]{4}[A-Z]{1}$'),
@@ -188,22 +195,27 @@ CREATE INDEX IF NOT EXISTS idx_agents_code ON agents(agent_code);
 -- ============================================================================
 -- 5. LEADS & CUSTOMER MASTER (SINGLE AUTHORITATIVE MASTER)
 -- ============================================================================
-
+CREATE SEQUENCE IF NOT EXISTS leads_lead_code_seq;
 CREATE TABLE IF NOT EXISTS leads (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     lead_code VARCHAR(32) UNIQUE NOT NULL,
+    branch VARCHAR(64),
     source_agent_id UUID REFERENCES agents(id) ON DELETE RESTRICT,
     assigned_officer_id UUID REFERENCES profiles(id) ON DELETE SET NULL,
     full_name TEXT NOT NULL,
     mobile VARCHAR(15) NOT NULL,
     alternate_phone VARCHAR(15),
     email CITEXT,
-    discom_name TEXT NOT NULL DEFAULT 'JVVNL / AVVNL / JdVVNL',
+    discom_name TEXT NOT NULL DEFAULT 'CSPDCL',
     consumer_number VARCHAR(64),
     sanctioned_load_kw NUMERIC(6, 2) CHECK (sanctioned_load_kw > 0),
     proposed_capacity_kw NUMERIC(6, 2) CHECK (proposed_capacity_kw > 0),
     address_line TEXT,
+    state TEXT DEFAULT 'Chhattisgarh',
     district TEXT,
+    tehsil TEXT,
+    block TEXT,
+    panchayat_village TEXT,
     pincode VARCHAR(10),
     stage lead_stage_type NOT NULL DEFAULT 'NEW',
     lost_reason TEXT,
@@ -221,17 +233,22 @@ CREATE INDEX IF NOT EXISTS idx_leads_agent ON leads(source_agent_id);
 CREATE TABLE IF NOT EXISTS customers (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     customer_code VARCHAR(32) UNIQUE NOT NULL,
+    branch VARCHAR(64),
     full_name TEXT NOT NULL,
     primary_mobile VARCHAR(15) NOT NULL UNIQUE,
     alternate_mobile VARCHAR(15),
     email CITEXT,
     aadhaar_masked VARCHAR(12),
     pan_number VARCHAR(10),
-    discom_name TEXT NOT NULL,
+    discom_name TEXT NOT NULL DEFAULT 'CSPDCL',
     consumer_number VARCHAR(64) NOT NULL UNIQUE,
+    sanctioned_load_kw NUMERIC(6, 2) CHECK (sanctioned_load_kw > 0),
     installation_address TEXT NOT NULL,
     district TEXT NOT NULL,
-    state TEXT NOT NULL DEFAULT 'Rajasthan',
+    tehsil TEXT,
+    block TEXT,
+    panchayat_village TEXT,
+    state TEXT NOT NULL DEFAULT 'Chhattisgarh',
     pincode VARCHAR(10) NOT NULL,
     lifecycle_status customer_lifecycle_type NOT NULL DEFAULT 'UNREGISTERED',
     is_test BOOLEAN NOT NULL DEFAULT false,
@@ -281,6 +298,35 @@ CREATE TABLE IF NOT EXISTS pmsg_tracking (
 
 CREATE INDEX IF NOT EXISTS idx_pmsg_portal_no ON pmsg_tracking(portal_application_no);
 CREATE INDEX IF NOT EXISTS idx_pmsg_stage ON pmsg_tracking(stage);
+-- Protect Portal/Application fields after official submission.
+CREATE OR REPLACE FUNCTION check_pmsg_portal_immutability()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF OLD.customer_id IS DISTINCT FROM NEW.customer_id THEN
+        RAISE EXCEPTION 'PMSG customer linkage is immutable.';
+    END IF;
+
+    IF OLD.stage <> 'INITIATED' AND NEW.stage = 'INITIATED' THEN
+        RAISE EXCEPTION 'PMSG stage cannot return to INITIATED after submission.';
+    END IF;
+
+    IF OLD.stage <> 'INITIATED' AND (
+        OLD.portal_application_no IS DISTINCT FROM NEW.portal_application_no
+        OR OLD.application_submission_date IS DISTINCT FROM NEW.application_submission_date
+    ) THEN
+        RAISE EXCEPTION 'PMSG Portal/Application fields are read-only after submission.';
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_pmsg_portal_immutability ON pmsg_tracking;
+CREATE TRIGGER trg_pmsg_portal_immutability
+    BEFORE UPDATE ON pmsg_tracking
+    FOR EACH ROW
+    EXECUTE FUNCTION check_pmsg_portal_immutability();
+
 
 -- Operational View for PMSG Registered Customers (Filtered View, NOT a duplicate master)
 CREATE OR REPLACE VIEW view_pmsg_registered_customers AS

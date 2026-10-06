@@ -48,7 +48,7 @@ export const ConvertLeadModal: React.FC<ConvertLeadModalProps> = ({
     ? existingCustomers.find((c) => c.consumer_number === consumerNumber.trim()) 
     : undefined;
 
-  const handleConvert = () => {
+  const handleConvert = async () => {
     if (!consumerNumber.trim()) {
       setErrorMsg('Discom Consumer Number (BP No) is required.');
       return;
@@ -58,7 +58,7 @@ export const ConvertLeadModal: React.FC<ConvertLeadModalProps> = ({
     setErrorMsg(null);
 
     // Call atomic transactional command
-    const res = erpStore.convertLeadAtomic(lead.id, consumerNumber.trim(), currentProfile.id);
+    const res = await erpStore.convertLeadAtomic(lead.id, consumerNumber.trim(), currentProfile.id);
 
     setLoading(false);
     if (res.success && res.customer) {
@@ -105,7 +105,7 @@ export const ConvertLeadModal: React.FC<ConvertLeadModalProps> = ({
             <div className="grid grid-cols-2 gap-2 text-xs text-slate-400 pt-1 border-t border-slate-700/50">
               <div>Mobile: <span className="text-slate-200 font-mono">{lead.mobile}</span></div>
               <div>Discom: <span className="text-slate-200">{lead.discom_name}</span></div>
-              <div>District: <span className="text-slate-200">{lead.district || 'Rajasthan'}</span></div>
+              <div>District: <span className="text-slate-200">{lead.district || 'Pending Survey'}</span></div>
               <div>Current Stage: <span className="text-amber-400 font-medium">{lead.stage}</span></div>
             </div>
           </div>
@@ -153,7 +153,7 @@ export const ConvertLeadModal: React.FC<ConvertLeadModalProps> = ({
               In this single atomic transaction:
               <ul className="list-disc pl-4 mt-1 space-y-0.5 text-slate-300">
                 <li>Authoritative Customer Master record is verified</li>
-                <li>PMSG Tracking entry (State: INITIATED) is activated</li>
+                <li>PM Surya Ghar registration is handled separately after Customer conversion</li>
                 <li>Lead status is permanently transitioned to CONVERTED</li>
                 <li>Audit trail record is logged immutably</li>
               </ul>

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { UserRoleType, BranchLocation } from '../../types/database';
+import { BranchLocation } from '../../types/database';
 import { BRANCHES_LIST } from '../../services/mockData';
 import { erpStore } from '../../services/erpStore';
 import { BnpsLogo } from '../common/BnpsLogo';
@@ -11,9 +11,7 @@ import {
   Zap, 
   ChevronDown, 
   LogOut, 
-  ShieldCheck, 
   User,
-  SlidersHorizontal,
   Building2,
   MapPin
 } from 'lucide-react';
@@ -31,7 +29,7 @@ export const Header: React.FC<HeaderProps> = ({
   onRunCommissionTest,
   onOpenBranches,
 }) => {
-  const { currentProfile, userRole, switchRole, logout } = useAuth();
+  const { currentProfile, userRole, logout } = useAuth();
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [activeBranch, setActiveBranch] = useState<BranchLocation | 'ALL'>(erpStore.getActiveBranchFilter());
 
@@ -147,38 +145,6 @@ export const Header: React.FC<HeaderProps> = ({
                     <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">
                       📍 {currentProfile.branch || 'Raipur'}
                     </span>
-                  </div>
-                </div>
-
-                {/* Role Switcher */}
-                <div className="p-2 border-b border-slate-800 space-y-1.5">
-                  <div className="text-[10px] text-slate-400 uppercase font-semibold flex items-center gap-1">
-                    <SlidersHorizontal className="w-3 h-3 text-amber-400" />
-                    <span>Switch Active Role</span>
-                  </div>
-
-                  <div className="space-y-1">
-                    {[
-                      { role: 'super_admin', title: 'Admin (Master Control)', desc: 'BNPS Administrator · All controls, branches & appointments' },
-                      { role: 'branch_manager', title: 'Branch Manager', desc: 'Rajesh Kumar Yadav · Jaijaipur Branch Lead & Registration' },
-                      { role: 'operational_manager', title: 'Operational Manager', desc: 'Om Prakash Dewangan · Central Operations & Net Metering' },
-                      { role: 'receptionist', title: 'Receptionist', desc: 'Sagar Kumar Yadav · Front Desk & Customer Registration' },
-                      { role: 'backoffice', title: 'Back Office & Documentation', desc: 'Ravi Kumar · Sakti Branch & Loan Verification' },
-                      { role: 'agent', title: 'Solar Agent', desc: 'Lead creation & document upload (Registration restricted)' },
-                    ].map((item) => (
-                      <button
-                        key={item.role}
-                        onClick={() => switchRole(item.role as UserRoleType)}
-                        className={`w-full text-left p-2 rounded-lg transition-colors text-xs ${
-                          userRole === item.role
-                            ? 'bg-amber-500/20 border border-amber-500/40 text-amber-300 font-bold'
-                            : 'hover:bg-slate-800 text-slate-300'
-                        }`}
-                      >
-                        <div className="font-semibold">{item.title}</div>
-                        <div className="text-[10px] text-slate-400 font-normal leading-tight mt-0.5">{item.desc}</div>
-                      </button>
-                    ))}
                   </div>
                 </div>
 

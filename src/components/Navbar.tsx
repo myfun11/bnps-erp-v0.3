@@ -1,10 +1,8 @@
 import React from 'react';
-import { useAuth, DEMO_PROFILES } from '../context/AuthContext';
-import { UserRoleType } from '../types/database';
+import { useAuth } from '../context/AuthContext';
 import { 
   Sun, 
   Search, 
-  ShieldCheck, 
   UserCheck, 
   Users, 
   UserPlus, 
@@ -21,7 +19,7 @@ interface NavbarProps {
 }
 
 export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, onOpenSearch }) => {
-  const { currentProfile, userRole, switchRole, canViewSensitiveAgentPii } = useAuth();
+  const { currentProfile } = useAuth();
 
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -81,27 +79,6 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, onOpenS
             >
               <Search className="w-5 h-5" />
             </button>
-
-            {/* Role Simulation Selector */}
-            <div className="flex items-center gap-2 bg-slate-800/80 px-2.5 py-1.5 rounded-lg border border-slate-700">
-              <ShieldCheck className="w-4 h-4 text-emerald-400" />
-              <div className="text-right">
-                <div className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Simulate Role</div>
-                <select
-                  value={userRole}
-                  onChange={(e) => switchRole(e.target.value as UserRoleType)}
-                  aria-label="Simulate User Role"
-                  className="bg-transparent text-xs font-semibold text-amber-400 outline-none cursor-pointer"
-                >
-                  <option value="super_admin" className="bg-slate-900 text-white">Super Admin (Universal Access)</option>
-                  <option value="office_admin" className="bg-slate-900 text-white">Office Admin</option>
-                  <option value="accountant" className="bg-slate-900 text-white">Accountant</option>
-                  <option value="field_officer" className="bg-slate-900 text-white">Field Officer</option>
-                  <option value="technician" className="bg-slate-900 text-white">Technician</option>
-                  <option value="agent" className="bg-slate-900 text-white">Direct Agent (Level 10)</option>
-                </select>
-              </div>
-            </div>
 
             {/* User Avatar & Name */}
             <div className="hidden lg:flex items-center gap-2.5 pl-2 border-l border-slate-800">

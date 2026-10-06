@@ -5,14 +5,12 @@ import { Search, Key, FileText, Shield, UserCheck, X, Check, Lock } from 'lucide
 interface OfficeUsersTableProps {
   users: OfficeUser[];
   onOpenLetter: (letterId: string) => void;
-  onOpenRoleSwitch: (role: string) => void;
   onUpdateStatus: (userId: string, newStatus: 'ACTIVE' | 'INACTIVE') => void;
 }
 
 export const OfficeUsersTable: React.FC<OfficeUsersTableProps> = ({
   users,
   onOpenLetter,
-  onOpenRoleSwitch,
   onUpdateStatus,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -196,13 +194,6 @@ export const OfficeUsersTable: React.FC<OfficeUsersTableProps> = ({
                         className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] font-semibold transition"
                       >
                         Letter
-                      </button>
-
-                      <button
-                        onClick={() => onOpenRoleSwitch(user.role)}
-                        className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] font-semibold transition"
-                      >
-                        Role
                       </button>
 
                       <button

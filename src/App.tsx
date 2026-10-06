@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { Header } from './components/layout/Header';
 import { Sidebar } from './components/layout/Sidebar';
-import { LoginPage } from './components/auth/LoginPage';
+import LoginPage from './components/auth/LoginPage';
 import { GlobalSearch } from './components/GlobalSearch';
 import { CommissionTestModal } from './components/modals/CommissionTestModal';
 
