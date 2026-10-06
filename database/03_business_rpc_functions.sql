@@ -1276,3 +1276,33 @@ GRANT EXECUTE ON FUNCTION reject_document_atomic(
     UUID,
     TEXT
 ) TO authenticated;
+
+-- ============================================================================
+-- RPC EXECUTION SECURITY
+-- Only authenticated Supabase users may invoke business commands.
+-- ============================================================================
+
+REVOKE ALL ON FUNCTION convert_lead_atomic(
+    UUID,
+    VARCHAR(64),
+    UUID
+) FROM PUBLIC;
+
+GRANT EXECUTE ON FUNCTION convert_lead_atomic(
+    UUID,
+    VARCHAR(64),
+    UUID
+) TO authenticated;
+
+
+REVOKE ALL ON FUNCTION generate_project_commission_atomic(
+    UUID,
+    payment_stage_type,
+    UUID
+) FROM PUBLIC;
+
+GRANT EXECUTE ON FUNCTION generate_project_commission_atomic(
+    UUID,
+    payment_stage_type,
+    UUID
+) TO authenticated;
