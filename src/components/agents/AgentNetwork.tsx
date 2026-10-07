@@ -25,7 +25,7 @@ import {
 } from 'lucide-react';
 
 export const AgentNetwork: React.FC = () => {
-  const { currentProfile, userRole, canViewSensitiveAgentPii } = useAuth();
+  const { userRole, canViewSensitiveAgentPii } = useAuth();
   const [agents, setAgents] = useState<Agent[]>([]);
   const [showNewAgentModal, setShowNewAgentModal] = useState(false);
   const [successBanner, setSuccessBanner] = useState<string | null>(null);
@@ -612,6 +612,7 @@ export const AgentNetwork: React.FC = () => {
                   </label>
                   <input
                     type="email"
+                    required
                     value={newAgentForm.email}
                     onChange={(e) => setNewAgentForm({ ...newAgentForm, email: e.target.value })}
                     placeholder="agent@example.com"
