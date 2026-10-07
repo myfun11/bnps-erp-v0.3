@@ -45,6 +45,152 @@ ON CONFLICT DO NOTHING;
 
 
 -- ============================================================================
+-- 2B. AGENT NETWORK READ RPC
+-- ============================================================================
+-- Read-only RPC used by the Supabase Agent Network frontend.
+-- Sensitive agent fields are returned only to authorized management roles
+-- or to the currently authenticated agent's own profile.
+-- ============================================================================
+
+CREATE OR REPLACE FUNCTION get_agent_network(
+    p_search TEXT DEFAULT '',
+    p_branch TEXT DEFAULT NULL,
+    p_hierarchy_level INT DEFAULT NULL
+)
+RETURNS TABLE (
+    id UUID,
+    profile_id UUID,
+    agent_code VARCHAR(32),
+    branch VARCHAR(64),
+    sponsor_agent_id UUID,
+    hierarchy_level INT,
+    pan_number TEXT,
+    aadhaar_masked TEXT,
+    bank_account_no TEXT,
+    bank_name TEXT,
+    bank_ifsc TEXT,
+    tds_percentage NUMERIC(5,2),
+    total_commission_earned NUMERIC(14,2),
+    total_commission_paid NUMERIC(14,2),
+    outstanding_advance NUMERIC(14,2),
+    is_active BOOLEAN,
+    is_test BOOLEAN,
+    created_at TIMESTAMPTZ,
+    updated_at TIMESTAMPTZ,
+    full_name TEXT,
+    phone TEXT,
+    email TEXT,
+    sponsor_name TEXT,
+    sponsor_code VARCHAR(32)
+)
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $
+DECLARE
+    v_profile_id UUID := current_auth_profile_id();
+    v_role user_role_type := current_user_role();
+    v_q TEXT := LOWER(TRIM(COALESCE(p_search, '')));
+    v_can_all BOOLEAN := false;
+BEGIN
+    IF v_profile_id IS NULL OR v_role IS NULL THEN
+        RAISE EXCEPTION
+            'INSUFFICIENT_PERMISSION: Authenticated ERP profile required'
+            USING ERRCODE = 'P0004';
+    END IF;
+
+    v_can_all := v_role IN (
+        'super_admin',
+        'office_admin',
+        'branch_manager',
+        'accountant'
+    );
+
+    RETURN QUERY
+    SELECT
+        a.id,
+        a.profile_id,
+        a.agent_code,
+        p.branch,
+        a.sponsor_agent_id,
+        a.hierarchy_level,
+        CASE
+            WHEN v_can_all OR a.profile_id = v_profile_id
+            THEN a.pan_number::TEXT
+            ELSE NULL
+        END,
+        CASE
+            WHEN v_can_all OR a.profile_id = v_profile_id
+            THEN a.aadhaar_masked::TEXT
+            ELSE NULL
+        END,
+        CASE
+            WHEN v_can_all OR a.profile_id = v_profile_id
+            THEN a.bank_account_no::TEXT
+            ELSE NULL
+        END,
+        CASE
+            WHEN v_can_all OR a.profile_id = v_profile_id
+            THEN a.bank_name::TEXT
+            ELSE NULL
+        END,
+        CASE
+            WHEN v_can_all OR a.profile_id = v_profile_id
+            THEN a.bank_ifsc::TEXT
+            ELSE NULL
+        END,
+        a.tds_percentage,
+        a.total_commission_earned,
+        a.total_commission_paid,
+        a.outstanding_advance,
+        a.is_active,
+        a.is_test,
+        a.created_at,
+        a.updated_at,
+        p.full_name,
+        p.phone,
+        p.email::TEXT,
+        sp.full_name,
+        sa.agent_code
+    FROM agents a
+    JOIN profiles p
+        ON p.id = a.profile_id
+    LEFT JOIN agents sa
+        ON sa.id = a.sponsor_agent_id
+    LEFT JOIN profiles sp
+        ON sp.id = sa.profile_id
+    WHERE
+        (
+            v_can_all
+            OR a.profile_id = v_profile_id
+        )
+        AND (p_branch IS NULL OR p.branch = p_branch)
+        AND (
+            p_hierarchy_level IS NULL
+            OR a.hierarchy_level = p_hierarchy_level
+        )
+        AND (
+            v_q = ''
+            OR LOWER(a.agent_code) LIKE '%' || v_q || '%'
+            OR LOWER(p.full_name) LIKE '%' || v_q || '%'
+            OR p.phone LIKE '%' || v_q || '%'
+            OR LOWER(COALESCE(p.email::TEXT, '')) LIKE '%' || v_q || '%'
+            OR LOWER(COALESCE(p.branch, '')) LIKE '%' || v_q || '%'
+            OR LOWER(COALESCE(sp.full_name, '')) LIKE '%' || v_q || '%'
+            OR LOWER(COALESCE(sa.agent_code, '')) LIKE '%' || v_q || '%'
+        )
+    ORDER BY a.created_at DESC;
+END;
+$;
+
+REVOKE ALL ON FUNCTION get_agent_network(TEXT, TEXT, INT) FROM PUBLIC;
+
+GRANT EXECUTE ON FUNCTION get_agent_network(TEXT, TEXT, INT) TO authenticated;
+
+
+
+-- ============================================================================
 -- 3. ATOMIC AGENT CREATION
 -- ============================================================================
 --
