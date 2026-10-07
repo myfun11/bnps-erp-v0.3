@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Agent, BranchLocation } from '../../types/database';
-import { erpStore } from '../../services/erpStore';
+import { agentNetworkService } from '../../services/agentNetworkService';
 import { useAuth } from '../../context/AuthContext';
 import { STANDARD_COMMISSION_RATES } from '../../lib/constants';
 import { BRANCHES_LIST } from '../../services/mockData';
@@ -29,6 +29,7 @@ export const AgentNetwork: React.FC = () => {
   const [agents, setAgents] = useState<Agent[]>([]);
   const [showNewAgentModal, setShowNewAgentModal] = useState(false);
   const [successBanner, setSuccessBanner] = useState<string | null>(null);
+  const [errorBanner, setErrorBanner] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [newlyCreatedAgent, setNewlyCreatedAgent] = useState<Agent | null>(null);
 
@@ -53,14 +54,18 @@ export const AgentNetwork: React.FC = () => {
     tds_percentage: 5.0,
   });
 
-  const loadData = () => {
-    setAgents(erpStore.getAgents());
+  const loadData = async () => {
+    try {
+      const rows = await agentNetworkService.list();
+      setAgents(rows);
+    } catch (error) {
+      console.error('Agent Network load failed:', error);
+      setErrorBanner(error instanceof Error ? error.message : 'Unable to load Agent Network.');
+    }
   };
 
   useEffect(() => {
-    loadData();
-    const unsub = erpStore.subscribe(loadData);
-    return () => unsub();
+    void loadData();
   }, []);
 
   const handleCopy = (text: string, id: string) => {
@@ -69,30 +74,50 @@ export const AgentNetwork: React.FC = () => {
     setTimeout(() => setCopiedId(null), 2500);
   };
 
-  const handleCreateAgent = (e: React.FormEvent) => {
+  const handleCreateAgent = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newAgentForm.full_name || !newAgentForm.phone) {
-      alert('Please enter agent full name and mobile number.');
+    setErrorBanner(null);
+
+    if (!newAgentForm.full_name || !newAgentForm.phone || !newAgentForm.email) {
+      alert('Please enter agent full name, mobile number, and email address.');
       return;
     }
 
-    const defaultPwd = newAgentForm.login_password || `${newAgentForm.full_name.split(' ')[0]}@${newAgentForm.branch}2026`;
+    const defaultPwd =
+      newAgentForm.login_password ||
+      `${newAgentForm.full_name.split(' ')[0]}@${newAgentForm.branch}2026`;
 
-    const res = erpStore.createAgent(
-      {
-        ...newAgentForm,
-        login_password: defaultPwd,
-        tds_percentage: Number(newAgentForm.tds_percentage),
+    try {
+      const result = await agentNetworkService.create({
+        full_name: newAgentForm.full_name,
+        phone: newAgentForm.phone,
+        email: newAgentForm.email,
+        branch: newAgentForm.branch,
         sponsor_agent_id: newAgentForm.sponsor_agent_id || undefined,
-      },
-      currentProfile.id
-    );
+        password: defaultPwd,
+        pan_number: newAgentForm.pan_number || undefined,
+        bank_account_no: newAgentForm.bank_account_no || undefined,
+        bank_name: newAgentForm.bank_name || undefined,
+        bank_ifsc: newAgentForm.bank_ifsc || undefined,
+        tds_percentage: Number(newAgentForm.tds_percentage),
+      });
 
-    if (res.success && res.agent) {
-      setNewlyCreatedAgent(res.agent);
+      await loadData();
+
+      const createdAgent = (await agentNetworkService.list()).find(
+        (agent) => agent.id === result.agent_id
+      );
+
+      if (createdAgent) {
+        setNewlyCreatedAgent(createdAgent);
+      }
+
       setShowNewAgentModal(false);
-      setSuccessBanner(`Agent ${res.agent.agent_code} (${newAgentForm.full_name}) successfully onboarded! Login credentials generated.`);
+      setSuccessBanner(
+        `Agent ${result.agent_code} (${newAgentForm.full_name}) successfully onboarded!${result.invite_sent ? ' Invitation sent to the registered email.' : ''}`
+      );
       setTimeout(() => setSuccessBanner(null), 5000);
+
       setNewAgentForm({
         full_name: '',
         phone: '',
@@ -106,6 +131,9 @@ export const AgentNetwork: React.FC = () => {
         bank_ifsc: '',
         tds_percentage: 5.0,
       });
+    } catch (error) {
+      console.error('Agent onboarding failed:', error);
+      setErrorBanner(error instanceof Error ? error.message : 'Agent onboarding failed.');
     }
   };
 
@@ -131,6 +159,13 @@ export const AgentNetwork: React.FC = () => {
   return (
     <div className="space-y-6 animate-fade-in font-sans">
       {/* Toast / Success Notification */}
+      {errorBanner && (
+        <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/30 text-red-300 text-xs flex items-center justify-between">
+          <span>{errorBanner}</span>
+          <button onClick={() => setErrorBanner(null)} className="text-red-400 hover:text-white">✕</button>
+        </div>
+      )}
+
       {successBanner && (
         <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs flex items-center justify-between">
           <span>{successBanner}</span>
@@ -145,7 +180,7 @@ export const AgentNetwork: React.FC = () => {
             <div className="flex items-center gap-2">
               <ShieldCheck className="w-5 h-5 text-emerald-400" />
               <h3 className="font-bold text-sm text-slate-100">
-                Official Agent Credentials Generated ({newlyCreatedAgent.agent_code})
+                Agent Onboarding Completed ({newlyCreatedAgent.agent_code})
               </h3>
             </div>
             <button onClick={() => setNewlyCreatedAgent(null)} className="text-slate-400 hover:text-white">✕</button>
@@ -165,9 +200,9 @@ export const AgentNetwork: React.FC = () => {
               <span className="text-slate-200">{newlyCreatedAgent.profile?.phone}</span>
             </div>
             <div>
-              <span className="text-slate-400 block text-[10px] uppercase font-sans">Login Password</span>
+              <span className="text-slate-400 block text-[10px] uppercase font-sans">Login Email</span>
               <span className="text-emerald-400 font-bold bg-emerald-950/50 px-2 py-0.5 rounded">
-                {newlyCreatedAgent.profile?.login_password}
+                {newlyCreatedAgent.profile?.email || 'Invitation flow'}
               </span>
             </div>
           </div>
@@ -175,7 +210,7 @@ export const AgentNetwork: React.FC = () => {
           <div className="flex justify-end">
             <button
               onClick={() => handleCopy(
-                `BNPS ERP Agent Login Credentials:\nBranch: ${newlyCreatedAgent.branch}\nAgent ID: ${newlyCreatedAgent.agent_code}\nName: ${newlyCreatedAgent.profile?.full_name}\nLogin: ${newlyCreatedAgent.profile?.phone} / ${newlyCreatedAgent.profile?.email}\nPassword: ${newlyCreatedAgent.profile?.login_password}`,
+                `BNPS ERP Agent Login Credentials:\nBranch: ${newlyCreatedAgent.branch}\nAgent ID: ${newlyCreatedAgent.agent_code}\nName: ${newlyCreatedAgent.profile?.full_name}\nLogin: ${newlyCreatedAgent.profile?.phone} / ${newlyCreatedAgent.profile?.email}\nLogin email: ${newlyCreatedAgent.profile?.email || 'Invitation sent'}`,
                 newlyCreatedAgent.id
               )}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs shadow transition-all cursor-pointer"
@@ -573,7 +608,7 @@ export const AgentNetwork: React.FC = () => {
 
                 <div>
                   <label className="block text-xs font-semibold text-slate-300 mb-1">
-                    Email Address (Optional)
+                    Email Address *
                   </label>
                   <input
                     type="email"
