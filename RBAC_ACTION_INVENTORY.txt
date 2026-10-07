@@ -178,7 +178,7 @@ D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modals\
 D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modals\CommissionTestModal.tsx:65:            If two accountants click "Generate Commission" simultaneously on the same project and stage, the composite unique constraint (`project_id`, `payment_stage`, `position`, `agent_id`) ensures only one transaction executes while duplicate payouts are strictly rejected.
 D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\CommissionsPage.tsx:5:export const CommissionsPage: React.FC = () => {
 D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\CommissionsPage.tsx:14:            <span>Commission & Agent Payout Ledger (10-Tier Multi-Level)</span>
-D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\CommissionsPage.tsx:17:            Idempotent PostgreSQL execution • Gross commission, 5% TDS deduction (Sec 194H), and Net Payable
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\CommissionsPage.tsx:17:            Idempotent PostgreSQL execution ï¿½ Gross commission, 5% TDS deduction (Sec 194H), and Net Payable
 D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\CommissionsPage.tsx:35:                <th className="px-4 py-3">Earned Commission</th>
 D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\CommissionsPage.tsx:44:                const netAvail = Math.max(0, ag.total_commission_earned - ag.total_commission_paid - ag.outstanding_advance);
 D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\CommissionsPage.tsx:60:                      ?{ag.total_commission_earned.toLocaleString('en-IN')}
@@ -219,7 +219,7 @@ D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules
 D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\ProjectsPage.tsx:5:export const ProjectsPage: React.FC = () => {
 D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\ProjectsPage.tsx:6:  const projects = erpStore.getProjects();
 D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\ProjectsPage.tsx:16:            <span>Solar Rooftop Projects (Installation & Grid Sync Pipeline)</span>
-D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\ProjectsPage.tsx:19:            Full project engineering cycle • Capacity kW • Customer contract values & subsidy deductions
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\ProjectsPage.tsx:19:            Full project engineering cycle ï¿½ Capacity kW ï¿½ Customer contract values & subsidy deductions
 D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\ProjectsPage.tsx:25:        {projects.map((proj) => {
 D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\ProjectsPage.tsx:33:                  <span className="text-xs font-mono text-amber-400 font-bold">{proj.project_code}</span>
 D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\ProjectsPage.tsx:59:                  <span className="text-slate-400 block">Commission Distributed:</span>
@@ -250,7 +250,7 @@ D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules
 D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\QuotationsPage.tsx:545:          onConvertToProject={handleConvertToProject}
 D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\ReportsPage.tsx:8:  const projects = erpStore.getProjects();
 D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\ReportsPage.tsx:10:  const totalKw = projects.reduce((sum, p) => sum + p.capacity_kw, 0) + 355; // Historical + Live
-D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\ReportsPage.tsx:21:            Aggregated metrics • PM Surya Ghar installation performance and district-level breakdown
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\ReportsPage.tsx:21:            Aggregated metrics ï¿½ PM Surya Ghar installation performance and district-level breakdown
 D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\ReportsPage.tsx:59:          <span>District-Wise Installation Progress (Chhattisgarh)</span>
 D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\ReportsPage.tsx:72:                <span className="font-mono text-slate-400">{d.kw} kW ({d.count} Installations)</span>
 D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\src\components\modules\UserAdministrationPage.tsx:130:    showToast(`Office user ${newUserName} created & Appointment Order ${letterId} generated!`);
@@ -910,7 +910,7 @@ D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\03_business_r
 D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\03_business_rpc_functions.sql:291:CREATE OR REPLACE FUNCTION global_erp_search(p_query TEXT, p_max_limit INT DEFAULT 20)
 D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\03_business_rpc_functions.sql:335:    -- 3. Search Projects
 D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\03_business_rpc_functions.sql:337:        'project'::TEXT,
-D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\03_business_rpc_functions.sql:339:        (pr.project_code || ' • ' || pr.capacity_kw::TEXT || ' kW')::TEXT,
+D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\03_business_rpc_functions.sql:339:        (pr.project_code || ' ï¿½ ' || pr.capacity_kw::TEXT || ' kW')::TEXT,
 D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\03_business_rpc_functions.sql:343:    FROM projects pr
 D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\03_business_rpc_functions.sql:344:    WHERE pr.project_code ILIKE '%' || v_clean_q || '%'
 D:\Google ai studio zip\BHIMI-NIDHI-POWAR-SOLUTION-github\database\03_business_rpc_functions.sql:348:    -- 4. Search PMSG Applications

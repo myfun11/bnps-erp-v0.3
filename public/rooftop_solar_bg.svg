@@ -1,0 +1,170 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080" width="100%" height="100%">
+  <defs>
+    <!-- Sky & Atmospheric Gradients -->
+    <linearGradient id="skyGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#030814" />
+      <stop offset="35%" stop-color="#071830" />
+      <stop offset="65%" stop-color="#0c2344" />
+      <stop offset="85%" stop-color="#0e1a2f" />
+      <stop offset="100%" stop-color="#060c18" />
+    </linearGradient>
+
+    <!-- Sun & Horizon Glow -->
+    <radialGradient id="sunGlow" cx="72%" cy="28%" r="45%">
+      <stop offset="0%" stop-color="#f59e0b" stop-opacity="0.45" />
+      <stop offset="25%" stop-color="#d97706" stop-opacity="0.25" />
+      <stop offset="60%" stop-color="#0284c7" stop-opacity="0.12" />
+      <stop offset="100%" stop-color="#000000" stop-opacity="0" />
+    </radialGradient>
+
+    <!-- Solar PV Monocrystalline Cell Texture -->
+    <linearGradient id="pvPanelGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1e3a5f" />
+      <stop offset="45%" stop-color="#0f2b48" />
+      <stop offset="75%" stop-color="#0a1f36" />
+      <stop offset="100%" stop-color="#071526" />
+    </linearGradient>
+
+    <linearGradient id="panelGlare" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#38bdf8" stop-opacity="0.4" />
+      <stop offset="50%" stop-color="#ffffff" stop-opacity="0.1" />
+      <stop offset="100%" stop-color="#38bdf8" stop-opacity="0.05" />
+    </linearGradient>
+
+    <linearGradient id="amberGlare" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#fbbf24" stop-opacity="0.3" />
+      <stop offset="100%" stop-color="#0284c7" stop-opacity="0.05" />
+    </linearGradient>
+
+    <!-- Roof Gradient -->
+    <linearGradient id="roofGrad1" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#13243a" />
+      <stop offset="100%" stop-color="#091322" />
+    </linearGradient>
+    <linearGradient id="roofGrad2" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#1a2d48" />
+      <stop offset="100%" stop-color="#0a1524" />
+    </linearGradient>
+    <linearGradient id="roofGrad3" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#1f3654" />
+      <stop offset="100%" stop-color="#0e1b2c" />
+    </linearGradient>
+
+    <!-- PV Grid Pattern -->
+    <pattern id="pvGrid" width="24" height="16" patternUnits="userSpaceOnUse" patternTransform="rotate(-15)">
+      <rect width="24" height="16" fill="none" stroke="#38bdf8" stroke-width="0.75" stroke-opacity="0.4" />
+      <line x1="12" y1="0" x2="12" y2="16" stroke="#93c5fd" stroke-width="0.5" stroke-opacity="0.5" />
+      <line x1="0" y1="8" x2="24" y2="8" stroke="#38bdf8" stroke-width="0.5" stroke-opacity="0.3" />
+    </pattern>
+
+    <pattern id="pvGrid2" width="28" height="18" patternUnits="userSpaceOnUse" patternTransform="rotate(22)">
+      <rect width="28" height="18" fill="none" stroke="#38bdf8" stroke-width="0.75" stroke-opacity="0.35" />
+      <line x1="14" y1="0" x2="14" y2="18" stroke="#93c5fd" stroke-width="0.5" stroke-opacity="0.4" />
+    </pattern>
+  </defs>
+
+  <!-- Sky Base -->
+  <rect width="1920" height="1080" fill="url(#skyGrad)" />
+  <rect width="1920" height="1080" fill="url(#sunGlow)" />
+
+  <!-- Distant Clean Horizon Stars / Micro Grid -->
+  <g opacity="0.12">
+    <circle cx="180" cy="120" r="1.5" fill="#ffffff" />
+    <circle cx="420" cy="80" r="1" fill="#ffffff" />
+    <circle cx="890" cy="140" r="2" fill="#fbbf24" />
+    <circle cx="1200" cy="90" r="1.5" fill="#38bdf8" />
+    <circle cx="1520" cy="110" r="1.5" fill="#ffffff" />
+    <circle cx="1780" cy="70" r="2" fill="#fbbf24" />
+  </g>
+
+  <!-- Sun Sphere Glow -->
+  <g transform="translate(1380, 240)">
+    <circle cx="0" cy="0" r="90" fill="#f59e0b" opacity="0.35" filter="blur(20px)" />
+    <circle cx="0" cy="0" r="48" fill="#fbbf24" opacity="0.6" filter="blur(8px)" />
+    <circle cx="0" cy="0" r="24" fill="#fffbeb" opacity="0.9" />
+    <!-- Radiant Solar Rays -->
+    <line x1="-320" y1="180" x2="200" y2="-120" stroke="#f59e0b" stroke-width="2" stroke-opacity="0.15" />
+    <line x1="-480" y1="260" x2="350" y2="-180" stroke="#38bdf8" stroke-width="1.5" stroke-opacity="0.12" />
+    <line x1="-600" y1="420" x2="400" y2="-280" stroke="#fbbf24" stroke-width="2" stroke-opacity="0.1" />
+  </g>
+
+  <!-- =========================================================================
+       LAYER 1: DISTANT RESIDENTIAL ROOFTOPS WITH SOLAR PANELS
+       ========================================================================= -->
+  <g opacity="0.55">
+    <!-- House 1 Left -->
+    <polygon points="60,680 260,540 460,680" fill="url(#roofGrad1)" />
+    <polygon points="120,640 260,550 400,640" fill="url(#pvPanelGrad)" stroke="#38bdf8" stroke-width="1.5" stroke-opacity="0.6" />
+    <polygon points="120,640 260,550 400,640" fill="url(#pvGrid)" />
+
+    <!-- House 2 Mid-Left -->
+    <polygon points="440,710 680,560 920,710" fill="url(#roofGrad2)" />
+    <polygon points="500,670 680,570 860,670" fill="url(#pvPanelGrad)" stroke="#38bdf8" stroke-width="1.5" stroke-opacity="0.6" />
+    <polygon points="500,670 680,570 860,670" fill="url(#pvGrid)" />
+
+    <!-- House 3 Right -->
+    <polygon points="1420,680 1660,530 1900,680" fill="url(#roofGrad1)" />
+    <polygon points="1480,640 1660,540 1840,640" fill="url(#pvPanelGrad)" stroke="#fbbf24" stroke-width="1.5" stroke-opacity="0.5" />
+    <polygon points="1480,640 1660,540 1840,640" fill="url(#pvGrid2)" />
+  </g>
+
+  <!-- =========================================================================
+       LAYER 2: FOREGROUND HIGH-DEFINITION ARCHITECTURAL ROOFTOPS & PV ARRAYS
+       ========================================================================= -->
+  <!-- Left Majestic Commercial Pitched Rooftop -->
+  <g id="left-commercial-roof">
+    <!-- Roof Pitch Face Left -->
+    <polygon points="-80,1080 340,640 760,860 340,1080" fill="url(#roofGrad2)" stroke="#1e3a5f" stroke-width="1" />
+    
+    <!-- Primary Photovoltaic Array 1 on Left Roof -->
+    <polygon points="20,960 320,670 620,830 320,1040" fill="url(#pvPanelGrad)" stroke="#38bdf8" stroke-width="2" />
+    <polygon points="20,960 320,670 620,830 320,1040" fill="url(#pvGrid)" />
+    <polygon points="20,960 320,670 620,830 320,1040" fill="url(#panelGlare)" />
+
+    <!-- Solar Mounting Rail Highlights -->
+    <line x1="80" y1="910" x2="380" y2="720" stroke="#93c5fd" stroke-width="1.5" stroke-opacity="0.7" />
+    <line x1="160" y1="960" x2="460" y2="770" stroke="#93c5fd" stroke-width="1.5" stroke-opacity="0.7" />
+    <line x1="240" y1="1010" x2="540" y2="820" stroke="#93c5fd" stroke-width="1.5" stroke-opacity="0.7" />
+
+    <!-- Solar Cell Grid Junction Dots (Clean energy nodes) -->
+    <circle cx="320" cy="670" r="4" fill="#38bdf8" opacity="0.9" />
+    <circle cx="620" cy="830" r="4" fill="#38bdf8" opacity="0.9" />
+    <circle cx="320" cy="1040" r="4" fill="#38bdf8" opacity="0.9" />
+  </g>
+
+  <!-- Right Contemporary Residential Rooftop Array -->
+  <g id="right-residential-roof">
+    <!-- Roof Facet -->
+    <polygon points="1200,820 1620,580 1980,820 1620,1080" fill="url(#roofGrad3)" stroke="#1e3a5f" stroke-width="1" />
+
+    <!-- Rooftop PV Matrix -->
+    <polygon points="1280,800 1620,610 1880,790 1560,980" fill="url(#pvPanelGrad)" stroke="#38bdf8" stroke-width="2" />
+    <polygon points="1280,800 1620,610 1880,790 1560,980" fill="url(#pvGrid2)" />
+    <polygon points="1280,800 1620,610 1880,790 1560,980" fill="url(#amberGlare)" />
+
+    <!-- Glint / Sun Flare on Solar Panel corner -->
+    <circle cx="1620" cy="610" r="8" fill="#fbbf24" opacity="0.8" filter="blur(2px)" />
+    <circle cx="1620" cy="610" r="3" fill="#ffffff" />
+    <line x1="1590" y1="610" x2="1650" y2="610" stroke="#ffffff" stroke-width="2" stroke-linecap="round" opacity="0.8" />
+    <line x1="1620" y1="580" x2="1620" y2="640" stroke="#ffffff" stroke-width="2" stroke-linecap="round" opacity="0.8" />
+
+    <!-- Power Flow Glow Lines (Simulating Clean Inverter Generation) -->
+    <path d="M1560,980 L1680,1040 L1760,1080" stroke="#38bdf8" stroke-width="2" stroke-dasharray="6 4" stroke-opacity="0.7" />
+  </g>
+
+  <!-- Center Rooftop Ridge in Horizon Silhouette -->
+  <polygon points="680,940 960,780 1240,940 1080,1080 840,1080" fill="#081424" stroke="#13273e" stroke-width="1.5" />
+  <polygon points="760,910 960,800 1160,910 1040,1010 880,1010" fill="url(#pvPanelGrad)" stroke="#38bdf8" stroke-width="1" stroke-opacity="0.6" />
+  <polygon points="760,910 960,800 1160,910 1040,1010 880,1010" fill="url(#pvGrid)" />
+
+  <!-- Micro Energy Flow Sparkles -->
+  <g opacity="0.85">
+    <circle cx="480" cy="740" r="2" fill="#38bdf8" />
+    <circle cx="560" cy="780" r="2.5" fill="#fbbf24" />
+    <circle cx="1390" cy="710" r="2" fill="#38bdf8" />
+    <circle cx="1470" cy="760" r="2.5" fill="#fbbf24" />
+  </g>
+
+  <!-- Subtle Vignette Scrim so content cards have maximum contrast -->
+  <rect width="1920" height="1080" fill="#040914" opacity="0.45" />
+</svg>

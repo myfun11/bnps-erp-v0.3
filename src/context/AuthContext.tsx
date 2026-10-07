@@ -123,7 +123,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const loginWithPassword = async (email: string, password: string) => {
     if (!isLiveSupabase) {
-      throw new Error('Supabase live backend not configured.');
+      throw new Error('Supabase live backend is not configured. Please supply VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your environment.');
     }
     setIsLoading(true);
     try {
