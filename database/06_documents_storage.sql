@@ -10,6 +10,15 @@ SET public = false
 WHERE id = 'documents';
 
 
+
+-- Create the private bucket if it does not already exist.
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('documents', 'documents', false)
+ON CONFLICT (id) DO UPDATE
+SET public = false;
+
+
+
 -- ============================================================================
 -- STORAGE OBJECT POLICIES
 -- ============================================================================
