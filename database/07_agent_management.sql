@@ -148,8 +148,8 @@ BEGIN
         a.is_test,
         a.created_at,
         a.updated_at,
-        p.full_name,
-        p.phone,
+        p.full_name::TEXT,
+        p.phone::TEXT,
         p.email::TEXT,
         sp.full_name,
         sa.agent_code
