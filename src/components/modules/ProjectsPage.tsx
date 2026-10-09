@@ -1,11 +1,45 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { erpStore } from '../../services/erpStore';
+import { projectService } from '../../services/projectService';
+import { customerService } from '../../services/customerService';
+import { agentNetworkService } from '../../services/agentNetworkService';
+import { Project, Customer, Agent } from '../../types/database';
 import { FolderKanban, CheckCircle2, Clock, Zap, ArrowRight } from 'lucide-react';
 
 export const ProjectsPage: React.FC = () => {
-  const projects = erpStore.getProjects();
-  const customers = erpStore.getCustomers();
-  const agents = erpStore.getAgents();
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [agents, setAgents] = useState<Agent[]>([]);
+
+  useEffect(() => {
+    let mounted = true;
+    const loadProjectsData = async () => {
+      try {
+        const [pData, cData, aData] = await Promise.all([
+          projectService.fetchProjects(),
+          customerService.fetchCustomers(),
+          agentNetworkService.list(),
+        ]);
+        if (mounted) {
+          setProjects(pData);
+          setCustomers(cData);
+          setAgents(aData);
+        }
+      } catch (err) {
+        if (mounted) {
+          setProjects(erpStore.getProjects());
+          setCustomers(erpStore.getCustomers());
+          setAgents(erpStore.getAgents());
+        }
+      }
+    };
+    loadProjectsData();
+    const unsub = erpStore.subscribe(loadProjectsData);
+    return () => {
+      mounted = false;
+      unsub();
+    };
+  }, []);
 
   return (
     <div className="space-y-6 animate-fade-in">

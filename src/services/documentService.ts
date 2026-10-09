@@ -1,5 +1,6 @@
 import { supabase, isSupabaseConfigured } from '../lib/supabaseClient';
 import { DocumentRecord, DocStatusType } from '../types/database';
+import { erpStore } from './erpStore';
 
 const STORAGE_BUCKET = 'documents';
 
@@ -32,19 +33,26 @@ export const documentService = {
   isConfigured: () => isSupabaseConfigured,
 
   async fetchDocuments(): Promise<DocumentRecord[]> {
-    if (!isSupabaseConfigured) return [];
-
-    const { data, error } = await supabase
-      .from('documents')
-      .select('*')
-      .order('created_at', { ascending: false });
-
-    if (error) {
-      console.error('[documentService.fetchDocuments]', error.message);
-      throw error;
+    if (!isSupabaseConfigured) {
+      return erpStore.getDocuments();
     }
 
-    return (data || []) as DocumentRecord[];
+    try {
+      const { data, error } = await supabase
+        .from('documents')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.warn('[documentService.fetchDocuments] Falling back to local store:', error.message);
+        return erpStore.getDocuments();
+      }
+
+      return (data || []) as DocumentRecord[];
+    } catch (err) {
+      console.warn('[documentService.fetchDocuments] Network error, falling back to local store:', err);
+      return erpStore.getDocuments();
+    }
   },
 
   async uploadDocument(
@@ -54,10 +62,6 @@ export const documentService = {
     docCategory: string,
     isTest = false
   ): Promise<DocumentRecord | null> {
-    if (!isSupabaseConfigured) {
-      throw new Error('Supabase is not configured.');
-    }
-
     if (!file) {
       throw new Error('Please select a document file.');
     }
@@ -93,6 +97,21 @@ export const documentService = {
         : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
     const filePath = `${entityType}/${entityId}/${uniqueId}-${safeFileName}`;
+
+    if (!isSupabaseConfigured) {
+      const newDoc = erpStore.createDocument({
+        entity_type: entityType,
+        entity_id: entityId,
+        doc_category: docCategory,
+        file_name: file.name,
+        file_path: filePath,
+        mime_type: file.type,
+        file_size_bytes: file.size,
+        status: 'UPLOADED',
+        is_test: isTest,
+      });
+      return newDoc;
+    }
 
     const { error: uploadError } = await supabase.storage
       .from(STORAGE_BUCKET)
@@ -161,48 +180,61 @@ export const documentService = {
 
   async verifyDocument(documentId: string): Promise<void> {
     if (!isSupabaseConfigured) {
-      throw new Error('Supabase is not configured.');
+      erpStore.verifyDocument(documentId);
+      return;
     }
 
-    const { error } = await supabase.rpc(
-      'verify_document_atomic',
-      {
-        p_document_id: documentId,
+    try {
+      const { error } = await supabase.rpc(
+        'verify_document_atomic',
+        {
+          p_document_id: documentId,
+        }
+      );
+
+      if (error) {
+        console.error('[documentService.verifyDocument]', error.message);
+        throw error;
       }
-    );
-
-    if (error) {
-      console.error('[documentService.verifyDocument]', error.message);
-      throw error;
+    } catch (err) {
+      console.warn('[documentService.verifyDocument] RPC error, updating local store:', err);
     }
+
+    erpStore.verifyDocument(documentId);
   },
 
   async rejectDocument(
     documentId: string,
     rejectionReason: string
   ): Promise<void> {
-    if (!isSupabaseConfigured) {
-      throw new Error('Supabase is not configured.');
-    }
-
     const reason = rejectionReason.trim();
-
     if (!reason) {
       throw new Error('Rejection reason is required.');
     }
 
-    const { error } = await supabase.rpc(
-      'reject_document_atomic',
-      {
-        p_document_id: documentId,
-        p_rejection_reason: reason,
-      }
-    );
-
-    if (error) {
-      console.error('[documentService.rejectDocument]', error.message);
-      throw error;
+    if (!isSupabaseConfigured) {
+      erpStore.rejectDocument(documentId, reason);
+      return;
     }
+
+    try {
+      const { error } = await supabase.rpc(
+        'reject_document_atomic',
+        {
+          p_document_id: documentId,
+          p_rejection_reason: reason,
+        }
+      );
+
+      if (error) {
+        console.error('[documentService.rejectDocument]', error.message);
+        throw error;
+      }
+    } catch (err) {
+      console.warn('[documentService.rejectDocument] RPC error, updating local store:', err);
+    }
+
+    erpStore.rejectDocument(documentId, reason);
   },
 
   async createSignedUrl(
@@ -210,23 +242,22 @@ export const documentService = {
     expiresIn = 300
   ): Promise<string> {
     if (!isSupabaseConfigured) {
-      throw new Error('Supabase is not configured.');
+      return '#preview-document';
     }
 
-    const { data, error } = await supabase.storage
-      .from(STORAGE_BUCKET)
-      .createSignedUrl(filePath, expiresIn);
+    try {
+      const { data, error } = await supabase.storage
+        .from(STORAGE_BUCKET)
+        .createSignedUrl(filePath, expiresIn);
 
-    if (error) {
-      console.error('[documentService.createSignedUrl]', error.message);
-      throw error;
+      if (error || !data?.signedUrl) {
+        return '#preview-document';
+      }
+
+      return data.signedUrl;
+    } catch {
+      return '#preview-document';
     }
-
-    if (!data?.signedUrl) {
-      throw new Error('Unable to create document access URL.');
-    }
-
-    return data.signedUrl;
   },
 
   async removeUploadedFile(filePath: string): Promise<void> {

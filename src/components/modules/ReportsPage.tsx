@@ -1,11 +1,45 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { erpStore } from '../../services/erpStore';
+import { leadService } from '../../services/leadService';
+import { customerService } from '../../services/customerService';
+import { projectService } from '../../services/projectService';
+import { Lead, Customer, Project } from '../../types/database';
 import { BarChart3, TrendingUp, Sun, CheckCircle2, Download, Calendar } from 'lucide-react';
 
 export const ReportsPage: React.FC = () => {
-  const leads = erpStore.getLeads();
-  const customers = erpStore.getCustomers();
-  const projects = erpStore.getProjects();
+  const [leads, setLeads] = useState<Lead[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
+
+  useEffect(() => {
+    let mounted = true;
+    const loadReportsData = async () => {
+      try {
+        const [lData, cData, pData] = await Promise.all([
+          leadService.fetchLeads(),
+          customerService.fetchCustomers(),
+          projectService.fetchProjects(),
+        ]);
+        if (mounted) {
+          setLeads(lData);
+          setCustomers(cData);
+          setProjects(pData);
+        }
+      } catch (err) {
+        if (mounted) {
+          setLeads(erpStore.getLeads());
+          setCustomers(erpStore.getCustomers());
+          setProjects(erpStore.getProjects());
+        }
+      }
+    };
+    loadReportsData();
+    const unsub = erpStore.subscribe(loadReportsData);
+    return () => {
+      mounted = false;
+      unsub();
+    };
+  }, []);
 
   const totalKw = projects.reduce((sum, p) => sum + p.capacity_kw, 0) + 355; // Historical + Live
 

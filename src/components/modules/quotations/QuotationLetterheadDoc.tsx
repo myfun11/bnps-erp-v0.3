@@ -3,6 +3,7 @@ import { Quotation } from '../../../types/database';
 import { downloadQuotationTextDoc } from '../../../lib/quotationExport';
 import { numberToIndianWords } from '../../../lib/numberToWords';
 import { BnpsLogo } from '../../common/BnpsLogo';
+import { BnpsStamp } from '../../common/BnpsStamp';
 import { 
   Printer, 
   Download, 
@@ -472,25 +473,14 @@ export const QuotationLetterheadDoc: React.FC<QuotationLetterheadDocProps> = ({
             </div>
 
             {/* Right: Signature & Stamp Box */}
-            <div className="p-3 flex flex-col justify-between items-center text-center space-y-3 min-h-[140px]">
+            <div className="p-3 flex flex-col justify-between items-center text-center space-y-2 min-h-[150px]">
               <div className="font-bold text-slate-950 text-xs uppercase tracking-wide">
-                For BHUMI NIDHI POWAR SOLUTIONS:
+                For BHUMI NIDHI POWAR SOLUTION:
               </div>
 
-              {/* Official Seal / Rubber Stamp matching image */}
-              <div className="relative my-1">
-                <div 
-                  className="w-24 h-24 rounded-full border-2 border-dashed border-indigo-700 flex flex-col items-center justify-center p-1 text-[8px] font-bold text-indigo-800 rotate-[-8deg] shadow-sm select-none"
-                  style={{ backgroundColor: 'rgba(99, 102, 241, 0.05)' }}
-                >
-                  <div className="text-[7.5px] uppercase font-black tracking-tighter">BHUMI NIDHI POWAR</div>
-                  <div className="text-[8px] uppercase font-black text-amber-700 tracking-tighter">★ SOLUTION ★</div>
-                  <div className="text-[6.5px] font-mono text-indigo-900 border-y border-indigo-400 py-0.5 my-0.5 w-full text-center">
-                    JAIJAIPUR (C.G.)
-                  </div>
-                  <div className="text-[7px] text-indigo-700 font-serif italic">Approved</div>
-                  <div className="text-[6px] text-indigo-600">OFFICIAL STAMP</div>
-                </div>
+              {/* Official Seal / Rubber Stamp & Signature Component */}
+              <div className="relative my-0.5">
+                <BnpsStamp size={120} />
               </div>
 
               <div className="text-[11px] font-bold text-slate-900 uppercase border-t border-slate-400 pt-1 w-44">

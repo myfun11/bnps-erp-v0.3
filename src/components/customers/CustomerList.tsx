@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Customer, CustomerLifecycleType } from '../../types/database';
 import { erpStore } from '../../services/erpStore';
+import { customerService } from '../../services/customerService';
 import { CustomerDetailDrawer } from './CustomerDetailDrawer';
 import { 
   Users, 
@@ -23,13 +24,19 @@ interface CustomerListProps {
 export const CustomerList: React.FC<CustomerListProps> = ({ initialSelectedCustomerId }) => {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(initialSelectedCustomerId || null);
-  const [viewMode, setViewMode] = useState<'ALL' | 'PMSG_REGISTERED'>('ALL');
+  const [viewMode, setViewMode] = useState<'ACTIVE' | 'COMPLETED' | 'ALL' | 'PMSG_REGISTERED'>('ACTIVE');
   const [searchQuery, setSearchQuery] = useState('');
   const [districtFilter, setDistrictFilter] = useState<string>('ALL');
   const [discomFilter, setDiscomFilter] = useState<string>('ALL');
 
-  const loadData = () => {
-    setCustomers(erpStore.getCustomers());
+  const loadData = async () => {
+    try {
+      const data = await customerService.fetchCustomers();
+      setCustomers(data);
+    } catch (err) {
+      console.error('Failed to fetch customers:', err);
+      setCustomers(erpStore.getCustomers());
+    }
   };
 
   useEffect(() => {
@@ -51,10 +58,27 @@ export const CustomerList: React.FC<CustomerListProps> = ({ initialSelectedCusto
       .map((p) => p.customer_id)
   );
 
+  const activeCount = customers.filter(
+    (c) => c.lifecycle_status !== 'INSTALLED' && c.lifecycle_status !== 'COMMISSIONED'
+  ).length;
+  const completedCount = customers.filter(
+    (c) => c.lifecycle_status === 'INSTALLED' || c.lifecycle_status === 'COMMISSIONED'
+  ).length;
+
   const filteredCustomers = customers.filter((cust) => {
-    // Mode Filter: All vs PMSG Registered
-    if (viewMode === 'PMSG_REGISTERED' && !pmsgCustomerIds.has(cust.id)) {
-      return false;
+    // Lifecycle Mode Filter: Active vs Completed vs All vs PMSG
+    if (viewMode === 'ACTIVE') {
+      if (cust.lifecycle_status === 'INSTALLED' || cust.lifecycle_status === 'COMMISSIONED') {
+        return false;
+      }
+    } else if (viewMode === 'COMPLETED') {
+      if (cust.lifecycle_status !== 'INSTALLED' && cust.lifecycle_status !== 'COMMISSIONED') {
+        return false;
+      }
+    } else if (viewMode === 'PMSG_REGISTERED') {
+      if (!pmsgCustomerIds.has(cust.id)) {
+        return false;
+      }
     }
 
     // District filter
@@ -88,23 +112,43 @@ export const CustomerList: React.FC<CustomerListProps> = ({ initialSelectedCusto
         <div>
           <h2 className="text-lg font-bold text-slate-100 flex items-center gap-2">
             <Users className="w-5 h-5 text-amber-400" />
-            <span>Customer Master (Row List View)</span>
+            <span>Customer Master & Installation Lifecycle</span>
             <span className="text-xs px-2 py-0.5 rounded-full bg-slate-800 text-amber-400 font-mono font-bold border border-slate-700">
-              {filteredCustomers.length} of {customers.length} Customers
+              {filteredCustomers.length} Displayed ({customers.length} Total Masters)
             </span>
           </h2>
           <p className="text-xs text-slate-400 mt-0.5">
-            Full Row List Master View • Find any particular customer by Name, Mobile, BP No, or District
+            Active installation workflows separated from completed rooftop solar projects • Complete audit history preserved
           </p>
         </div>
 
-        {/* Operational View Switcher (All vs PMSG Registered View) */}
-        <div className="flex items-center gap-2 bg-slate-800/90 p-1 rounded-lg border border-slate-700">
+        {/* Operational View Switcher (Active vs Completed vs All vs PMSG) */}
+        <div className="flex flex-wrap items-center gap-1.5 bg-slate-800/90 p-1.5 rounded-xl border border-slate-700">
+          <button
+            onClick={() => setViewMode('ACTIVE')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+              viewMode === 'ACTIVE'
+                ? 'bg-amber-500 text-slate-950 font-bold shadow-sm'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            Active Pipeline ({activeCount})
+          </button>
+          <button
+            onClick={() => setViewMode('COMPLETED')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+              viewMode === 'COMPLETED'
+                ? 'bg-emerald-500 text-slate-950 font-bold shadow-sm'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            Completed Installation ({completedCount})
+          </button>
           <button
             onClick={() => setViewMode('ALL')}
-            className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
               viewMode === 'ALL'
-                ? 'bg-amber-500 text-slate-950 shadow-sm'
+                ? 'bg-amber-500 text-slate-950 font-bold shadow-sm'
                 : 'text-slate-400 hover:text-white'
             }`}
           >
@@ -112,16 +156,13 @@ export const CustomerList: React.FC<CustomerListProps> = ({ initialSelectedCusto
           </button>
           <button
             onClick={() => setViewMode('PMSG_REGISTERED')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
               viewMode === 'PMSG_REGISTERED'
-                ? 'bg-amber-500 text-slate-950 shadow-sm'
+                ? 'bg-sky-500 text-slate-950 font-bold shadow-sm'
                 : 'text-slate-400 hover:text-white'
             }`}
           >
-            <span>PMSG Registered Filter</span>
-            <span className="text-[10px] px-1.5 rounded-full bg-slate-900 text-amber-300">
-              {pmsgCustomerIds.size}
-            </span>
+            <span>PMSG ({pmsgCustomerIds.size})</span>
           </button>
         </div>
       </div>

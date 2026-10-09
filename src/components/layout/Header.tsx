@@ -87,10 +87,10 @@ export const Header: React.FC<HeaderProps> = ({
               onChange={(e) => handleBranchChange(e.target.value as any)}
               className="bg-transparent text-xs font-bold text-slate-200 outline-none cursor-pointer"
             >
-              <option value="ALL" className="bg-slate-900 text-slate-200">All Branches (7 Locations)</option>
+              <option value="ALL" className="bg-slate-900 text-slate-200">All Branches ({BRANCHES_LIST.length} Locations)</option>
               {BRANCHES_LIST.map((b) => (
                 <option key={b} value={b} className="bg-slate-900 text-amber-400 font-semibold">
-                  Branch: {b}
+                  Branch: {b === 'Jaijaipur' ? 'HQ Jaijaipur' : b}
                 </option>
               ))}
             </select>
@@ -126,7 +126,7 @@ export const Header: React.FC<HeaderProps> = ({
               <div className="hidden lg:block text-left text-xs leading-none">
                 <div className="font-bold text-slate-200">{currentProfile.full_name}</div>
                 <div className="text-[10px] text-amber-400 font-mono font-semibold mt-0.5">
-                  {userRole.toUpperCase()} • {currentProfile.branch || 'Raipur'}
+                  {userRole.toUpperCase()} • {currentProfile.branch === 'Jaijaipur' ? 'HQ Jaijaipur' : (currentProfile.branch || 'HQ Jaijaipur')}
                 </div>
               </div>
               <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
@@ -143,7 +143,7 @@ export const Header: React.FC<HeaderProps> = ({
                       {userRole}
                     </span>
                     <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">
-                      📍 {currentProfile.branch || 'Raipur'}
+                      📍 {currentProfile.branch === 'Jaijaipur' ? 'HQ Jaijaipur' : (currentProfile.branch || 'HQ Jaijaipur')}
                     </span>
                   </div>
                 </div>

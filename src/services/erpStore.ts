@@ -17,7 +17,10 @@ import
   LeadStageType,
   CustomerLifecycleType,
   PmsgStageType,
-  BranchLocation
+  BranchLocation,
+  DocumentRecord,
+  DocStatusType,
+  ProjectStatusType
 } from '../types/database';
 import { 
   INITIAL_AGENTS, 
@@ -33,6 +36,7 @@ import {
   INITIAL_REWARDS,
   INITIAL_AUDIT_LOGS,
   INITIAL_STAFF_MEMBERS,
+  INITIAL_DOCUMENTS,
   StaffMember,
   BRANCHES_LIST
 } from './mockData';
@@ -60,6 +64,7 @@ class ErpDataStore {
   private rewards: RewardScheme[] = [...INITIAL_REWARDS];
   private auditLogs: AuditLog[] = [...INITIAL_AUDIT_LOGS];
   private staffMembers: StaffMember[] = [...INITIAL_STAFF_MEMBERS];
+  private documents: DocumentRecord[] = [...INITIAL_DOCUMENTS];
   private activeBranchFilter: BranchLocation | 'ALL' = 'ALL';
   private listeners: Set<() => void> = new Set();
   private isSyncing: boolean = false;
@@ -115,8 +120,16 @@ class ErpDataStore {
   }
 
   // Getters
-  public getAgents(): Agent[] {
+  public getAgents(includeTest = true): Agent[] {
+    if (!includeTest) {
+      return this.agents.filter((a) => !a.is_test && a.is_active);
+    }
     return [...this.agents];
+  }
+
+  public setAgents(agents: Agent[]) {
+    this.agents = [...agents];
+    this.notify();
   }
 
   public getCustomers(): Customer[] {
@@ -149,6 +162,17 @@ class ErpDataStore {
 
   public getQuotations(): Quotation[] {
     return [...this.quotations];
+  }
+
+  public getDocuments(filter?: { entityType?: string; entityId?: string }): DocumentRecord[] {
+    let docs = [...this.documents];
+    if (filter?.entityType) {
+      docs = docs.filter((d) => d.entity_type === filter.entityType);
+    }
+    if (filter?.entityId) {
+      docs = docs.filter((d) => d.entity_id === filter.entityId);
+    }
+    return docs;
   }
 
   public getExpenses(): Expense[] {
@@ -565,7 +589,7 @@ class ErpDataStore {
       id: agentId,
       profile_id: profileId,
       agent_code: agentCode,
-      branch: agentInput.branch || 'Raipur',
+      branch: agentInput.branch || 'Jaijaipur',
       sponsor_agent_id: agentInput.sponsor_agent_id,
       hierarchy_level: calculatedLevel,
       pan_number: agentInput.pan_number?.toUpperCase(),
@@ -587,7 +611,7 @@ class ErpDataStore {
         phone: agentInput.phone,
         email: agentInput.email || `${agentCode.toLowerCase()}@bhuminidhi.com`,
         role: 'agent',
-        branch: agentInput.branch || 'Raipur',
+        branch: agentInput.branch || 'Jaijaipur',
         employee_code: agentCode,
         login_password: generatedPassword,
         is_active: true,
@@ -833,8 +857,28 @@ class ErpDataStore {
       targetCustomer = newCust;
     }
 
-    // Mark quotation converted
-    this.updateQuotationStatus(q.id, 'CONVERTED');
+    // Mark quotation converted and link to authoritative customer
+    const qIndex = this.quotations.findIndex((item) => item.id === quotationId);
+    if (qIndex !== -1) {
+      this.quotations[qIndex] = {
+        ...this.quotations[qIndex],
+        customer_id: targetCustomer.id,
+        status: 'CONVERTED',
+      };
+    }
+
+    // If quotation was created from a lead, transition lead to CONVERTED
+    if (q.lead_id) {
+      const lIndex = this.leads.findIndex((l) => l.id === q.lead_id || l.lead_code === q.lead_code);
+      if (lIndex !== -1) {
+        this.leads[lIndex] = {
+          ...this.leads[lIndex],
+          stage: 'CONVERTED',
+          converted_customer_id: targetCustomer.id,
+          updated_at: new Date().toISOString(),
+        };
+      }
+    }
 
     // Create Project
     const prjCount = this.projects.length + 1;
@@ -855,6 +899,23 @@ class ErpDataStore {
     };
     this.projects.unshift(newPrj);
 
+    // Pre-create Installation record for technical lifecycle tracking
+    const newInst: Installation = {
+      id: crypto.randomUUID(),
+      project_id: newPrj.id,
+      structure_type: q.structure_type || 'ELEVATED_GI_HOT_DIP',
+      solar_module_make: `${q.solar_brand || 'Tier-1 Solar'} ${q.module_wattage_wp || 550}Wp`,
+      solar_module_capacity_wp: q.module_wattage_wp || 550,
+      solar_module_quantity: q.module_quantity || Math.ceil((q.capacity_kw * 1000) / (q.module_wattage_wp || 550)),
+      inverter_make: `${q.inverter_brand || 'Growatt'} ${q.inverter_kw || q.capacity_kw}kW`,
+      inverter_capacity_kw: q.inverter_kw || q.capacity_kw,
+      net_meter_installed: false,
+      discom_inspection_signoff: false,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    this.installations.unshift(newInst);
+
     this.auditLogs.unshift({
       id: crypto.randomUUID(),
       actor_id: actorProfileId,
@@ -866,12 +927,281 @@ class ErpDataStore {
         customer_id: targetCustomer.id,
         project_id: newPrj.id,
         project_code: newPrj.project_code,
+        installation_id: newInst.id,
       },
       created_at: new Date().toISOString(),
     });
 
     this.notify();
-    return { success: true, customer: targetCustomer, project: newPrj };
+    return { success: true, customer: targetCustomer, project: newPrj, installation: newInst };
+  }
+
+  /**
+   * CREATE INSTALLATION
+   */
+  public createInstallation(
+    installation: Omit<Installation, 'id' | 'created_at' | 'updated_at'>,
+    actorProfileId?: string
+  ): Installation {
+    const now = new Date().toISOString();
+    const newInst: Installation = {
+      ...installation,
+      id: crypto.randomUUID(),
+      created_at: now,
+      updated_at: now,
+    };
+    this.installations.unshift(newInst);
+
+    // Synchronize linked project status
+    const prjIndex = this.projects.findIndex((p) => p.id === newInst.project_id);
+    if (prjIndex !== -1) {
+      this.projects[prjIndex] = {
+        ...this.projects[prjIndex],
+        status: newInst.net_meter_installed ? 'NET_METER_INSTALLED' : 'INSTALLATION_IN_PROGRESS',
+        updated_at: now,
+      };
+    }
+
+    this.auditLogs.unshift({
+      id: crypto.randomUUID(),
+      actor_id: actorProfileId || 'prof-super-admin-01',
+      action: 'INSTALLATION_CREATED',
+      entity_type: 'installations',
+      entity_id: newInst.id,
+      new_data: {
+        project_id: newInst.project_id,
+        solar_module_make: newInst.solar_module_make,
+        inverter_make: newInst.inverter_make,
+      },
+      created_at: now,
+    });
+
+    this.notify();
+    return newInst;
+  }
+
+  /**
+   * UPDATE INSTALLATION & SYNCHRONIZE CUSTOMER STATUS
+   */
+  public updateInstallation(
+    id: string,
+    updates: Partial<Installation>,
+    actorProfileId?: string
+  ): boolean {
+    const index = this.installations.findIndex((i) => i.id === id);
+    if (index === -1) return false;
+
+    const current = this.installations[index];
+    const now = new Date().toISOString();
+    const updated: Installation = {
+      ...current,
+      ...updates,
+      updated_at: now,
+    };
+    this.installations[index] = updated;
+
+    // Synchronize linked Project and Customer statuses based on installation milestone
+    const prjIndex = this.projects.findIndex((p) => p.id === updated.project_id);
+    if (prjIndex !== -1) {
+      const prj = this.projects[prjIndex];
+      let nextPrjStatus: ProjectStatusType = prj.status;
+
+      if (updated.discom_inspection_signoff && updated.net_meter_installed) {
+        nextPrjStatus = 'COMPLETED';
+      } else if (updated.net_meter_installed) {
+        nextPrjStatus = 'NET_METER_INSTALLED';
+      } else if (updated.installation_completed_date) {
+        nextPrjStatus = 'INSTALLATION_COMPLETED';
+      } else if (updated.installation_start_date) {
+        nextPrjStatus = 'INSTALLATION_IN_PROGRESS';
+      }
+
+      this.projects[prjIndex] = {
+        ...prj,
+        status: nextPrjStatus,
+        updated_at: now,
+      };
+
+      // If installation is fully signoff & complete, move customer lifecycle to INSTALLED/COMMISSIONED
+      if (updated.discom_inspection_signoff && updated.net_meter_installed) {
+        const custIndex = this.customers.findIndex((c) => c.id === prj.customer_id);
+        if (custIndex !== -1) {
+          this.customers[custIndex] = {
+            ...this.customers[custIndex],
+            lifecycle_status: 'COMMISSIONED',
+            updated_at: now,
+          };
+        }
+      } else if (updated.net_meter_installed || updated.installation_completed_date) {
+        const custIndex = this.customers.findIndex((c) => c.id === prj.customer_id);
+        if (custIndex !== -1) {
+          this.customers[custIndex] = {
+            ...this.customers[custIndex],
+            lifecycle_status: 'INSTALLED',
+            updated_at: now,
+          };
+        }
+      }
+    }
+
+    this.auditLogs.unshift({
+      id: crypto.randomUUID(),
+      actor_id: actorProfileId,
+      action: 'INSTALLATION_UPDATED',
+      entity_type: 'installations',
+      entity_id: id,
+      new_data: updates as Record<string, unknown>,
+      created_at: now,
+    });
+
+    this.notify();
+    return true;
+  }
+
+  /**
+   * CREATE PROJECT
+   */
+  public createProject(
+    project: Omit<Project, 'id' | 'created_at' | 'updated_at'>,
+    actorProfileId?: string
+  ): Project {
+    const count = this.projects.length + 1;
+    const now = new Date().toISOString();
+    const newPrj: Project = {
+      ...project,
+      id: crypto.randomUUID(),
+      project_code: project.project_code || `PRJ-CG-2026-${String(count).padStart(3, '0')}`,
+      created_at: now,
+      updated_at: now,
+    };
+    this.projects.unshift(newPrj);
+
+    this.auditLogs.unshift({
+      id: crypto.randomUUID(),
+      actor_id: actorProfileId,
+      action: 'PROJECT_CREATED',
+      entity_type: 'projects',
+      entity_id: newPrj.id,
+      new_data: { project_code: newPrj.project_code, customer_id: newPrj.customer_id },
+      created_at: now,
+    });
+
+    this.notify();
+    return newPrj;
+  }
+
+  /**
+   * UPDATE PROJECT STATUS
+   */
+  public updateProjectStatus(
+    id: string,
+    status: ProjectStatusType,
+    actorProfileId?: string
+  ): boolean {
+    const index = this.projects.findIndex((p) => p.id === id);
+    if (index === -1) return false;
+    this.projects[index] = {
+      ...this.projects[index],
+      status,
+      updated_at: new Date().toISOString(),
+    };
+    this.auditLogs.unshift({
+      id: crypto.randomUUID(),
+      actor_id: actorProfileId,
+      action: 'PROJECT_STATUS_UPDATED',
+      entity_type: 'projects',
+      entity_id: id,
+      new_data: { status },
+      created_at: new Date().toISOString(),
+    });
+    this.notify();
+    return true;
+  }
+
+  /**
+   * DOCUMENT MANAGEMENT COMMANDS (Agent & Customer KYC)
+   */
+  public createDocument(
+    doc: Omit<DocumentRecord, 'id' | 'created_at'>,
+    actorProfileId?: string
+  ): DocumentRecord {
+    const now = new Date().toISOString();
+    const newDoc: DocumentRecord = {
+      ...doc,
+      id: crypto.randomUUID(),
+      created_at: now,
+    };
+    this.documents.unshift(newDoc);
+
+    this.auditLogs.unshift({
+      id: crypto.randomUUID(),
+      actor_id: actorProfileId,
+      action: 'DOCUMENT_UPLOADED',
+      entity_type: 'documents',
+      entity_id: newDoc.id,
+      new_data: {
+        entity_type: newDoc.entity_type,
+        entity_id: newDoc.entity_id,
+        category: newDoc.doc_category,
+        file_name: newDoc.file_name,
+      },
+      created_at: now,
+    });
+
+    this.notify();
+    return newDoc;
+  }
+
+  public verifyDocument(documentId: string, actorId = 'Super Admin Jaijaipur'): boolean {
+    const index = this.documents.findIndex((d) => d.id === documentId);
+    if (index === -1) return false;
+    const now = new Date().toISOString();
+    this.documents[index] = {
+      ...this.documents[index],
+      status: 'VERIFIED',
+      verified_by: actorId,
+      verified_at: now,
+    };
+    this.auditLogs.unshift({
+      id: crypto.randomUUID(),
+      actor_id: actorId,
+      action: 'DOCUMENT_VERIFIED',
+      entity_type: 'documents',
+      entity_id: documentId,
+      created_at: now,
+    });
+    this.notify();
+    return true;
+  }
+
+  public rejectDocument(documentId: string, reason: string, actorId = 'Super Admin Jaijaipur'): boolean {
+    const index = this.documents.findIndex((d) => d.id === documentId);
+    if (index === -1) return false;
+    const now = new Date().toISOString();
+    this.documents[index] = {
+      ...this.documents[index],
+      status: 'REJECTED',
+      rejection_reason: reason,
+      verified_by: actorId,
+      verified_at: now,
+    };
+    this.auditLogs.unshift({
+      id: crypto.randomUUID(),
+      actor_id: actorId,
+      action: 'DOCUMENT_REJECTED',
+      entity_type: 'documents',
+      entity_id: documentId,
+      new_data: { rejection_reason: reason },
+      created_at: now,
+    });
+    this.notify();
+    return true;
+  }
+
+  public deleteDocument(documentId: string): boolean {
+    this.documents = this.documents.filter((d) => d.id !== documentId);
+    this.notify();
+    return true;
   }
 
   /**

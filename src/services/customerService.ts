@@ -1,5 +1,6 @@
 import { supabase, isSupabaseConfigured } from '../lib/supabaseClient';
 import { Customer } from '../types/database';
+import { erpStore } from './erpStore';
 
 export interface ConvertLeadResult {
   success: boolean;
@@ -14,17 +15,19 @@ export const customerService = {
   isConfigured: () => isSupabaseConfigured,
 
   async fetchCustomers(): Promise<Customer[]> {
-    if (!isSupabaseConfigured) return [];
-    const { data, error } = await supabase
-      .from('customers')
-      .select('*')
-      .order('created_at', { ascending: false });
+    if (isSupabaseConfigured) {
+      const { data, error } = await supabase
+        .from('customers')
+        .select('*')
+        .order('created_at', { ascending: false });
 
-    if (error) {
-      console.error('[customerService.fetchCustomers] Error:', error.message);
-      throw error;
+      if (error) {
+        console.error('[customerService.fetchCustomers] Error:', error.message);
+        throw error;
+      }
+      return (data || []) as Customer[];
     }
-    return (data || []) as Customer[];
+    return erpStore.getCustomers();
   },
 
   async fetchCustomerById(customerId: string): Promise<Customer | null> {

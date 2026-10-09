@@ -1,17 +1,41 @@
-﻿import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { erpStore } from '../../services/erpStore';
+import { pmsgService } from '../../services/pmsgService';
+import { customerService } from '../../services/customerService';
 import { useAuth } from '../../context/AuthContext';
+import { PmsgTracking, Customer } from '../../types/database';
 import { Sun, Search, CheckCircle2, UserPlus, X, Loader2 } from 'lucide-react';
 
 export const PmsgTrackingPage: React.FC = () => {
   const { hasPermission, currentProfile } = useAuth();
-  const pmsgList = erpStore.getPmsgTracking();
-  const customers = erpStore.getCustomers();
+  const [pmsgList, setPmsgList] = useState<PmsgTracking[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
   const [search, setSearch] = useState('');
   const [showRegister, setShowRegister] = useState(false);
   const [customerSearch, setCustomerSearch] = useState('');
   const [selectedCustomerId, setSelectedCustomerId] = useState('');
   const [saving, setSaving] = useState(false);
+
+  const loadData = async () => {
+    try {
+      const [pData, cData] = await Promise.all([
+        pmsgService.fetchPmsgTracking(),
+        customerService.fetchCustomers(),
+      ]);
+      setPmsgList(pData);
+      setCustomers(cData);
+    } catch (err) {
+      console.error('Failed to load PMSG tracking from service:', err);
+      setPmsgList(erpStore.getPmsgTracking());
+      setCustomers(erpStore.getCustomers());
+    }
+  };
+
+  useEffect(() => {
+    loadData();
+    const unsub = erpStore.subscribe(loadData);
+    return () => unsub();
+  }, []);
 
   const canCreatePmsg = hasPermission('pmsg.create');
 

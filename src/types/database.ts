@@ -339,11 +339,13 @@ export interface DocumentRecord {
   mime_type: string;
   file_size_bytes?: number;
   status: DocStatusType;
-  verified_by?: string;
-  verified_at?: string;
-  rejection_reason?: string;
+  uploaded_by?: string | null;
+  verified_by?: string | null;
+  verified_at?: string | null;
+  rejection_reason?: string | null;
   is_test: boolean;
   created_at: string;
+  updated_at?: string | null;
 }
 
 export interface AuditLog {
@@ -376,6 +378,9 @@ export interface QuotationEquipmentItem {
 export interface Quotation {
   id: string;
   quotation_no: string;
+  customer_id?: string;
+  lead_id?: string;
+  lead_code?: string;
   customer_name: string;
   phone: string;
   email?: string;

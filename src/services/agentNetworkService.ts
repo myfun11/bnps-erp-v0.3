@@ -1,5 +1,6 @@
-import { supabase } from '../lib/supabaseClient';
+import { supabase, isSupabaseConfigured } from '../lib/supabaseClient';
 import { Agent, BranchLocation } from '../types/database';
+import { erpStore } from './erpStore';
 
 export interface AgentNetworkFilters {
   search?: string;
@@ -56,29 +57,80 @@ const mapAgent = (row: any): Agent => ({
 });
 
 export const agentNetworkService = {
+  isConfigured: () => isSupabaseConfigured,
+
   async list(filters: AgentNetworkFilters = {}): Promise<Agent[]> {
-    const { data, error } = await supabase.rpc('get_agent_network', {
-      p_search: filters.search ?? '',
-      p_branch: filters.branch && filters.branch !== 'ALL' ? filters.branch : null,
-      p_hierarchy_level: filters.hierarchyLevel ?? null,
-    });
-    if (error) throw error;
-    return (data ?? []).map(mapAgent);
+    if (isSupabaseConfigured) {
+      const { data, error } = await supabase.rpc('get_agent_network', {
+        p_search: filters.search ?? '',
+        p_branch: filters.branch && filters.branch !== 'ALL' ? filters.branch : null,
+        p_hierarchy_level: filters.hierarchyLevel ?? null,
+      });
+
+      if (error) {
+        console.error('[agentNetworkService.list] RPC error:', error.message);
+        throw error;
+      }
+
+      if (Array.isArray(data)) {
+        const mapped = data.map(mapAgent);
+        erpStore.setAgents(mapped);
+        return mapped;
+      }
+      return [];
+    }
+
+    // Disconnected verification mode only
+    return erpStore.getAgents();
   },
 
   async create(input: CreateAgentInput) {
-    const { data, error } = await supabase.functions.invoke('create-agent', {
-      body: input,
+    if (isSupabaseConfigured) {
+      const { data, error } = await supabase.functions.invoke('create-agent', {
+        body: input,
+      });
+
+      if (error) {
+        console.error('[agentNetworkService.create] Edge function error:', error.message);
+        throw error;
+      }
+
+      if (data?.success) {
+        return {
+          success: true as const,
+          agent_id: data.agent_id,
+          profile_id: data.profile_id,
+          agent_code: data.agent_code,
+          auth_user_id: data.auth_user_id,
+          invite_sent: data.invite_sent || true,
+        };
+      }
+      throw new Error(data?.message || 'Failed to create agent in Supabase');
+    }
+
+    // Disconnected verification mode only
+    const localRes = erpStore.createAgent({
+      full_name: input.full_name,
+      phone: input.phone,
+      email: input.email,
+      branch: input.branch,
+      sponsor_agent_id: input.sponsor_agent_id,
+      login_password: input.password,
+      pan_number: input.pan_number,
+      bank_account_no: input.bank_account_no,
+      bank_name: input.bank_name,
+      bank_ifsc: input.bank_ifsc,
+      tds_percentage: input.tds_percentage,
     });
-    if (error) throw error;
-    if (!data?.success) throw new Error(data?.error || 'Agent onboarding failed');
-    return data as {
-      success: true;
-      agent_id: string;
-      profile_id: string;
-      agent_code: string;
-      auth_user_id: string;
-      invite_sent?: boolean;
+
+    const agent = localRes.agent!;
+    return {
+      success: true as const,
+      agent_id: agent.id,
+      profile_id: agent.profile_id,
+      agent_code: agent.agent_code,
+      auth_user_id: agent.id,
+      invite_sent: true,
     };
   },
 };

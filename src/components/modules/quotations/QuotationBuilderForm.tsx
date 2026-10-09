@@ -6,7 +6,7 @@ import {
   SOLAR_SYSTEM_TYPES, 
   CELL_TYPES 
 } from '../../../lib/solarPricingData';
-import { CHHATTISGARH_DISTRICTS } from '../../../services/mockData';
+import { CHHATTISGARH_DISTRICTS, BRANCHES_LIST } from '../../../services/mockData';
 import { Quotation, QuotationEquipmentItem, BranchLocation } from '../../../types/database';
 import { useAuth } from '../../../context/AuthContext';
 import { 
@@ -272,13 +272,11 @@ export const QuotationBuilderForm: React.FC<QuotationBuilderFormProps> = ({ onSa
               onChange={(e) => setBranch(e.target.value as BranchLocation)}
               className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-amber-500"
             >
-              <option value="Sakti">Sakti</option>
-              <option value="Jaijaipur">Jaijaipur</option>
-              <option value="Korba">Korba</option>
-              <option value="Bilaspur">Bilaspur</option>
-              <option value="Janjgir-Champa">Janjgir-Champa</option>
-              <option value="Raigarh">Raigarh</option>
-              <option value="Raipur">Raipur</option>
+              {BRANCHES_LIST.map((b) => (
+                <option key={b} value={b}>
+                  {b === 'Jaijaipur' ? 'HQ Jaijaipur' : b}
+                </option>
+              ))}
             </select>
           </div>
         </div>

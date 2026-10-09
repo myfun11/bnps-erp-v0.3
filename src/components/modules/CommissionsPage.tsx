@@ -1,9 +1,29 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { erpStore } from '../../services/erpStore';
+import { agentNetworkService } from '../../services/agentNetworkService';
+import { Agent } from '../../types/database';
 import { Percent, Award, ArrowUpRight, Zap, ShieldCheck } from 'lucide-react';
 
 export const CommissionsPage: React.FC = () => {
-  const agents = erpStore.getAgents();
+  const [agents, setAgents] = useState<Agent[]>([]);
+
+  useEffect(() => {
+    let mounted = true;
+    const loadAgentsData = async () => {
+      try {
+        const data = await agentNetworkService.list();
+        if (mounted) setAgents(data);
+      } catch (err) {
+        if (mounted) setAgents(erpStore.getAgents());
+      }
+    };
+    loadAgentsData();
+    const unsub = erpStore.subscribe(loadAgentsData);
+    return () => {
+      mounted = false;
+      unsub();
+    };
+  }, []);
 
   return (
     <div className="space-y-6 animate-fade-in">

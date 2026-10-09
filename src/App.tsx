@@ -1,10 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { Header } from './components/layout/Header';
 import { Sidebar } from './components/layout/Sidebar';
 import LoginPage from './components/auth/LoginPage';
 import { GlobalSearch } from './components/GlobalSearch';
 import { CommissionTestModal } from './components/modals/CommissionTestModal';
+import { customerService } from './services/customerService';
+import { agentNetworkService } from './services/agentNetworkService';
+import { quotationService } from './services/quotationService';
 
 // Pages & Modules
 import { OverviewDashboard } from './components/dashboard/OverviewDashboard';
@@ -38,6 +41,43 @@ function ErpAppShell() {
   const [openNewLeadModal, setOpenNewLeadModal] = useState(false);
   const [highlightCustomerId, setHighlightCustomerId] = useState<string | null>(null);
 
+  const [customerCount, setCustomerCount] = useState<number>(erpStore.getCustomers().length);
+  const [agentCount, setAgentCount] = useState<number>(erpStore.getAgents().length);
+  const [quotationCount, setQuotationCount] = useState<number>(erpStore.getQuotations().length);
+
+  useEffect(() => {
+    let mounted = true;
+    const syncCounts = async () => {
+      try {
+        const [cList, aList, qList] = await Promise.all([
+          customerService.fetchCustomers(),
+          agentNetworkService.list(),
+          quotationService.list(),
+        ]);
+        if (mounted) {
+          setCustomerCount(cList.length);
+          setAgentCount(aList.length);
+          setQuotationCount(qList.length);
+        }
+      } catch (err) {
+        if (mounted) {
+          setCustomerCount(erpStore.getCustomers().length);
+          setAgentCount(erpStore.getAgents().length);
+          setQuotationCount(erpStore.getQuotations().length);
+        }
+      }
+    };
+
+    if (isAuthenticated) {
+      syncCounts();
+    }
+    const unsub = erpStore.subscribe(syncCounts);
+    return () => {
+      mounted = false;
+      unsub();
+    };
+  }, [isAuthenticated]);
+
   // If not authenticated, show dedicated Login Page
   if (!isAuthenticated) {
     return <LoginPage />;
@@ -58,10 +98,6 @@ function ErpAppShell() {
       setActiveTab('agents');
     }
   };
-
-  const customerCount = erpStore.getCustomers().length;
-  const agentCount = erpStore.getAgents().length;
-  const quotationCount = erpStore.getQuotations().length;
 
   return (
     <div className="h-screen w-screen bg-slate-950 text-slate-100 flex flex-col font-sans overflow-hidden selection:bg-amber-500 selection:text-slate-950">

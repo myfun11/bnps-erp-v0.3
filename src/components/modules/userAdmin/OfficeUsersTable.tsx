@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { OfficeUser } from '../../../services/userAdminData';
+import { BRANCHES_LIST } from '../../../services/mockData';
 import { Search, Key, FileText, Shield, UserCheck, X, Check, Lock } from 'lucide-react';
 
 interface OfficeUsersTableProps {
@@ -96,13 +97,12 @@ export const OfficeUsersTable: React.FC<OfficeUsersTableProps> = ({
             onChange={(e) => setBranchFilter(e.target.value)}
             className="bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-300 focus:outline-none"
           >
-            <option value="ALL">All Branches</option>
-            <option value="Jaijaipur">Jaijaipur</option>
-            <option value="Sakti">Sakti</option>
-            <option value="Janjgir-Champa">Janjgir-Champa</option>
-            <option value="Korba">Korba</option>
-            <option value="Bilaspur">Bilaspur</option>
-            <option value="Raipur">Raipur</option>
+            <option value="ALL">All Branches ({BRANCHES_LIST.length})</option>
+            {BRANCHES_LIST.map((b) => (
+              <option key={b} value={b}>
+                {b === 'Jaijaipur' ? 'HQ Jaijaipur' : b}
+              </option>
+            ))}
           </select>
 
           <select

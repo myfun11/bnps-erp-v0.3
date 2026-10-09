@@ -1,6 +1,9 @@
-import React, { useState, useEffect } from 'react';
-import { erpStore } from '../../services/erpStore';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { 
+  dashboardService, 
+  TopAgentMetric 
+} from '../../services/dashboardService';
 import { 
   Users, 
   UserPlus, 
@@ -16,7 +19,11 @@ import {
   ArrowUpRight,
   Sun,
   Award,
-  ChevronRight
+  ChevronRight,
+  Loader2,
+  AlertCircle,
+  Lock,
+  RefreshCw
 } from 'lucide-react';
 
 interface OverviewDashboardProps {
@@ -30,47 +37,166 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
   onOpenNewLead,
   onRunCommissionTest,
 }) => {
-  const { currentProfile } = useAuth();
+  const { currentProfile, isAuthenticated, isLiveSupabase, isLoading: isAuthLoading } = useAuth();
+  
+  const [loading, setLoading] = useState<boolean>(true);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
   const [stats, setStats] = useState({
-    totalLeads: 5,
-    convertedCustomers: 3,
-    pendingRegistrations: 1,
-    solarInstallations: '2 / 2',
-    bankLoansDisbursed: '₹2.00L',
+    totalLeads: 0,
+    newLeadsWaiting: 0,
+    convertedCustomers: 0,
+    registeredOnPortal: 0,
+    pendingRegistrations: 0,
+    solarInstallations: '0 / 0',
+    solarInstallationsPending: 0,
+    bankLoansDisbursed: '₹0',
+    loansPendingApproval: 0,
     vendorPayments: 'All Cleared',
-    commissionGenerated: '₹25,000',
-    activeAgents: '9 / 10',
+    vendorPaymentsSubtext: 'Vendor loan disbursements',
+    commissionGenerated: '₹0',
+    commissionPaid: '₹0 paid to agents',
+    activeAgents: '0 / 0',
   });
 
-  const loadData = () => {
-    const leads = erpStore.getLeads();
-    const customers = erpStore.getCustomers();
-    const pmsg = erpStore.getPmsgTracking();
-    const agents = erpStore.getAgents();
+  const [monthlyChart, setMonthlyChart] = useState<Array<{ month: string; kw: number; height: string }>>([]);
+  const [totalCapacityLabel, setTotalCapacityLabel] = useState<string>('Total 0 kW');
+  const [topAgentsList, setTopAgentsList] = useState<TopAgentMetric[]>([]);
 
-    const converted = leads.filter((l) => l.stage === 'CONVERTED').length;
-    const pending = pmsg.filter((p) => !p.portal_application_no && p.stage === 'INITIATED').length;
+  const loadData = useCallback(async () => {
+    if (isAuthLoading) {
+      return;
+    }
 
-    setStats({
-      totalLeads: leads.length,
-      convertedCustomers: customers.length,
-      pendingRegistrations: pending > 0 ? pending : 1,
-      solarInstallations: '2 / 2',
-      bankLoansDisbursed: '₹2.00L',
-      vendorPayments: 'All Cleared',
-      commissionGenerated: '₹25,000',
-      activeAgents: `${agents.length} / 10`,
-    });
-  };
+    if (!isAuthenticated) {
+      setLoading(false);
+      setErrorMessage(null);
+      return;
+    }
+
+    setLoading(true);
+    setErrorMessage(null);
+
+    try {
+      const liveData = await dashboardService.getDashboardSummary();
+      if (liveData && liveData.kpis) {
+        const k = liveData.kpis;
+
+        // Format Bank Loans Disbursed
+        const loanAmt = Number(k.bank_loans_disbursed_amount || 0);
+        const loanFormatted = loanAmt >= 100000 
+          ? `₹${(loanAmt / 100000).toFixed(2)}L` 
+          : `₹${loanAmt.toLocaleString('en-IN')}`;
+
+        // Format Vendor Payments
+        const vendorValue = k.vendor_payments_pending_count === 0 
+          ? 'All Cleared' 
+          : `${k.vendor_payments_pending_count} Pending`;
+        const vendorSubtext = k.vendor_payments_pending_count === 0 
+          ? 'Vendor loan disbursements' 
+          : `₹${Number(k.vendor_payments_paid_amount || 0).toLocaleString('en-IN')} paid`;
+
+        // Format Commission
+        const commFormatted = `₹${Number(k.commission_generated_amount || 0).toLocaleString('en-IN')}`;
+        const commPaidFormatted = `₹${Number(k.commission_paid_to_agents_amount || 0).toLocaleString('en-IN')} paid to agents`;
+
+        setStats({
+          totalLeads: k.total_leads,
+          newLeadsWaiting: k.new_leads_waiting,
+          convertedCustomers: k.converted_customers,
+          registeredOnPortal: k.registered_on_portal,
+          pendingRegistrations: k.pending_registrations,
+          solarInstallations: `${k.solar_installations_completed} / ${k.solar_installations_total}`,
+          solarInstallationsPending: k.solar_installations_pending,
+          bankLoansDisbursed: loanFormatted,
+          loansPendingApproval: k.loans_pending_approval_count,
+          vendorPayments: vendorValue,
+          vendorPaymentsSubtext: vendorSubtext,
+          commissionGenerated: commFormatted,
+          commissionPaid: commPaidFormatted,
+          activeAgents: `${k.active_agents_count} / ${k.total_agents_count || 0}`,
+        });
+
+        // Live Monthly Solar Installations
+        if (liveData.monthly_installations && liveData.monthly_installations.length > 0) {
+          const sumCap = liveData.monthly_installations.reduce((acc, curr) => acc + Number(curr.capacity_kw || 0), 0);
+          setTotalCapacityLabel(`Total ${sumCap.toFixed(0)} kW`);
+          const maxKw = Math.max(...liveData.monthly_installations.map((m) => Number(m.capacity_kw || 0)), 1);
+          const bars = liveData.monthly_installations.map((item) => {
+            const kw = Number(item.capacity_kw || 0);
+            const pct = Math.max(12, Math.min(100, Math.round((kw / maxKw) * 100)));
+            return {
+              month: item.month,
+              kw,
+              height: `${pct}%`,
+            };
+          });
+          setMonthlyChart(bars);
+        } else {
+          setMonthlyChart([]);
+          setTotalCapacityLabel('Total 0 kW');
+        }
+
+        // Live Top Performing Agents Leaderboard
+        if (liveData.top_agents && liveData.top_agents.length > 0) {
+          setTopAgentsList(liveData.top_agents);
+        } else {
+          setTopAgentsList([]);
+        }
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to fetch live dashboard summary from Supabase RPC.';
+      console.error('[OverviewDashboard] Live RPC get_dashboard_summary failed:', err);
+      setErrorMessage(msg);
+    } finally {
+      setLoading(false);
+    }
+  }, [isAuthenticated, isAuthLoading]);
 
   useEffect(() => {
     loadData();
-    const unsub = erpStore.subscribe(loadData);
-    return () => unsub();
-  }, []);
+  }, [loadData]);
 
   return (
     <div className="space-y-6 animate-fade-in">
+      {/* Alert banner for Unauthenticated Session or Live RPC Error */}
+      {!isAuthenticated && !isAuthLoading && (
+        <div className="rounded-xl bg-amber-500/10 border border-amber-500/30 p-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Lock className="w-5 h-5 text-amber-400 shrink-0" />
+            <div>
+              <div className="text-xs sm:text-sm font-bold text-amber-300">Authentication Required</div>
+              <div className="text-[11px] sm:text-xs text-amber-200/80">Please log in to view live operational metrics from Supabase.</div>
+            </div>
+          </div>
+          <button
+            onClick={() => onNavigate('login')}
+            className="px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold transition-colors cursor-pointer shrink-0"
+          >
+            Log In
+          </button>
+        </div>
+      )}
+
+      {isAuthenticated && errorMessage && (
+        <div className="rounded-xl bg-rose-500/10 border border-rose-500/30 p-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <AlertCircle className="w-5 h-5 text-rose-400 shrink-0" />
+            <div>
+              <div className="text-xs sm:text-sm font-bold text-rose-300">Live Backend RPC Error</div>
+              <div className="text-[11px] sm:text-xs text-rose-200/80">{errorMessage}</div>
+            </div>
+          </div>
+          <button
+            onClick={loadData}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold transition-colors cursor-pointer shrink-0"
+          >
+            <RefreshCw className="w-3.5 h-3.5" />
+            <span>Retry</span>
+          </button>
+        </div>
+      )}
+
       {/* 1. Hero Workflow Banner (Matching 2.PNG) */}
       <div className="rounded-2xl bg-gradient-to-r from-slate-900 via-slate-900 to-slate-950 p-6 sm:p-7 border border-slate-800 shadow-xl relative overflow-hidden">
         <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 relative z-10">
@@ -144,7 +270,7 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
             {stats.totalLeads}
           </div>
           <div className="text-[11px] text-slate-400 mt-2 flex items-center justify-between">
-            <span>0 new leads waiting</span>
+            <span>{stats.newLeadsWaiting} new leads waiting</span>
             <ArrowUpRight className="w-3.5 h-3.5 text-slate-500 group-hover:text-blue-400 transition-colors" />
           </div>
         </div>
@@ -164,7 +290,7 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
             {stats.convertedCustomers}
           </div>
           <div className="text-[11px] text-slate-400 mt-2 flex items-center justify-between">
-            <span>2 registered on portal</span>
+            <span>{stats.registeredOnPortal} registered on portal</span>
             <ArrowUpRight className="w-3.5 h-3.5 text-slate-500 group-hover:text-emerald-400 transition-colors" />
           </div>
         </div>
@@ -204,7 +330,7 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
             {stats.solarInstallations}
           </div>
           <div className="text-[11px] text-slate-400 mt-2 flex items-center justify-between">
-            <span>0 pending installation</span>
+            <span>{stats.solarInstallationsPending} pending installation</span>
             <ArrowUpRight className="w-3.5 h-3.5 text-slate-500 group-hover:text-amber-400 transition-colors" />
           </div>
         </div>
@@ -224,7 +350,7 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
             {stats.bankLoansDisbursed}
           </div>
           <div className="text-[11px] text-slate-400 mt-2 flex items-center justify-between">
-            <span>0 loans pending approval</span>
+            <span>{stats.loansPendingApproval} loans pending approval</span>
             <ArrowUpRight className="w-3.5 h-3.5 text-slate-500 group-hover:text-blue-400 transition-colors" />
           </div>
         </div>
@@ -244,7 +370,7 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
             {stats.vendorPayments}
           </div>
           <div className="text-[11px] text-slate-400 mt-2 flex items-center justify-between">
-            <span>Vendor loan disbursements</span>
+            <span>{stats.vendorPaymentsSubtext}</span>
             <ArrowUpRight className="w-3.5 h-3.5 text-slate-500 group-hover:text-rose-400 transition-colors" />
           </div>
         </div>
@@ -264,7 +390,7 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
             {stats.commissionGenerated}
           </div>
           <div className="text-[11px] text-slate-400 mt-2 flex items-center justify-between">
-            <span>₹0 paid to agents</span>
+            <span>{stats.commissionPaid}</span>
             <ArrowUpRight className="w-3.5 h-3.5 text-slate-500 group-hover:text-purple-400 transition-colors" />
           </div>
         </div>
@@ -306,20 +432,13 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
               </div>
 
               <span className="px-3 py-1 rounded-xl bg-amber-500/20 text-amber-300 font-bold text-xs font-mono border border-amber-500/30">
-                Total 355 kW+
+                {totalCapacityLabel}
               </span>
             </div>
 
             {/* Visual Bar Chart */}
             <div className="pt-8 pb-3 grid grid-cols-6 gap-3 items-end h-56">
-              {[
-                { month: 'Oct', kw: 21, height: '22%' },
-                { month: 'Nov', kw: 38, height: '39%' },
-                { month: 'Dec', kw: 52, height: '54%' },
-                { month: 'Jan', kw: 68, height: '70%' },
-                { month: 'Feb', kw: 84, height: '86%' },
-                { month: 'Mar', kw: 98, height: '100%' },
-              ].map((bar) => (
+              {monthlyChart.map((bar) => (
                 <div key={bar.month} className="flex flex-col items-center h-full justify-end group">
                   <span className="text-[11px] font-mono text-slate-400 mb-1 font-semibold group-hover:text-amber-400 transition-colors">
                     {bar.kw} kW
@@ -363,59 +482,28 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
             </p>
 
             <div className="space-y-3">
-              {/* Rank 1 */}
-              <div className="p-3 rounded-xl bg-slate-800/60 border border-slate-700/60 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-7 h-7 rounded-full bg-amber-500 text-slate-950 font-black text-xs flex items-center justify-center shadow-md">
-                    1
+              {topAgentsList.map((agent) => (
+                <div key={agent.agent_code || agent.rank} className="p-3 rounded-xl bg-slate-800/60 border border-slate-700/60 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-7 h-7 rounded-full ${
+                      agent.rank === 1 ? 'bg-amber-500' :
+                      agent.rank === 2 ? 'bg-yellow-500' :
+                      agent.rank === 3 ? 'bg-blue-500' : 'bg-slate-700'
+                    } text-slate-950 font-black text-xs flex items-center justify-center shadow-md`}>
+                      {agent.rank}
+                    </div>
+                    <div>
+                      <div className="text-xs font-bold text-slate-100">{agent.agent_name}</div>
+                      <div className="text-[10px] font-mono text-slate-400">{agent.agent_code}</div>
+                    </div>
                   </div>
-                  <div>
-                    <div className="text-xs font-bold text-slate-100">Pooja Choudhary</div>
-                    <div className="text-[10px] font-mono text-slate-400">AGT00009</div>
-                  </div>
-                </div>
 
-                <div className="text-right">
-                  <div className="text-xs font-bold text-emerald-400">23 Installs</div>
-                  <div className="text-[10px] font-mono text-slate-400">₹1,60,000</div>
-                </div>
-              </div>
-
-              {/* Rank 2 */}
-              <div className="p-3 rounded-xl bg-slate-800/60 border border-slate-700/60 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-7 h-7 rounded-full bg-yellow-500 text-slate-950 font-black text-xs flex items-center justify-center shadow-md">
-                    2
-                  </div>
-                  <div>
-                    <div className="text-xs font-bold text-slate-100">Kavita Tiwari</div>
-                    <div className="text-[10px] font-mono text-slate-400">AGT00008</div>
+                  <div className="text-right">
+                    <div className="text-xs font-bold text-emerald-400">{agent.verified_installs} Installs</div>
+                    <div className="text-[10px] font-mono text-slate-400">₹{Number(agent.commission_earned_amount).toLocaleString('en-IN')}</div>
                   </div>
                 </div>
-
-                <div className="text-right">
-                  <div className="text-xs font-bold text-emerald-400">17 Installs</div>
-                  <div className="text-[10px] font-mono text-slate-400">₹79,000</div>
-                </div>
-              </div>
-
-              {/* Rank 3 */}
-              <div className="p-3 rounded-xl bg-slate-800/60 border border-slate-700/60 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-7 h-7 rounded-full bg-blue-500 text-slate-950 font-black text-xs flex items-center justify-center shadow-md">
-                    3
-                  </div>
-                  <div>
-                    <div className="text-xs font-bold text-slate-100">Mukesh Choudhary</div>
-                    <div className="text-[10px] font-mono text-slate-400">AGT00010</div>
-                  </div>
-                </div>
-
-                <div className="text-right">
-                  <div className="text-xs font-bold text-emerald-400">12 Installs</div>
-                  <div className="text-[10px] font-mono text-slate-400">₹42,500</div>
-                </div>
-              </div>
+              ))}
             </div>
           </div>
 

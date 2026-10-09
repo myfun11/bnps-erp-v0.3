@@ -180,7 +180,7 @@ export const BranchStaffManagement: React.FC = () => {
               : 'bg-slate-900/80 text-slate-400 hover:text-slate-200 hover:bg-slate-800'
           }`}
         >
-          All Branches (7 Locations)
+          All Branches ({BRANCHES_LIST.length} Locations)
         </button>
 
         {BRANCHES_LIST.map((br) => {

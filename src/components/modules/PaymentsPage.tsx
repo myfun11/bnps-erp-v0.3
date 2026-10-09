@@ -1,10 +1,40 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { erpStore } from '../../services/erpStore';
+import { paymentService } from '../../services/paymentService';
+import { customerService } from '../../services/customerService';
+import { Payment, Customer } from '../../types/database';
 import { CreditCard, CheckCircle2, ShieldCheck, Lock, AlertCircle } from 'lucide-react';
 
 export const PaymentsPage: React.FC = () => {
-  const payments = erpStore.getPayments();
-  const customers = erpStore.getCustomers();
+  const [payments, setPayments] = useState<Payment[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
+
+  useEffect(() => {
+    let mounted = true;
+    const loadPaymentsData = async () => {
+      try {
+        const [payData, custData] = await Promise.all([
+          paymentService.fetchPayments(),
+          customerService.fetchCustomers(),
+        ]);
+        if (mounted) {
+          setPayments(payData);
+          setCustomers(custData);
+        }
+      } catch (err) {
+        if (mounted) {
+          setPayments(erpStore.getPayments());
+          setCustomers(erpStore.getCustomers());
+        }
+      }
+    };
+    loadPaymentsData();
+    const unsub = erpStore.subscribe(loadPaymentsData);
+    return () => {
+      mounted = false;
+      unsub();
+    };
+  }, []);
 
   return (
     <div className="space-y-6 animate-fade-in">

@@ -9,8 +9,9 @@ import {
   FileText,
 } from 'lucide-react';
 import { documentService } from '../../services/documentService';
+import { customerService } from '../../services/customerService';
 import { erpStore } from '../../services/erpStore';
-import { DocumentRecord } from '../../types/database';
+import { DocumentRecord, Customer } from '../../types/database';
 
 const DOCUMENT_CATEGORIES = [
   { value: 'aadhaar', label: 'Aadhaar Card' },
@@ -45,7 +46,7 @@ const getErrorMessage = (error: unknown): string => {
 
 export const DocumentsPage: React.FC = () => {
   const [documents, setDocuments] = useState<DocumentRecord[]>([]);
-  const [customers, setCustomers] = useState(erpStore.getCustomers());
+  const [customers, setCustomers] = useState<Customer[]>([]);
 
   const [isLoading, setIsLoading] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
@@ -68,8 +69,12 @@ export const DocumentsPage: React.FC = () => {
     setIsLoading(true);
 
     try {
-      const data = await documentService.fetchDocuments();
-      setDocuments(data);
+      const [dData, cData] = await Promise.all([
+        documentService.fetchDocuments(),
+        customerService.fetchCustomers(),
+      ]);
+      setDocuments(dData);
+      setCustomers(cData);
     } catch (error) {
       console.error('[DocumentsPage.loadDocuments]', error);
       alert(getErrorMessage(error));
@@ -81,8 +86,13 @@ export const DocumentsPage: React.FC = () => {
   useEffect(() => {
     void loadDocuments();
 
-    const unsubscribe = erpStore.subscribe(() => {
-      setCustomers(erpStore.getCustomers());
+    const unsubscribe = erpStore.subscribe(async () => {
+      try {
+        const cData = await customerService.fetchCustomers();
+        setCustomers(cData);
+      } catch {
+        setCustomers(erpStore.getCustomers());
+      }
     });
 
     return unsubscribe;

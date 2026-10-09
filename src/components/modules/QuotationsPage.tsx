@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { erpStore } from '../../services/erpStore';
+import { quotationService } from '../../services/quotationService';
 import { useAuth } from '../../context/AuthContext';
+import { BRANCHES_LIST } from '../../services/mockData';
 import { Quotation, QuotationStatusType } from '../../types/database';
 import { QuotationBuilderForm } from './quotations/QuotationBuilderForm';
 import { QuotationLetterheadDoc } from './quotations/QuotationLetterheadDoc';
@@ -39,42 +41,68 @@ export const QuotationsPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
   const [branchFilter, setBranchFilter] = useState<string>('ALL');
+  const [originFilter, setOriginFilter] = useState<'ALL' | 'LEADS_ONLY' | 'CONVERTED_ONLY'>('ALL');
 
   // Toast
   const [actionSuccessMsg, setActionSuccessMsg] = useState<string | null>(null);
+
+  const fetchQuotations = async () => {
+    try {
+      const data = await quotationService.list();
+      setQuotations(data);
+    } catch (err) {
+      console.error('Failed to fetch quotations:', err);
+      setQuotations(erpStore.getQuotations());
+    }
+  };
+
+  useEffect(() => {
+    fetchQuotations();
+    const unsub = erpStore.subscribe(fetchQuotations);
+    return () => unsub();
+  }, []);
 
   const showToast = (msg: string) => {
     setActionSuccessMsg(msg);
     setTimeout(() => setActionSuccessMsg(null), 5000);
   };
 
-  const handleSaveQuotation = (newQuot: Quotation) => {
-    // Add to erpStore
-    const created = erpStore.createQuotation(newQuot);
-    setQuotations(erpStore.getQuotations());
-    setSelectedQuotation(created);
-    setActiveView('PREVIEW');
-    showToast(`Quotation ${created.quotation_no} created successfully! Official letterhead ready for print / save / download.`);
+  const handleSaveQuotation = async (newQuot: Quotation) => {
+    try {
+      const created = await quotationService.create(newQuot);
+      await fetchQuotations();
+      setSelectedQuotation(created);
+      setActiveView('PREVIEW');
+      showToast(`Quotation ${created.quotation_no} created successfully! Official letterhead ready for print / save / download.`);
+    } catch (err: any) {
+      alert(err?.message || 'Failed to create quotation');
+    }
   };
 
-  const handleConvertToProject = (q: Quotation) => {
-    const res = erpStore.convertQuotationToCustomer(q.id, currentProfile.id);
-    if (res.success) {
-      setQuotations(erpStore.getQuotations());
+  const handleConvertToProject = async (q: Quotation) => {
+    try {
+      const res = await quotationService.convertToCustomer(q.id, currentProfile.id);
+      await fetchQuotations();
       if (selectedQuotation && selectedQuotation.id === q.id) {
         setSelectedQuotation({ ...selectedQuotation, status: 'CONVERTED' });
       }
-      showToast(`Quotation converted to Live Customer (${res.customer?.customer_code}) & Project (${res.project?.project_code})!`);
+      showToast(`Quotation converted to Live Customer & Project successfully!`);
+    } catch (err: any) {
+      alert(err?.message || 'Failed to convert quotation');
     }
   };
 
-  const handleStatusChange = (qId: string, status: QuotationStatusType) => {
-    erpStore.updateQuotationStatus(qId, status);
-    setQuotations(erpStore.getQuotations());
-    if (selectedQuotation && selectedQuotation.id === qId) {
-      setSelectedQuotation({ ...selectedQuotation, status });
+  const handleStatusChange = async (qId: string, status: QuotationStatusType) => {
+    try {
+      await quotationService.updateStatus(qId, status);
+      await fetchQuotations();
+      if (selectedQuotation && selectedQuotation.id === qId) {
+        setSelectedQuotation({ ...selectedQuotation, status });
+      }
+      showToast(`Status updated to ${status}`);
+    } catch (err: any) {
+      alert(err?.message || 'Failed to update quotation status');
     }
-    showToast(`Status updated to ${status}`);
   };
 
   const handleShareWhatsApp = (q: Quotation) => {
@@ -122,7 +150,15 @@ export const QuotationsPage: React.FC = () => {
     const matchesStatus = statusFilter === 'ALL' || q.status === statusFilter;
     const matchesBranch = branchFilter === 'ALL' || q.branch === branchFilter;
 
-    return matchesSearch && matchesStatus && matchesBranch;
+    // Origin logic:
+    // LEADS_ONLY: quotations belonging to leads (lead_id is set and not yet converted to customer)
+    // CONVERTED_ONLY: quotations with an active customer (customer_id is set or status is CONVERTED)
+    const matchesOrigin = 
+      originFilter === 'ALL' ||
+      (originFilter === 'LEADS_ONLY' && (Boolean(q.lead_id || q.lead_code) && !q.customer_id && q.status !== 'CONVERTED')) ||
+      (originFilter === 'CONVERTED_ONLY' && (Boolean(q.customer_id) || q.status === 'CONVERTED'));
+
+    return matchesSearch && matchesStatus && matchesBranch && matchesOrigin;
   });
 
   const totalPipeline = quotations.reduce((acc, q) => acc + q.total_project_cost, 0);
@@ -294,15 +330,51 @@ export const QuotationsPage: React.FC = () => {
                   onChange={(e) => setBranchFilter(e.target.value)}
                   className="bg-transparent text-slate-200 focus:outline-none text-xs"
                 >
-                  <option value="ALL">All Branches (7)</option>
-                  <option value="Sakti">Sakti</option>
-                  <option value="Jaijaipur">Jaijaipur</option>
-                  <option value="Korba">Korba</option>
-                  <option value="Bilaspur">Bilaspur</option>
-                  <option value="Janjgir-Champa">Janjgir-Champa</option>
-                  <option value="Raigarh">Raigarh</option>
-                  <option value="Raipur">Raipur</option>
+                  <option value="ALL">All Branches ({BRANCHES_LIST.length})</option>
+                  {BRANCHES_LIST.map((b) => (
+                    <option key={b} value={b}>
+                      {b === 'Jaijaipur' ? 'HQ Jaijaipur' : b}
+                    </option>
+                  ))}
                 </select>
+              </div>
+
+              <div className="flex items-center gap-1.5 bg-slate-950 border border-slate-800 rounded-lg p-1 text-xs">
+                <button
+                  type="button"
+                  onClick={() => setOriginFilter('ALL')}
+                  className={`px-2.5 py-1 rounded text-[11px] font-semibold transition cursor-pointer ${
+                    originFilter === 'ALL'
+                      ? 'bg-amber-500 text-slate-950 font-bold'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  All ({quotations.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setOriginFilter('LEADS_ONLY')}
+                  className={`px-2.5 py-1 rounded text-[11px] font-semibold transition cursor-pointer ${
+                    originFilter === 'LEADS_ONLY'
+                      ? 'bg-amber-500 text-slate-950 font-bold'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                  title="Quotations issued to Leads (pending conversion)"
+                >
+                  Lead Quotes ({quotations.filter(q => (q.lead_id || q.lead_code) && !q.customer_id && q.status !== 'CONVERTED').length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setOriginFilter('CONVERTED_ONLY')}
+                  className={`px-2.5 py-1 rounded text-[11px] font-semibold transition cursor-pointer ${
+                    originFilter === 'CONVERTED_ONLY'
+                      ? 'bg-emerald-500 text-slate-950 font-bold'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                  title="Quotations linked to Converted Customers / Projects"
+                >
+                  Customer Quotes ({quotations.filter(q => q.customer_id || q.status === 'CONVERTED').length})
+                </button>
               </div>
 
               <div className="flex items-center gap-1.5 bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs">
@@ -343,7 +415,18 @@ export const QuotationsPage: React.FC = () => {
                   <tr key={q.id} className="hover:bg-slate-800/40 transition-colors">
                     {/* Quotation No & Date */}
                     <td className="p-3.5">
-                      <div className="font-mono font-bold text-amber-400">{q.quotation_no}</div>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="font-mono font-bold text-amber-400">{q.quotation_no}</span>
+                        {(q.lead_id || q.lead_code) && !q.customer_id && q.status !== 'CONVERTED' ? (
+                          <span className="px-1.5 py-0.2 rounded font-mono text-[9px] bg-amber-500/15 text-amber-300 border border-amber-500/30">
+                            LEAD QUOTE
+                          </span>
+                        ) : (q.customer_id || q.status === 'CONVERTED') ? (
+                          <span className="px-1.5 py-0.2 rounded font-mono text-[9px] bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+                            CUSTOMER
+                          </span>
+                        ) : null}
+                      </div>
                       <div className="text-[11px] text-slate-400 mt-0.5">
                         {new Date(q.created_at || Date.now()).toLocaleDateString('en-IN', {
                           day: '2-digit',

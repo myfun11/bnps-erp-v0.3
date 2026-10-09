@@ -1,10 +1,40 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { erpStore } from '../../services/erpStore';
+import { loanService } from '../../services/loanService';
+import { customerService } from '../../services/customerService';
+import { Loan, Customer } from '../../types/database';
 import { Landmark, CheckCircle2, Clock } from 'lucide-react';
 
 export const LoansPage: React.FC = () => {
-  const loans = erpStore.getLoans();
-  const customers = erpStore.getCustomers();
+  const [loans, setLoans] = useState<Loan[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
+
+  useEffect(() => {
+    let mounted = true;
+    const loadLoansData = async () => {
+      try {
+        const [lData, cData] = await Promise.all([
+          loanService.fetchLoans(),
+          customerService.fetchCustomers(),
+        ]);
+        if (mounted) {
+          setLoans(lData);
+          setCustomers(cData);
+        }
+      } catch (err) {
+        if (mounted) {
+          setLoans(erpStore.getLoans());
+          setCustomers(erpStore.getCustomers());
+        }
+      }
+    };
+    loadLoansData();
+    const unsub = erpStore.subscribe(loadLoansData);
+    return () => {
+      mounted = false;
+      unsub();
+    };
+  }, []);
 
   return (
     <div className="space-y-6 animate-fade-in">
