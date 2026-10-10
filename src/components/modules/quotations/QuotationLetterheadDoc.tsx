@@ -13,6 +13,7 @@ import {
   CheckCircle2, 
   Sparkles
 } from 'lucide-react';
+import { useAuth } from '../../../context/AuthContext';
 
 interface QuotationLetterheadDocProps {
   quotation: Quotation;
@@ -29,6 +30,11 @@ export const QuotationLetterheadDoc: React.FC<QuotationLetterheadDocProps> = ({
   onConvertToProject,
   onBack,
 }) => {
+  const { currentProfile, userRole, canConvertQuotations } = useAuth();
+  const isBranchScoped = ['branch_manager', 'field_officer'].includes(userRole);
+  const userBranch = currentProfile?.branch;
+  const isEligibleToConvert = canConvertQuotations && (!isBranchScoped || (userBranch && quotation.branch?.toLowerCase().trim() === userBranch.toLowerCase().trim()));
+
   const [downloadNotice, setDownloadNotice] = useState<string | null>(null);
 
   const handleDownload = () => {
@@ -150,7 +156,7 @@ export const QuotationLetterheadDoc: React.FC<QuotationLetterheadDocProps> = ({
             <span>WhatsApp</span>
           </button>
 
-          {quotation.status !== 'CONVERTED' && (
+          {quotation.status !== 'CONVERTED' && isEligibleToConvert && (
             <button
               onClick={() => onConvertToProject(quotation)}
               className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs shadow transition cursor-pointer"

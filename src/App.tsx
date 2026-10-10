@@ -8,6 +8,7 @@ import { CommissionTestModal } from './components/modals/CommissionTestModal';
 import { customerService } from './services/customerService';
 import { agentNetworkService } from './services/agentNetworkService';
 import { quotationService } from './services/quotationService';
+import { isSupabaseConfigured } from './lib/supabaseClient';
 
 // Pages & Modules
 import { OverviewDashboard } from './components/dashboard/OverviewDashboard';
@@ -47,7 +48,9 @@ function ErpAppShell() {
 
   useEffect(() => {
     let mounted = true;
-    const syncCounts = async () => {
+
+    // 1. Initial remote count synchronization on authentication
+    const syncRemoteCounts = async () => {
       try {
         const [cList, aList, qList] = await Promise.all([
           customerService.fetchCustomers(),
@@ -60,7 +63,7 @@ function ErpAppShell() {
           setQuotationCount(qList.length);
         }
       } catch (err) {
-        if (mounted) {
+        if (mounted && !isSupabaseConfigured) {
           setCustomerCount(erpStore.getCustomers().length);
           setAgentCount(erpStore.getAgents().length);
           setQuotationCount(erpStore.getQuotations().length);
@@ -69,9 +72,19 @@ function ErpAppShell() {
     };
 
     if (isAuthenticated) {
-      syncCounts();
+      syncRemoteCounts();
     }
-    const unsub = erpStore.subscribe(syncCounts);
+
+    // 2. Local store listener: updates counts from in-memory store without triggering remote fetches
+    const updateCountsFromStore = () => {
+      if (mounted) {
+        setCustomerCount(erpStore.getCustomers().length);
+        setAgentCount(erpStore.getAgents().length);
+        setQuotationCount(erpStore.getQuotations().length);
+      }
+    };
+
+    const unsub = erpStore.subscribe(updateCountsFromStore);
     return () => {
       mounted = false;
       unsub();

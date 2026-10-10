@@ -7,104 +7,100 @@ export const quotationService = {
 
   /**
    * Fetch list of quotations from Supabase
+   * When Supabase is configured, errors are thrown directly to prevent silent fallback to erpStore.
    */
   async list(): Promise<Quotation[]> {
     if (isSupabaseConfigured) {
-      try {
-        const { data, error } = await supabase
-          .from('quotations')
-          .select('*')
-          .order('created_at', { ascending: false });
+      const { data, error } = await supabase
+        .from('quotations')
+        .select('*')
+        .order('created_at', { ascending: false });
 
-        if (!error && Array.isArray(data)) {
-          return data as Quotation[];
-        }
-
-        if (error) {
-          console.warn('[quotationService.list] Supabase notice (table may be pending migration in SQL Editor):', error.message);
-          return erpStore.getQuotations();
-        }
-      } catch (err: any) {
-        console.warn('[quotationService.list] Supabase query exception:', err?.message || err);
-        return erpStore.getQuotations();
+      if (error) {
+        console.error('[quotationService.list] Supabase error:', error.message);
+        throw new Error(error.message || 'Failed to fetch quotations from database');
       }
+
+      return (data || []) as Quotation[];
     }
     return erpStore.getQuotations();
   },
 
   /**
    * Create a new rooftop solar quotation
+   * When Supabase is configured, errors are thrown directly to prevent false success.
    */
   async create(input: Omit<Quotation, 'id' | 'quotation_no' | 'created_at'>): Promise<Quotation> {
     if (isSupabaseConfigured) {
-      try {
-        const now = new Date();
-        const qtnNo = `BNPS/QTN/${String(now.getFullYear()).slice(-2)}${String(now.getMonth() + 1).padStart(2, '0')}/${Math.floor(100 + Math.random() * 900)}`;
-        const { data, error } = await supabase
-          .from('quotations')
-          .insert({
-            ...input,
-            quotation_no: qtnNo,
-          })
-          .select()
-          .single();
+      const now = new Date();
+      const qtnNo = `BNPS/QTN/${String(now.getFullYear()).slice(-2)}${String(now.getMonth() + 1).padStart(2, '0')}/${Math.floor(100 + Math.random() * 900)}`;
+      const { data, error } = await supabase
+        .from('quotations')
+        .insert({
+          ...input,
+          quotation_no: qtnNo,
+        })
+        .select()
+        .single();
 
-        if (!error && data) {
-          return data as Quotation;
-        }
-
-        if (error) {
-          console.warn('[quotationService.create] Supabase insert notice (table may be pending migration):', error.message);
-        }
-      } catch (err: any) {
-        console.warn('[quotationService.create] Supabase insert exception:', err?.message || err);
+      if (error) {
+        console.error('[quotationService.create] Supabase insert error:', error.message);
+        throw new Error(error.message || 'Failed to create quotation in database');
       }
+
+      if (!data) {
+        throw new Error('No data returned from database after quotation creation');
+      }
+
+      return data as Quotation;
     }
     return erpStore.createQuotation(input);
   },
 
   /**
    * Update quotation status
+   * When Supabase is configured, errors are thrown directly to prevent false success.
    */
   async updateStatus(id: string, status: QuotationStatusType): Promise<void> {
     if (isSupabaseConfigured) {
-      try {
-        const { error } = await supabase
-          .from('quotations')
-          .update({ status, updated_at: new Date().toISOString() })
-          .eq('id', id);
+      const { error } = await supabase
+        .from('quotations')
+        .update({ status, updated_at: new Date().toISOString() })
+        .eq('id', id);
 
-        if (!error) {
-          return;
-        }
-        console.warn('[quotationService.updateStatus] Supabase notice:', error.message);
-      } catch (err: any) {
-        console.warn('[quotationService.updateStatus] Supabase exception:', err?.message || err);
+      if (error) {
+        console.error('[quotationService.updateStatus] Supabase update error:', error.message);
+        throw new Error(error.message || 'Failed to update quotation status in database');
       }
+      return;
     }
     erpStore.updateQuotationStatus(id, status);
   },
 
   /**
    * Convert quotation to active customer & project via atomic transaction
+   * When Supabase is configured, errors are thrown directly to prevent false success.
    */
   async convertToCustomer(quotationId: string, actorProfileId?: string) {
-    if (isSupabaseConfigured && actorProfileId) {
-      try {
-        const { data, error } = await supabase.rpc('convert_quotation_to_customer_atomic', {
-          p_quotation_id: quotationId,
-          p_actor_id: actorProfileId,
-        });
-
-        if (!error && data?.success) {
-          return data;
-        }
-        if (error) {
-          console.warn('[quotationService.convertToCustomer] Supabase RPC notice (migration may be pending):', error.message);
-        }
-      } catch (err: any) {
-        console.warn('[quotationService.convertToCustomer] Supabase RPC exception:', err?.message || err);
+    if (isSupabaseConfigured) {
+      if (!actorProfileId) {
+        throw new Error('Actor profile ID is required for conversion');
       }
+      const { data, error } = await supabase.rpc('convert_quotation_to_customer_atomic', {
+        p_quotation_id: quotationId,
+        p_actor_id: actorProfileId,
+      });
+
+      if (error) {
+        console.error('[quotationService.convertToCustomer] Supabase RPC error:', error.message);
+        throw new Error(error.message || 'Failed to convert quotation via atomic database RPC');
+      }
+
+      if (data && (data as any).success === false) {
+        throw new Error((data as any).message || 'Database conversion transaction failed');
+      }
+
+      return data;
     }
     return erpStore.convertQuotationToCustomer(quotationId, actorProfileId);
   },

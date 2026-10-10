@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { erpStore } from '../../services/erpStore';
 import { quotationService } from '../../services/quotationService';
 import { useAuth } from '../../context/AuthContext';
+import { isSupabaseConfigured } from '../../lib/supabaseClient';
 import { BRANCHES_LIST } from '../../services/mockData';
 import { Quotation, QuotationStatusType } from '../../types/database';
 import { QuotationBuilderForm } from './quotations/QuotationBuilderForm';
@@ -26,40 +27,73 @@ import {
   Save,
   ArrowLeft,
   X,
-  Sparkles
+  Sparkles,
+  ShieldAlert
 } from 'lucide-react';
 
 export const QuotationsPage: React.FC = () => {
-  const { currentProfile } = useAuth();
-  const [quotations, setQuotations] = useState<Quotation[]>(erpStore.getQuotations());
+  const { 
+    currentProfile, 
+    userRole, 
+    canViewQuotations, 
+    canCreateQuotations, 
+    canUpdateQuotations, 
+    canConvertQuotations 
+  } = useAuth();
+
+  const isBranchScoped = ['branch_manager', 'field_officer'].includes(userRole);
+  const userBranch = currentProfile?.branch;
+
+  const [quotations, setQuotations] = useState<Quotation[]>(
+    isSupabaseConfigured ? [] : erpStore.getQuotations()
+  );
   
-  // Default view is BUILDER (Create Quotation) as requested
-  const [activeView, setActiveView] = useState<'BUILDER' | 'REGISTER' | 'PREVIEW'>('BUILDER');
-  const [selectedQuotation, setSelectedQuotation] = useState<Quotation | null>(quotations[0] || null);
+  // Default view is BUILDER (Create Quotation) if permitted, otherwise REGISTER
+  const [activeView, setActiveView] = useState<'BUILDER' | 'REGISTER' | 'PREVIEW'>(
+    canCreateQuotations ? 'BUILDER' : 'REGISTER'
+  );
+  const [selectedQuotation, setSelectedQuotation] = useState<Quotation | null>(null);
 
   // Filters for Quotation Register Table
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
-  const [branchFilter, setBranchFilter] = useState<string>('ALL');
+  const [branchFilter, setBranchFilter] = useState<string>(
+    isBranchScoped && userBranch ? userBranch : 'ALL'
+  );
   const [originFilter, setOriginFilter] = useState<'ALL' | 'LEADS_ONLY' | 'CONVERTED_ONLY'>('ALL');
 
-  // Toast
+  // Toast & Notices
   const [actionSuccessMsg, setActionSuccessMsg] = useState<string | null>(null);
+  const [loadNotice, setLoadNotice] = useState<string | null>(null);
+  const [isRetrying, setIsRetrying] = useState(false);
 
   const fetchQuotations = async () => {
     try {
       const data = await quotationService.list();
       setQuotations(data);
-    } catch (err) {
+      setLoadNotice(null);
+    } catch (err: any) {
       console.error('Failed to fetch quotations:', err);
-      setQuotations(erpStore.getQuotations());
+      setLoadNotice(err?.message || 'Failed to load remote quotations');
+      if (!isSupabaseConfigured) {
+        setQuotations(erpStore.getQuotations());
+      } else {
+        setQuotations([]);
+      }
+    } finally {
+      setIsRetrying(false);
     }
   };
 
   useEffect(() => {
     fetchQuotations();
-    const unsub = erpStore.subscribe(fetchQuotations);
-    return () => unsub();
+    if (!isSupabaseConfigured) {
+      const unsub = erpStore.subscribe(() => {
+        // Synchronize in-memory quotations in offline/demo mode only
+        setQuotations(erpStore.getQuotations());
+      });
+      return () => unsub();
+    }
   }, []);
 
   const showToast = (msg: string) => {
@@ -68,6 +102,14 @@ export const QuotationsPage: React.FC = () => {
   };
 
   const handleSaveQuotation = async (newQuot: Quotation) => {
+    if (!canCreateQuotations) {
+      alert('Your role does not have permission to create quotations.');
+      return;
+    }
+    if (isBranchScoped && userBranch && newQuot.branch?.toLowerCase().trim() !== userBranch.toLowerCase().trim()) {
+      alert(`Cross-branch quotation creation is forbidden. Quotation must be for your branch (${userBranch}).`);
+      return;
+    }
     try {
       const created = await quotationService.create(newQuot);
       await fetchQuotations();
@@ -80,6 +122,14 @@ export const QuotationsPage: React.FC = () => {
   };
 
   const handleConvertToProject = async (q: Quotation) => {
+    if (!canConvertQuotations) {
+      alert('Your role does not have permission to convert quotations.');
+      return;
+    }
+    if (isBranchScoped && userBranch && q.branch?.toLowerCase().trim() !== userBranch.toLowerCase().trim()) {
+      alert(`Cross-branch quotation conversion is forbidden. You can only convert quotations for ${userBranch}.`);
+      return;
+    }
     try {
       const res = await quotationService.convertToCustomer(q.id, currentProfile.id);
       await fetchQuotations();
@@ -93,6 +143,15 @@ export const QuotationsPage: React.FC = () => {
   };
 
   const handleStatusChange = async (qId: string, status: QuotationStatusType) => {
+    if (!canUpdateQuotations) {
+      alert('Your role does not have permission to update quotation status.');
+      return;
+    }
+    const targetQ = quotations.find((item) => item.id === qId);
+    if (isBranchScoped && userBranch && targetQ?.branch?.toLowerCase().trim() !== userBranch.toLowerCase().trim()) {
+      alert(`Cross-branch quotation update is forbidden. You can only update quotations for ${userBranch}.`);
+      return;
+    }
     try {
       await quotationService.updateStatus(qId, status);
       await fetchQuotations();
@@ -148,7 +207,19 @@ export const QuotationsPage: React.FC = () => {
       (q.consumer_number && q.consumer_number.toLowerCase().includes(searchQuery.toLowerCase()));
 
     const matchesStatus = statusFilter === 'ALL' || q.status === statusFilter;
-    const matchesBranch = branchFilter === 'ALL' || q.branch === branchFilter;
+    
+    // Strict branch scoping: branch_manager and field_officer are strictly isolated to their authorized branch
+    const matchesBranch = isBranchScoped
+      ? Boolean(userBranch && q.branch && q.branch.toLowerCase().trim() === userBranch.toLowerCase().trim())
+      : (branchFilter === 'ALL' || q.branch === branchFilter);
+
+    // Agent isolation: agents may only view quotations for their own assigned leads
+    const matchesAgent = userRole === 'agent'
+      ? Boolean(
+          (q.lead_id && erpStore.getLeads().some(l => l.id === q.lead_id && (l.source_agent_id === currentProfile?.id || l.assigned_officer_id === currentProfile?.id)))
+          || (q.prepared_by && currentProfile?.full_name && q.prepared_by.toLowerCase().includes(currentProfile.full_name.toLowerCase()))
+        )
+      : true;
 
     // Origin logic:
     // LEADS_ONLY: quotations belonging to leads (lead_id is set and not yet converted to customer)
@@ -158,7 +229,7 @@ export const QuotationsPage: React.FC = () => {
       (originFilter === 'LEADS_ONLY' && (Boolean(q.lead_id || q.lead_code) && !q.customer_id && q.status !== 'CONVERTED')) ||
       (originFilter === 'CONVERTED_ONLY' && (Boolean(q.customer_id) || q.status === 'CONVERTED'));
 
-    return matchesSearch && matchesStatus && matchesBranch && matchesOrigin;
+    return matchesSearch && matchesStatus && matchesBranch && matchesOrigin && matchesAgent;
   });
 
   const totalPipeline = quotations.reduce((acc, q) => acc + q.total_project_cost, 0);
@@ -180,6 +251,19 @@ export const QuotationsPage: React.FC = () => {
         return 'bg-amber-500/20 text-amber-300 border-amber-500/30';
     }
   };
+
+  // Access Denied guard for roles with all quotation permissions strictly blocked (operational_manager, technician, receptionist, etc.)
+  if (!canViewQuotations) {
+    return (
+      <div className="p-8 bg-slate-900/80 rounded-2xl border border-red-500/30 text-center max-w-lg mx-auto my-12 space-y-4 animate-fade-in shadow-xl">
+        <ShieldAlert className="w-12 h-12 text-red-400 mx-auto" />
+        <h3 className="text-lg font-bold text-slate-100">Access Denied</h3>
+        <p className="text-xs text-slate-400">
+          Your role (<span className="text-amber-400 font-semibold">{userRole || 'unassigned'}</span>) does not have permission to view or manage solar quotations in BNPS ERP v0.3.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 animate-fade-in pb-12">
@@ -219,9 +303,9 @@ export const QuotationsPage: React.FC = () => {
           </div>
         </div>
 
-        {/* View Switcher: Front page shows Create Quotation, and View Quotation Register button opens the table */}
+        {/* View Switcher: Front page shows Create Quotation (if authorized), and View Quotation Register button opens the table */}
         <div className="flex items-center gap-2.5 w-full md:w-auto">
-          {activeView !== 'BUILDER' && (
+          {activeView !== 'BUILDER' && canCreateQuotations && (
             <button
               onClick={() => setActiveView('BUILDER')}
               className="flex-1 md:flex-initial flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs shadow-md shadow-amber-500/20 transition cursor-pointer"
@@ -252,6 +336,26 @@ export const QuotationsPage: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* Database Warning / Error State with Manual Retry */}
+      {loadNotice && (
+        <div className="flex items-center justify-between p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs text-amber-300 shadow-sm animate-fade-in">
+          <div className="flex items-center gap-2">
+            <span className="font-semibold text-amber-200">Database Notice:</span>
+            <span>{loadNotice}</span>
+          </div>
+          <button
+            onClick={() => {
+              setIsRetrying(true);
+              fetchQuotations();
+            }}
+            disabled={isRetrying}
+            className="px-3 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 font-semibold cursor-pointer disabled:opacity-50 transition shrink-0"
+          >
+            {isRetrying ? 'Retrying...' : 'Retry Remote Fetch'}
+          </button>
+        </div>
+      )}
 
       {/* VIEW 1: FRONT PAGE = CREATE QUOTATION (BUILDER) */}
       {activeView === 'BUILDER' && (
@@ -326,12 +430,13 @@ export const QuotationsPage: React.FC = () => {
               <div className="flex items-center gap-1.5 bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs">
                 <Building2 className="w-3.5 h-3.5 text-slate-400" />
                 <select
-                  value={branchFilter}
+                  value={isBranchScoped ? (userBranch || 'Jaijaipur') : branchFilter}
                   onChange={(e) => setBranchFilter(e.target.value)}
-                  className="bg-transparent text-slate-200 focus:outline-none text-xs"
+                  disabled={isBranchScoped}
+                  className={`bg-transparent text-slate-200 focus:outline-none text-xs ${isBranchScoped ? 'opacity-70 cursor-not-allowed' : ''}`}
                 >
-                  <option value="ALL">All Branches ({BRANCHES_LIST.length})</option>
-                  {BRANCHES_LIST.map((b) => (
+                  {!isBranchScoped && <option value="ALL">All Branches ({BRANCHES_LIST.length})</option>}
+                  {BRANCHES_LIST.filter(b => !isBranchScoped || (userBranch && b.toLowerCase().trim() === userBranch.toLowerCase().trim())).map((b) => (
                     <option key={b} value={b}>
                       {b === 'Jaijaipur' ? 'HQ Jaijaipur' : b}
                     </option>
@@ -513,18 +618,20 @@ export const QuotationsPage: React.FC = () => {
                       <span className={`inline-block px-2.5 py-0.5 rounded-full font-mono text-[10px] font-bold border ${getStatusBadge(q.status)}`}>
                         {q.status || 'SENT'}
                       </span>
-                      <div className="mt-1">
-                        <select
-                          value={q.status || 'SENT'}
-                          onChange={(e) => handleStatusChange(q.id, e.target.value as QuotationStatusType)}
-                          className="bg-slate-950 border border-slate-800 rounded px-1.5 py-0.5 text-[10px] text-slate-300 focus:outline-none cursor-pointer"
-                        >
-                          <option value="SENT">Sent</option>
-                          <option value="ACCEPTED">Accepted</option>
-                          <option value="CONVERTED">Converted</option>
-                          <option value="DRAFT">Draft</option>
-                        </select>
-                      </div>
+                      {canUpdateQuotations && (!isBranchScoped || (userBranch && q.branch?.toLowerCase().trim() === userBranch.toLowerCase().trim())) && (
+                        <div className="mt-1">
+                          <select
+                            value={q.status || 'SENT'}
+                            onChange={(e) => handleStatusChange(q.id, e.target.value as QuotationStatusType)}
+                            className="bg-slate-950 border border-slate-800 rounded px-1.5 py-0.5 text-[10px] text-slate-300 focus:outline-none cursor-pointer"
+                          >
+                            <option value="SENT">Sent</option>
+                            <option value="ACCEPTED">Accepted</option>
+                            <option value="CONVERTED">Converted</option>
+                            <option value="DRAFT">Draft</option>
+                          </select>
+                        </div>
+                      )}
                     </td>
 
                     {/* Print / Save / Download / Actions */}
@@ -580,13 +687,15 @@ export const QuotationsPage: React.FC = () => {
 
                         {/* Convert to Project */}
                         {q.status !== 'CONVERTED' ? (
-                          <button
-                            onClick={() => handleConvertToProject(q)}
-                            className="p-1.5 rounded-lg bg-sky-600 hover:bg-sky-500 text-white transition"
-                            title="Convert to Live Project & Customer"
-                          >
-                            <FileCheck className="w-3.5 h-3.5" />
-                          </button>
+                          canConvertQuotations && (!isBranchScoped || (userBranch && q.branch?.toLowerCase().trim() === userBranch.toLowerCase().trim())) ? (
+                            <button
+                              onClick={() => handleConvertToProject(q)}
+                              className="p-1.5 rounded-lg bg-sky-600 hover:bg-sky-500 text-white transition cursor-pointer"
+                              title="Convert to Live Project & Customer"
+                            >
+                              <FileCheck className="w-3.5 h-3.5" />
+                            </button>
+                          ) : null
                         ) : (
                           <span className="p-1 text-emerald-400" title="Project Created">
                             <Check className="w-3.5 h-3.5" />

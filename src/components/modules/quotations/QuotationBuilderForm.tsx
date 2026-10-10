@@ -31,13 +31,15 @@ interface QuotationBuilderFormProps {
 }
 
 export const QuotationBuilderForm: React.FC<QuotationBuilderFormProps> = ({ onSave, onCancel }) => {
-  const { currentProfile } = useAuth();
+  const { currentProfile, userRole } = useAuth();
+  const isBranchScoped = ['branch_manager', 'field_officer'].includes(userRole);
+  const userBranch = (currentProfile?.branch || 'Jaijaipur') as BranchLocation;
 
   // 1. Customer & Address
   const [customerName, setCustomerName] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
-  const [branch, setBranch] = useState<BranchLocation>('Sakti');
+  const [branch, setBranch] = useState<BranchLocation>(isBranchScoped ? userBranch : 'Sakti');
   const [state] = useState('Chhattisgarh');
   const [district, setDistrict] = useState('Sakti');
   const [tehsil, setTehsil] = useState('Sakti');
@@ -102,6 +104,13 @@ export const QuotationBuilderForm: React.FC<QuotationBuilderFormProps> = ({ onSa
     const ratePerKw = inv ? inv.approxRatePerKw : 7500;
     setInverterPrice(Math.round(solarKw * ratePerKw));
   }, [solarKw, selectedInverterId]);
+
+  // Synchronize branch with profile for branch-scoped roles
+  useEffect(() => {
+    if (isBranchScoped && currentProfile?.branch) {
+      setBranch(currentProfile.branch as BranchLocation);
+    }
+  }, [isBranchScoped, currentProfile?.branch]);
 
   // Handle Equipment row editing
   const handleUpdateEquipment = (id: string, field: 'quantity' | 'unit_price', val: number) => {
@@ -173,6 +182,8 @@ export const QuotationBuilderForm: React.FC<QuotationBuilderFormProps> = ({ onSa
     const count = Date.now().toString().slice(-3);
     const qtnNo = `BNPS/QTN/${String(now.getFullYear()).slice(-2)}${String(now.getMonth() + 1).padStart(2, '0')}/${count}`;
 
+    const finalBranch: BranchLocation = isBranchScoped ? userBranch : branch;
+
     const newQuotation: Quotation = {
       id: `quot-${Date.now()}`,
       quotation_no: qtnNo,
@@ -186,7 +197,7 @@ export const QuotationBuilderForm: React.FC<QuotationBuilderFormProps> = ({ onSa
       block,
       panchayat_village: panchayatVillage || undefined,
       pincode,
-      branch,
+      branch: finalBranch,
       consumer_number: consumerNumber || `CSPDCL-${Date.now().toString().slice(-8)}`,
       sanctioned_load_kw: sanctionedLoad,
       discom_name: `CSPDCL (${district} Circle)`,
@@ -268,9 +279,10 @@ export const QuotationBuilderForm: React.FC<QuotationBuilderFormProps> = ({ onSa
           <div>
             <label className="block text-xs font-semibold text-slate-300 mb-1">Branch Office *</label>
             <select
-              value={branch}
+              value={isBranchScoped ? userBranch : branch}
               onChange={(e) => setBranch(e.target.value as BranchLocation)}
-              className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-amber-500"
+              disabled={isBranchScoped}
+              className={`w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-amber-500 ${isBranchScoped ? 'opacity-70 cursor-not-allowed' : ''}`}
             >
               {BRANCHES_LIST.map((b) => (
                 <option key={b} value={b}>
@@ -278,6 +290,11 @@ export const QuotationBuilderForm: React.FC<QuotationBuilderFormProps> = ({ onSa
                 </option>
               ))}
             </select>
+            {isBranchScoped && (
+              <span className="text-[10px] text-amber-400 mt-1 block font-medium">
+                Locked to your authorized branch ({userBranch})
+              </span>
+            )}
           </div>
         </div>
 

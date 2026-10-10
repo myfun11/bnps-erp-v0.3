@@ -20,6 +20,7 @@ import {
   Building2,
   ChevronRight
 } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
 
 interface SidebarProps {
   activeTab: string;
@@ -38,6 +39,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   quotationCount,
   staffCount = 12,
 }) => {
+  const { canViewQuotations } = useAuth();
   const menuItems = [
     { id: 'dashboard', num: '1', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'user-admin', num: '2', label: 'User Administration', icon: ShieldCheck },
@@ -59,6 +61,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'audit', num: '18', label: 'Audit Log', icon: History },
   ];
 
+  const visibleMenuItems = menuItems.filter(item => {
+    if (item.id === 'quotations' && !canViewQuotations) return false;
+    return true;
+  });
+
   return (
     <aside className="w-64 bg-slate-950 border-r border-slate-800/80 flex flex-col shrink-0 h-full overflow-hidden text-slate-300 z-20 select-none">
       {/* Sidebar Header */}
@@ -73,7 +80,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
       {/* Navigation Items (Scrollable) */}
       <nav className="flex-1 overflow-y-auto p-2 space-y-0.5 custom-scrollbar">
-        {menuItems.map((item) => {
+        {visibleMenuItems.map((item) => {
           const Icon = item.icon;
           const isActive = activeTab === item.id;
 

@@ -128,6 +128,13 @@ class ErpDataStore {
   }
 
   public setAgents(agents: Agent[]) {
+    if (
+      this.agents.length === agents.length &&
+      this.agents.every((a, idx) => a.id === agents[idx]?.id && a.updated_at === agents[idx]?.updated_at)
+    ) {
+      this.agents = [...agents];
+      return;
+    }
     this.agents = [...agents];
     this.notify();
   }

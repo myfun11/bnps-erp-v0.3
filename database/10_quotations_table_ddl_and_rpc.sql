@@ -4,6 +4,8 @@
 -- Authoritative PostgreSQL DDL & RLS for Rooftop Solar Quotations
 -- ============================================================================
 
+BEGIN;
+
 -- 1. Quotation Status Enum
 DO $$ BEGIN
     CREATE TYPE quotation_status_type AS ENUM (
@@ -88,43 +90,96 @@ CREATE INDEX IF NOT EXISTS idx_quotations_customer ON quotations(customer_id);
 CREATE INDEX IF NOT EXISTS idx_quotations_status ON quotations(status);
 CREATE INDEX IF NOT EXISTS idx_quotations_branch ON quotations(branch);
 
--- 3. Row Level Security on Quotations Table
+-- Helper function to resolve current user's authoritative profile branch
+CREATE OR REPLACE FUNCTION current_user_branch()
+RETURNS VARCHAR(64) AS $$
+    SELECT branch
+    FROM profiles
+    WHERE auth_user_id = auth.uid()
+      AND is_active = true
+    LIMIT 1;
+$$ LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public, pg_temp;
+
+-- 3. Row Level Security & Grants on Quotations Table
 ALTER TABLE quotations ENABLE ROW LEVEL SECURITY;
+
+GRANT SELECT, INSERT, UPDATE ON TABLE quotations TO authenticated;
+GRANT ALL ON TABLE quotations TO service_role;
 
 DROP POLICY IF EXISTS quotations_select_policy ON quotations;
 CREATE POLICY quotations_select_policy ON quotations
     FOR SELECT TO authenticated
     USING (
-        current_user_role() IN ('super_admin', 'office_admin', 'branch_manager', 'accountant', 'field_officer', 'backoffice')
-        OR (current_user_role() = 'agent' AND lead_id IN (
-            SELECT id FROM leads WHERE source_agent_id = current_auth_profile_id()
-        ))
+        current_user_role() IN ('super_admin', 'office_admin', 'accountant', 'backoffice')
+        OR (
+            current_user_role() IN ('branch_manager', 'field_officer')
+            AND branch IS NOT NULL
+            AND current_user_branch() IS NOT NULL
+            AND LOWER(TRIM(branch)) = LOWER(TRIM(current_user_branch()))
+        )
+        OR (
+            current_user_role() = 'agent'
+            AND lead_id IN (
+                SELECT id FROM leads WHERE source_agent_id IN (
+                    SELECT id FROM agents WHERE profile_id = current_auth_profile_id()
+                )
+            )
+        )
     );
 
 DROP POLICY IF EXISTS quotations_insert_policy ON quotations;
 CREATE POLICY quotations_insert_policy ON quotations
     FOR INSERT TO authenticated
     WITH CHECK (
-        current_user_role() IN ('super_admin', 'office_admin', 'branch_manager', 'field_officer', 'backoffice', 'agent')
+        current_user_role() IN ('super_admin', 'office_admin', 'backoffice')
+        OR (
+            current_user_role() IN ('branch_manager', 'field_officer')
+            AND branch IS NOT NULL
+            AND current_user_branch() IS NOT NULL
+            AND LOWER(TRIM(branch)) = LOWER(TRIM(current_user_branch()))
+        )
+        OR (
+            current_user_role() = 'agent'
+            AND lead_id IN (
+                SELECT id FROM leads WHERE source_agent_id IN (
+                    SELECT id FROM agents WHERE profile_id = current_auth_profile_id()
+                )
+            )
+        )
     );
 
 DROP POLICY IF EXISTS quotations_update_policy ON quotations;
 CREATE POLICY quotations_update_policy ON quotations
     FOR UPDATE TO authenticated
     USING (
-        current_user_role() IN ('super_admin', 'office_admin', 'branch_manager', 'field_officer', 'backoffice')
+        current_user_role() IN ('super_admin', 'office_admin', 'backoffice')
+        OR (
+            current_user_role() IN ('branch_manager', 'field_officer')
+            AND branch IS NOT NULL
+            AND current_user_branch() IS NOT NULL
+            AND LOWER(TRIM(branch)) = LOWER(TRIM(current_user_branch()))
+        )
     )
     WITH CHECK (
-        current_user_role() IN ('super_admin', 'office_admin', 'branch_manager', 'field_officer', 'backoffice')
+        current_user_role() IN ('super_admin', 'office_admin', 'backoffice')
+        OR (
+            current_user_role() IN ('branch_manager', 'field_officer')
+            AND branch IS NOT NULL
+            AND current_user_branch() IS NOT NULL
+            AND LOWER(TRIM(branch)) = LOWER(TRIM(current_user_branch()))
+        )
     );
 
 -- 4. Atomic RPC to Convert Quotation to Customer & Project
 CREATE OR REPLACE FUNCTION convert_quotation_to_customer_atomic(
     p_quotation_id UUID,
-    p_actor_id UUID
+    p_actor_id UUID DEFAULT NULL
 )
 RETURNS JSONB AS $$
 DECLARE
+    v_actor_profile_id UUID := current_auth_profile_id();
+    v_role user_role_type := current_user_role();
+    v_actor_branch VARCHAR(64);
     v_quot RECORD;
     v_customer_id UUID;
     v_project_id UUID;
@@ -134,6 +189,22 @@ DECLARE
     v_project_code VARCHAR(32);
     v_res JSONB;
 BEGIN
+    -- 1. Actor authentication check
+    IF v_actor_profile_id IS NULL THEN
+        RAISE EXCEPTION 'AUTH_REQUIRED: Active ERP profile not found for current session'
+            USING ERRCODE = 'P0001';
+    END IF;
+
+    -- 2. Authorization check (Fail-closed on NULL or unlisted role)
+    IF v_role IS NULL OR v_role NOT IN ('super_admin', 'office_admin', 'branch_manager', 'field_officer', 'backoffice') THEN
+        RAISE EXCEPTION 'FORBIDDEN: User does not have permission to convert quotations'
+            USING ERRCODE = 'P0005';
+    END IF;
+
+    -- Fetch authoritative branch of the actor from profile (never trust client p_actor_id or input branch)
+    SELECT branch INTO v_actor_branch FROM profiles WHERE id = v_actor_profile_id;
+
+    -- 3. Lock and validate quotation
     SELECT * INTO v_quot FROM quotations WHERE id = p_quotation_id FOR UPDATE;
     IF NOT FOUND THEN
         RAISE EXCEPTION 'RECORD_NOT_FOUND: Quotation ID % does not exist', p_quotation_id USING ERRCODE = 'P0002';
@@ -143,12 +214,32 @@ BEGIN
         RAISE EXCEPTION 'INVALID_TRANSITION: Quotation % is already converted', v_quot.quotation_no USING ERRCODE = 'P0003';
     END IF;
 
-    -- Determine primary sourcing agent
+    -- 4. Branch authorization check for branch-scoped roles
+    IF v_role IN ('branch_manager', 'field_officer') THEN
+        IF v_actor_branch IS NULL OR v_quot.branch IS NULL OR LOWER(TRIM(v_quot.branch)) <> LOWER(TRIM(v_actor_branch)) THEN
+            RAISE EXCEPTION 'FORBIDDEN: User cannot convert quotations outside their authorized branch (%)', COALESCE(v_actor_branch, 'Unassigned')
+                USING ERRCODE = 'P0005';
+        END IF;
+    END IF;
+
+    -- 5. Determine primary sourcing agent
+    -- Step 5a: Check sourcing agent from originating lead (preserves original lead attribution)
     IF v_quot.lead_id IS NOT NULL THEN
         SELECT source_agent_id INTO v_agent_id FROM leads WHERE id = v_quot.lead_id;
     END IF;
+
+    -- Step 5b: If no sourcing agent from lead, fallback strictly to an active agent from the quotation's branch
+    IF v_agent_id IS NULL AND v_quot.branch IS NOT NULL THEN
+        SELECT id INTO v_agent_id FROM agents 
+        WHERE LOWER(TRIM(branch)) = LOWER(TRIM(v_quot.branch)) AND is_active = true 
+        ORDER BY created_at ASC 
+        LIMIT 1;
+    END IF;
+
+    -- Step 5c: If still unresolved, raise clear validation error (prevents silent cross-branch assignment)
     IF v_agent_id IS NULL THEN
-        SELECT id INTO v_agent_id FROM agents WHERE is_active = true ORDER BY created_at ASC LIMIT 1;
+        RAISE EXCEPTION 'VALIDATION_ERROR: No active primary agent available for branch %', COALESCE(v_quot.branch, 'Jaijaipur')
+            USING ERRCODE = 'P0004';
     END IF;
 
     -- Check if Customer exists or create new
@@ -271,7 +362,7 @@ BEGIN
         entity_id,
         new_data
     ) VALUES (
-        p_actor_id,
+        v_actor_profile_id,
         'QUOTATION_CONVERTED_TO_PROJECT',
         'quotations',
         p_quotation_id,
@@ -280,7 +371,8 @@ BEGIN
             'customer_id', v_customer_id,
             'project_id', v_project_id,
             'project_code', v_project_code,
-            'installation_id', v_installation_id
+            'installation_id', v_installation_id,
+            'client_actor_id', p_actor_id
         )
     );
 
@@ -299,3 +391,74 @@ $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp;
 
 REVOKE ALL ON FUNCTION convert_quotation_to_customer_atomic(UUID, UUID) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION convert_quotation_to_customer_atomic(UUID, UUID) TO authenticated;
+
+REVOKE ALL ON FUNCTION current_user_branch() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION current_user_branch() TO authenticated;
+
+-- 5. Quotation RBAC Permissions Registration & Seeding
+INSERT INTO permissions (code, name, module, description)
+VALUES
+    ('quotation.view', 'View Quotations', 'quotations', 'View solar rooftop quotations'),
+    ('quotation.create', 'Create Quotations', 'quotations', 'Create and generate rooftop solar quotations'),
+    ('quotation.update', 'Update Quotations', 'quotations', 'Update solar quotation status and details'),
+    ('quotation.convert', 'Convert Quotations', 'quotations', 'Convert approved solar quotation to customer and project')
+ON CONFLICT (code) DO NOTHING;
+
+-- Seed role_permissions for legacy / RBAC compatibility
+-- View: super_admin, office_admin, branch_manager, field_officer, backoffice, accountant, agent
+INSERT INTO role_permissions (role, permission_id)
+SELECT v.role_name::user_role_type, p.id
+FROM (VALUES 
+    ('super_admin'), ('office_admin'), ('branch_manager'), 
+    ('field_officer'), ('backoffice'), ('accountant'), ('agent')
+) AS v(role_name)
+CROSS JOIN permissions p
+WHERE p.code = 'quotation.view'
+ON CONFLICT DO NOTHING;
+
+-- Create: super_admin, office_admin, branch_manager, field_officer, backoffice, agent
+INSERT INTO role_permissions (role, permission_id)
+SELECT v.role_name::user_role_type, p.id
+FROM (VALUES 
+    ('super_admin'), ('office_admin'), ('branch_manager'), 
+    ('field_officer'), ('backoffice'), ('agent')
+) AS v(role_name)
+CROSS JOIN permissions p
+WHERE p.code = 'quotation.create'
+ON CONFLICT DO NOTHING;
+
+-- Update: super_admin, office_admin, branch_manager, field_officer, backoffice
+INSERT INTO role_permissions (role, permission_id)
+SELECT v.role_name::user_role_type, p.id
+FROM (VALUES 
+    ('super_admin'), ('office_admin'), ('branch_manager'), 
+    ('field_officer'), ('backoffice')
+) AS v(role_name)
+CROSS JOIN permissions p
+WHERE p.code = 'quotation.update'
+ON CONFLICT DO NOTHING;
+
+-- Convert: super_admin, office_admin, branch_manager, field_officer, backoffice
+INSERT INTO role_permissions (role, permission_id)
+SELECT v.role_name::user_role_type, p.id
+FROM (VALUES 
+    ('super_admin'), ('office_admin'), ('branch_manager'), 
+    ('field_officer'), ('backoffice')
+) AS v(role_name)
+CROSS JOIN permissions p
+WHERE p.code = 'quotation.convert'
+ON CONFLICT DO NOTHING;
+
+DO $$ BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'dynamic_role_permissions') THEN
+        INSERT INTO dynamic_role_permissions (role_id, permission_id)
+        SELECT r.id, rp.permission_id
+        FROM role_permissions rp
+        JOIN roles r ON r.code = rp.role::TEXT
+        JOIN permissions p ON p.id = rp.permission_id
+        WHERE p.module = 'quotations'
+        ON CONFLICT DO NOTHING;
+    END IF;
+END $$;
+
+COMMIT;

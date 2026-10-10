@@ -16,6 +16,10 @@ interface AuthContextType {
   canConvertLeads: boolean;
   canApprovePayments: boolean;
   canGenerateCommissions: boolean;
+  canViewQuotations: boolean;
+  canCreateQuotations: boolean;
+  canUpdateQuotations: boolean;
+  canConvertQuotations: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -165,19 +169,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return !['commission.distribute_manual'].includes(permissionCode);
     }
     if (currentRole === 'accountant') {
-      return ['payment.approve', 'payment.mark_paid', 'commission.view', 'payout.process'].includes(permissionCode);
+      return ['payment.approve', 'payment.mark_paid', 'commission.view', 'payout.process', 'quotation.view'].includes(permissionCode);
     }
     if (currentRole === 'field_officer' || currentRole === 'backoffice') {
-      return ['lead.create', 'lead.update', 'lead.convert', 'document.upload', 'pmsg.create'].includes(permissionCode);
+      return ['lead.create', 'lead.update', 'lead.convert', 'document.upload', 'pmsg.create', 'quotation.view', 'quotation.create', 'quotation.update', 'quotation.convert'].includes(permissionCode);
+    }
+    if (currentRole === 'agent') {
+      return ['lead.create', 'lead.view_own', 'commission.view_own', 'quotation.view', 'quotation.create'].includes(permissionCode);
     }
     if (currentRole === 'operational_manager') {
       return ['pmsg.create'].includes(permissionCode);
     }
     if (currentRole === 'technician') {
       return ['installation.update', 'net_meter.record'].includes(permissionCode);
-    }
-    if (currentRole === 'agent') {
-      return ['lead.create', 'lead.view_own', 'commission.view_own'].includes(permissionCode);
     }
     if (currentRole === 'receptionist') {
       return ['lead.create', 'lead.view_own', 'pmsg.create'].includes(permissionCode);
@@ -201,6 +205,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return !!customProfile && ['super_admin', 'office_admin', 'branch_manager'].includes(currentRole);
   }, [currentRole]);
 
+  const canViewQuotations = useMemo(() => {
+    return !!customProfile && ['super_admin', 'office_admin', 'branch_manager', 'field_officer', 'backoffice', 'accountant', 'agent'].includes(currentRole);
+  }, [currentRole, customProfile]);
+
+  const canCreateQuotations = useMemo(() => {
+    return !!customProfile && ['super_admin', 'office_admin', 'branch_manager', 'field_officer', 'backoffice', 'agent'].includes(currentRole);
+  }, [currentRole, customProfile]);
+
+  const canUpdateQuotations = useMemo(() => {
+    return !!customProfile && ['super_admin', 'office_admin', 'branch_manager', 'field_officer', 'backoffice'].includes(currentRole);
+  }, [currentRole, customProfile]);
+
+  const canConvertQuotations = useMemo(() => {
+    return !!customProfile && ['super_admin', 'office_admin', 'branch_manager', 'field_officer', 'backoffice'].includes(currentRole);
+  }, [currentRole, customProfile]);
+
   return (
     <AuthContext.Provider
       value={{
@@ -217,6 +237,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         canConvertLeads,
         canApprovePayments,
         canGenerateCommissions,
+        canViewQuotations,
+        canCreateQuotations,
+        canUpdateQuotations,
+        canConvertQuotations,
       }}
     >
       {children}
