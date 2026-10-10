@@ -308,7 +308,51 @@ class ErpDataStore {
       return { success: false, error: 'DOCUMENTS_INCOMPLETE', message: 'Consumer Number is required for conversion' };
     }
 
-    // 1. Authoritative Supabase PostgreSQL RPC Execution
+    // 1. Validate complete geographic location record on the lead
+    const hasCompleteLocation = Boolean(
+      lead.address_line?.trim() &&
+      lead.district?.trim() &&
+      lead.pincode?.trim() &&
+      lead.tehsil?.trim() &&
+      lead.block?.trim() &&
+      lead.panchayat_village?.trim()
+    );
+
+    if (!hasCompleteLocation) {
+      return {
+        success: false,
+        error: 'DOCUMENTS_INCOMPLETE',
+        message: 'Complete geographic location hierarchy (Address, District, Tehsil, Block, Village, Pincode) is required on the lead before conversion.',
+      };
+    }
+
+    // 2. Validate all 5 required document records (PAN is optional)
+    const leadDocs = this.getDocuments({ entityType: 'lead', entityId: leadId });
+    const hasElectricityBill = leadDocs.some(
+      (d) => d.doc_category === 'electricity_bill' && (d.status === 'UPLOADED' || d.status === 'VERIFIED')
+    );
+    const hasAadhaar = leadDocs.some(
+      (d) => d.doc_category === 'aadhaar' && (d.status === 'UPLOADED' || d.status === 'VERIFIED')
+    );
+    const hasBankProof = leadDocs.some(
+      (d) => d.doc_category === 'bank_proof' && (d.status === 'UPLOADED' || d.status === 'VERIFIED')
+    );
+    const hasNocB1 = leadDocs.some(
+      (d) => d.doc_category === 'noc_b1' && (d.status === 'UPLOADED' || d.status === 'VERIFIED')
+    );
+    const hasSitePhoto = leadDocs.some(
+      (d) => d.doc_category === 'site_photo' && (d.status === 'UPLOADED' || d.status === 'VERIFIED')
+    );
+
+    if (!hasElectricityBill || !hasAadhaar || !hasBankProof || !hasNocB1 || !hasSitePhoto) {
+      return {
+        success: false,
+        error: 'DOCUMENTS_INCOMPLETE',
+        message: 'All 5 required documents (Electricity Bill, Aadhaar, Bank Proof, NOC/B1, Site Photo) must be uploaded prior to lead conversion.',
+      };
+    }
+
+    // 3. Authoritative Supabase PostgreSQL RPC Execution
     if (isSupabaseConfigured) {
       try {
         const rpcRes = await customerService.convertLeadAtomic(
@@ -318,7 +362,13 @@ class ErpDataStore {
         );
 
         if (!rpcRes.success) {
-          return { success: false, error: 'INVALID_TRANSITION', message: rpcRes.message || 'RPC conversion failed' };
+          const isDocErr = (rpcRes.message || '').toUpperCase().includes('DOCUMENTS_INCOMPLETE');
+          const isDupErr = (rpcRes.message || '').toUpperCase().includes('DUPLICATE_CUSTOMER');
+          return {
+            success: false,
+            error: isDocErr ? 'DOCUMENTS_INCOMPLETE' : isDupErr ? 'DUPLICATE_CUSTOMER' : 'INVALID_TRANSITION',
+            message: rpcRes.message || 'RPC conversion failed',
+          };
         }
 
         // Synchronize local reactive state
@@ -339,15 +389,23 @@ class ErpDataStore {
           }
         }
 
+        // Note: No document cloning. Customer views link back to lead documents via converted_customer_id.
+
         this.notify();
         return { success: true, customer: rpcRes.customer };
       } catch (err: any) {
         console.error('[erpStore.convertLeadAtomic] Error during RPC conversion:', err);
-        return { success: false, error: 'INVALID_TRANSITION', message: err.message };
+        const isDocErr = (err.message || '').toUpperCase().includes('DOCUMENTS_INCOMPLETE');
+        const isDupErr = (err.message || '').toUpperCase().includes('DUPLICATE_CUSTOMER');
+        return {
+          success: false,
+          error: isDocErr ? 'DOCUMENTS_INCOMPLETE' : isDupErr ? 'DUPLICATE_CUSTOMER' : 'INVALID_TRANSITION',
+          message: err.message,
+        };
       }
     }
 
-    // 2. Check for Duplicate Customer by Mobile or Consumer Number (Single Master Invariant)
+    // 4. Local-only Fallback Mode (Offline/Demo): Safe Duplicate and Geography Handling
     const existingCustomer = this.customers.find(
       (c) => c.primary_mobile === lead.mobile || c.consumer_number === finalConsumerNumber
     );
@@ -355,33 +413,46 @@ class ErpDataStore {
     let customerToLink: Customer;
 
     if (existingCustomer) {
+      // Cross-verification: Do not silently attach if names or details conflict
+      if (existingCustomer.full_name.trim().toLowerCase() !== lead.full_name.trim().toLowerCase()) {
+        return {
+          success: false,
+          error: 'DUPLICATE_CUSTOMER',
+          message: `Conflicting customer record exists for ${existingCustomer.customer_code} (${existingCustomer.full_name}). Manual verification required.`,
+        };
+      }
       customerToLink = existingCustomer;
     } else {
-      // 2. Generate Deterministic Customer Code: BNPS-CUST-YYMM-XXXXX
+      // Generate Collision-Safe Customer Code
       const now = new Date();
       const yy = String(now.getFullYear()).slice(-2);
       const mm = String(now.getMonth() + 1).padStart(2, '0');
-      const randomSeq = Math.floor(10000 + Math.random() * 90000);
-      const customerCode = `BNPS-CUST-${yy}${mm}-${randomSeq}`;
+      let customerCode = '';
+      let attempts = 0;
+      do {
+        const randomSeq = Math.floor(10000 + Math.random() * 90000);
+        customerCode = `BNPS-CUST-${yy}${mm}-${randomSeq}`;
+        attempts++;
+      } while (this.customers.some((c) => c.customer_code === customerCode) && attempts < 10);
 
       customerToLink = {
         id: crypto.randomUUID(),
         customer_code: customerCode,
-        branch: lead.branch,
+        branch: lead.branch || 'Jaijaipur',
         full_name: lead.full_name,
         primary_mobile: lead.mobile,
         alternate_mobile: lead.alternate_phone,
         email: lead.email,
-        discom_name: lead.discom_name || 'CSPDCL (Raipur Circle)',
+        discom_name: lead.discom_name || 'CSPDCL',
         consumer_number: finalConsumerNumber,
         sanctioned_load_kw: lead.sanctioned_load_kw,
-        installation_address: lead.address_line || 'Address Pending Site Survey',
+        installation_address: lead.address_line,
         state: lead.state || 'Chhattisgarh',
-        district: lead.district || 'Raipur',
-        tehsil: lead.tehsil || 'Raipur',
-        block: lead.block || 'Dharsiwa',
-        panchayat_village: lead.panchayat_village || 'Raipur',
-        pincode: lead.pincode || '492001',
+        district: lead.district,
+        tehsil: lead.tehsil,
+        block: lead.block,
+        panchayat_village: lead.panchayat_village,
+        pincode: lead.pincode,
         lifecycle_status: 'REGISTERED',
         is_test: lead.is_test,
         created_at: new Date().toISOString(),
@@ -391,7 +462,7 @@ class ErpDataStore {
       this.customers.unshift(customerToLink);
     }
 
-    // 4. Update Lead to CONVERTED atomically
+    // 5. Update Lead to CONVERTED atomically
     this.leads[leadIndex] = {
       ...lead,
       stage: 'CONVERTED',
@@ -400,7 +471,7 @@ class ErpDataStore {
       updated_at: new Date().toISOString(),
     };
 
-    // 5. Append Immutable Business Audit Entry
+    // 6. Append Immutable Business Audit Entry
     this.auditLogs.unshift({
       id: crypto.randomUUID(),
       actor_id: actorProfileId || 'prof-super-admin-01',
@@ -412,7 +483,8 @@ class ErpDataStore {
         customer_id: customerToLink.id,
         customer_code: customerToLink.customer_code,
         consumer_number: finalConsumerNumber,
-        state: 'Chhattisgarh',
+        branch: customerToLink.branch,
+        state: customerToLink.state,
       },
       created_at: new Date().toISOString(),
     });

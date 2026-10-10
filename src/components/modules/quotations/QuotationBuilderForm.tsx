@@ -276,6 +276,7 @@ export const QuotationBuilderForm: React.FC<QuotationBuilderFormProps> = ({ init
       status: 'SENT',
       valid_until: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
       prepared_by: `${currentProfile.full_name} (${finalBranch} Branch)`,
+      is_test: currentProfile?.is_test || false,
       created_at: new Date().toISOString(),
     };
 

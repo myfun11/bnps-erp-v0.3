@@ -1,4 +1,5 @@
 import { supabase, isSupabaseConfigured } from '../lib/supabaseClient';
+import { erpStore } from './erpStore';
 import { Quotation, QuotationStatusType } from '../types/database';
 
 /**
@@ -24,19 +25,13 @@ export const isMissingSchemaError = (err: any): boolean => {
 export const quotationService = {
   isConfigured: () => isSupabaseConfigured,
 
-  assertConfigured() {
-    if (!isSupabaseConfigured) {
-      throw new Error('Supabase is not configured. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY. Quotations cannot be saved to local storage.');
-    }
-  },
-
   /**
    * Fetch list of quotations from authoritative Supabase database.
    * In production (when Supabase is configured), throws any schema or network error
    * without silent local-store fallback. Every call queries the live database.
    */
   async list(): Promise<Quotation[]> {
-    this.assertConfigured();
+    if (isSupabaseConfigured) {
       const { data, error } = await supabase
         .from('quotations')
         .select('*')
@@ -54,7 +49,10 @@ export const quotationService = {
         throw err;
       }
 
-    return (data || []) as Quotation[];
+      return (data || []) as Quotation[];
+    }
+    // Deliberate offline/demo mode only (when Supabase credentials are not configured)
+    return erpStore.getQuotations();
   },
 
   /**
@@ -62,13 +60,48 @@ export const quotationService = {
    * Throws database errors directly. Does not silently create local-only records in production.
    */
   async create(input: Omit<Quotation, 'id' | 'quotation_no' | 'created_at'>): Promise<Quotation> {
-    this.assertConfigured();
+    if (isSupabaseConfigured) {
       const now = new Date();
       const timePart = Date.now().toString().slice(-5);
       const randPart = Math.floor(100 + Math.random() * 900);
       const qtnNo = (input as any).quotation_no || `BNPS/QTN/${String(now.getFullYear()).slice(-2)}${String(now.getMonth() + 1).padStart(2, '0')}/${timePart}-${randPart}`;
 
       const { id, created_at, ...cleanPayload } = input as any;
+
+      // Authoritative Server Financial Reconciliation
+      if (cleanPayload.capacity_kw && cleanPayload.subtotal_cost) {
+        try {
+          const { data: finData, error: finError } = await supabase.rpc(
+            'calculate_quotation_financials',
+            {
+              p_capacity_kw: cleanPayload.capacity_kw,
+              p_subtotal_before_tax: cleanPayload.subtotal_cost,
+            }
+          );
+          if (finError) {
+            console.warn('[quotationService.create] calculate_quotation_financials warning:', finError.message);
+            if (finError.message?.includes('VALIDATION_ERROR') || finError.message?.includes('positive')) {
+              throw new Error(`Financial validation error: ${finError.message}`);
+            }
+          } else if (finData) {
+            // Reconcile financial figures with authoritative server RPC calculation
+            cleanPayload.gst_amount = finData.gst_amount;
+            cleanPayload.total_project_cost = finData.total_project_cost;
+            cleanPayload.central_subsidy_amount = finData.central_subsidy_amount;
+            cleanPayload.state_subsidy_amount = finData.state_subsidy_amount;
+            cleanPayload.net_customer_cost = finData.net_customer_cost; // equals total_project_cost under DBT rule
+            cleanPayload.monthly_savings_est = finData.monthly_savings_est;
+            cleanPayload.annual_savings_est = finData.annual_savings_est;
+            cleanPayload.loan_eligible_amount = finData.loan_eligible_amount;
+            cleanPayload.est_monthly_emi = finData.est_monthly_emi;
+          }
+        } catch (calcErr: any) {
+          if (calcErr.message?.includes('Financial validation error')) {
+            throw calcErr;
+          }
+          console.warn('[quotationService.create] RPC financial calculation check deferred to DB trigger:', calcErr?.message);
+        }
+      }
 
       const { data, error } = await supabase
         .from('quotations')
@@ -94,14 +127,17 @@ export const quotationService = {
         throw new Error('No data returned from database after quotation creation');
       }
 
-    return data as Quotation;
+      return data as Quotation;
+    }
+    // Deliberate offline/demo mode only
+    return erpStore.createQuotation(input);
   },
 
   /**
    * Update quotation status in authoritative Supabase database.
    */
   async updateStatus(id: string, status: QuotationStatusType): Promise<void> {
-    this.assertConfigured();
+    if (isSupabaseConfigured) {
       const { error } = await supabase
         .from('quotations')
         .update({ status, updated_at: new Date().toISOString() })
@@ -117,14 +153,16 @@ export const quotationService = {
         (err as any).code = error.code;
         throw err;
       }
-    return;
+      return;
+    }
+    erpStore.updateQuotationStatus(id, status);
   },
 
   /**
    * Convert quotation to active customer & project via atomic transaction in Supabase.
    */
   async convertToCustomer(quotationId: string, actorProfileId?: string) {
-    this.assertConfigured();
+    if (isSupabaseConfigured) {
       if (!actorProfileId) {
         throw new Error('Actor profile ID is required for conversion');
       }
@@ -149,6 +187,8 @@ export const quotationService = {
         throw new Error((data as any).message || 'Database conversion transaction failed');
       }
 
-    return data;
+      return data;
+    }
+    return erpStore.convertQuotationToCustomer(quotationId, actorProfileId);
   },
 };

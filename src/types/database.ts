@@ -435,6 +435,7 @@ export interface Quotation {
   valid_until?: string;
   prepared_by?: string;
   notes?: string;
+  is_test?: boolean;
   created_at: string;
 }
 

@@ -17,9 +17,10 @@ const DOCUMENT_CATEGORIES = [
   { value: 'aadhaar', label: 'Aadhaar Card' },
   { value: 'pan', label: 'PAN Card' },
   { value: 'electricity_bill', label: 'Electricity Bill' },
+  { value: 'bank_proof', label: 'Bank Passbook / Bank Proof' },
+  { value: 'noc_b1', label: 'NOC / B1 Land Document' },
+  { value: 'site_photo', label: 'Site Photo / Location Proof' },
   { value: 'net_meter_cert', label: 'Net Meter Certificate' },
-  { value: 'site_photo', label: 'Site Photo' },
-  { value: 'bank_proof', label: 'Bank Proof' },
 ];
 
 const getCategoryLabel = (category: string): string => {

@@ -63,9 +63,16 @@ const LoginPage: React.FC = () => {
       await loginWithPassword(email, password);
     } catch (error: any) {
       console.error('[LoginPage] Login error:', error);
-      setLoginError(
-        error?.message || 'Authentication failed. Please verify your credentials.'
-      );
+      const rawMsg = error?.message || '';
+      if (rawMsg.toLowerCase().includes('invalid login credentials')) {
+        setLoginError(
+          'Invalid login credentials. Please check your email and password, and verify this account is active in Supabase Auth.'
+        );
+      } else {
+        setLoginError(
+          rawMsg || 'Authentication failed. Please verify your credentials.'
+        );
+      }
     } finally {
       setSubmitting(false);
     }

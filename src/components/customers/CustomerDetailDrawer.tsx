@@ -68,8 +68,14 @@ export const CustomerDetailDrawer: React.FC<CustomerDetailDrawerProps> = ({
     : [];
   const primaryInstallation = customerInstallations[0];
 
-  // Customer KYC & portal documents
-  const customerDocs = erpStore.getDocuments({ entityType: 'customers', entityId: customer.id });
+  // Customer KYC & portal documents (Canonical singular entity_type 'customer' + linked source lead documents)
+  const convertedLead = erpStore.getLeads().find(l => l.converted_customer_id === customer.id);
+  const directCustomerDocs = erpStore.getDocuments({ entityType: 'customer', entityId: customer.id });
+  const linkedLeadDocs = convertedLead 
+    ? erpStore.getDocuments({ entityType: 'lead', entityId: convertedLead.id })
+    : [];
+  // Unified document set without metadata duplication
+  const customerDocs = [...directCustomerDocs, ...linkedLeadDocs];
 
   const handleCreatePmsg = async () => {
     if (!canCreatePmsg || pmsg || saving) return;
@@ -117,7 +123,7 @@ export const CustomerDetailDrawer: React.FC<CustomerDetailDrawerProps> = ({
     try {
       await documentService.uploadDocument(
         uploadFile,
-        'customers',
+        'customer',
         customer.id,
         uploadCategory,
         false

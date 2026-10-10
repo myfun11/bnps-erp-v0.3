@@ -55,6 +55,31 @@ export const documentService = {
     }
   },
 
+  async fetchDocumentsByEntity(entityType: string, entityId: string): Promise<DocumentRecord[]> {
+    if (!isSupabaseConfigured) {
+      return erpStore.getDocuments({ entityType, entityId });
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('documents')
+        .select('*')
+        .eq('entity_type', entityType)
+        .eq('entity_id', entityId)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.warn('[documentService.fetchDocumentsByEntity] Falling back to local store:', error.message);
+        return erpStore.getDocuments({ entityType, entityId });
+      }
+
+      return (data || []) as DocumentRecord[];
+    } catch (err) {
+      console.warn('[documentService.fetchDocumentsByEntity] Network error, falling back to local store:', err);
+      return erpStore.getDocuments({ entityType, entityId });
+    }
+  },
+
   async uploadDocument(
     file: File,
     entityType: string,
