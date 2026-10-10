@@ -8,7 +8,6 @@ import { CommissionTestModal } from './components/modals/CommissionTestModal';
 import { customerService } from './services/customerService';
 import { agentNetworkService } from './services/agentNetworkService';
 import { quotationService } from './services/quotationService';
-import { isSupabaseConfigured } from './lib/supabaseClient';
 
 // Pages & Modules
 import { OverviewDashboard } from './components/dashboard/OverviewDashboard';
@@ -32,7 +31,6 @@ import { BranchStaffManagement } from './components/branches/BranchStaffManageme
 import { UserAdministrationPage } from './components/modules/UserAdministrationPage';
 import { Footer } from './components/layout/Footer';
 
-import { erpStore } from './services/erpStore';
 import { Lead } from './types/database';
 
 function ErpAppShell() {
@@ -44,9 +42,9 @@ function ErpAppShell() {
   const [highlightCustomerId, setHighlightCustomerId] = useState<string | null>(null);
   const [prefillLeadForQuotation, setPrefillLeadForQuotation] = useState<Lead | null>(null);
 
-  const [customerCount, setCustomerCount] = useState<number>(erpStore.getCustomers().length);
-  const [agentCount, setAgentCount] = useState<number>(erpStore.getAgents().length);
-  const [quotationCount, setQuotationCount] = useState<number>(erpStore.getQuotations().length);
+  const [customerCount, setCustomerCount] = useState<number>(0);
+  const [agentCount, setAgentCount] = useState<number>(0);
+  const [quotationCount, setQuotationCount] = useState<number>(0);
 
   useEffect(() => {
     let mounted = true;
@@ -62,29 +60,27 @@ function ErpAppShell() {
         if (mounted) {
           if (cRes.status === 'fulfilled') {
             setCustomerCount(cRes.value.length);
-          } else if (!isSupabaseConfigured) {
-            setCustomerCount(erpStore.getCustomers().length);
+          } else {
+            setCustomerCount(0);
           }
 
           if (aRes.status === 'fulfilled') {
             setAgentCount(aRes.value.length);
-          } else if (!isSupabaseConfigured) {
-            setAgentCount(erpStore.getAgents().length);
+          } else {
+            setAgentCount(0);
           }
 
           if (qRes.status === 'fulfilled') {
             setQuotationCount(qRes.value.length);
-          } else if (!isSupabaseConfigured) {
-            setQuotationCount(erpStore.getQuotations().length);
           } else {
             setQuotationCount(0);
           }
         }
       } catch (err) {
-        if (mounted && !isSupabaseConfigured) {
-          setCustomerCount(erpStore.getCustomers().length);
-          setAgentCount(erpStore.getAgents().length);
-          setQuotationCount(erpStore.getQuotations().length);
+        if (mounted) {
+          setCustomerCount(0);
+          setAgentCount(0);
+          setQuotationCount(0);
         }
       }
     };
@@ -93,19 +89,8 @@ function ErpAppShell() {
       syncRemoteCounts();
     }
 
-    // 2. Local store listener: updates counts from in-memory store in offline/demo mode only
-    const updateCountsFromStore = () => {
-      if (mounted && !isSupabaseConfigured) {
-        setCustomerCount(erpStore.getCustomers().length);
-        setAgentCount(erpStore.getAgents().length);
-        setQuotationCount(erpStore.getQuotations().length);
-      }
-    };
-
-    const unsub = erpStore.subscribe(updateCountsFromStore);
     return () => {
       mounted = false;
-      unsub();
     };
   }, [isAuthenticated]);
 
