@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { erpStore } from '../../services/erpStore';
-import { quotationService } from '../../services/quotationService';
+import { quotationService, isMissingSchemaError } from '../../services/quotationService';
 import { useAuth } from '../../context/AuthContext';
 import { isSupabaseConfigured } from '../../lib/supabaseClient';
 import { BRANCHES_LIST } from '../../services/mockData';
@@ -78,24 +78,31 @@ export const QuotationsPage: React.FC<QuotationsPageProps> = ({
   );
   const [originFilter, setOriginFilter] = useState<'ALL' | 'LEADS_ONLY' | 'CONVERTED_ONLY'>('ALL');
 
-  // Toast & Notices
+  // Toast & Database Error State
   const [actionSuccessMsg, setActionSuccessMsg] = useState<string | null>(null);
-  const [loadNotice, setLoadNotice] = useState<string | null>(null);
+  const [dbError, setDbError] = useState<{ message: string; code?: string; isSchemaMissing: boolean } | null>(null);
   const [isRetrying, setIsRetrying] = useState(false);
 
   const fetchQuotations = async () => {
+    setIsRetrying(true);
     try {
       const data = await quotationService.list();
       setQuotations(data);
-      if (quotationService.isPendingMigration()) {
-        setLoadNotice("Database Schema Notice: Table 'public.quotations' is pending execution in Supabase. Operating with local store data.");
-      } else {
-        setLoadNotice(null);
-      }
+      setDbError(null);
     } catch (err: any) {
-      console.error('Failed to fetch quotations:', err);
-      setLoadNotice(err?.message || 'Failed to load remote quotations');
-      setQuotations(erpStore.getQuotations());
+      console.error('[QuotationsPage.fetchQuotations] Database error:', err);
+      // Authoritative production rule: Do NOT replace failed database load with erpStore
+      if (!isSupabaseConfigured) {
+        setQuotations(erpStore.getQuotations());
+      } else {
+        setQuotations([]);
+        const isMissing = isMissingSchemaError(err);
+        setDbError({
+          message: err?.message || 'Failed to load remote quotations from Supabase',
+          code: err?.code || (isMissing ? 'PGRST205' : 'DB_ERROR'),
+          isSchemaMissing: isMissing,
+        });
+      }
     } finally {
       setIsRetrying(false);
     }
@@ -103,13 +110,13 @@ export const QuotationsPage: React.FC<QuotationsPageProps> = ({
 
   useEffect(() => {
     fetchQuotations();
-    const unsub = erpStore.subscribe(() => {
-      // Synchronize in-memory quotations whenever erpStore updates
-      if (!isSupabaseConfigured || quotationService.isPendingMigration()) {
+    // In production, do NOT subscribe to local store; only in deliberate offline/demo mode
+    if (!isSupabaseConfigured) {
+      const unsub = erpStore.subscribe(() => {
         setQuotations(erpStore.getQuotations());
-      }
-    });
-    return () => unsub();
+      });
+      return () => unsub();
+    }
   }, []);
 
   const showToast = (msg: string) => {
@@ -128,16 +135,17 @@ export const QuotationsPage: React.FC<QuotationsPageProps> = ({
     }
     try {
       const created = await quotationService.create(newQuot);
-      // Consume prefill lead once so subsequent new quotes start clean
+      // Consume prefill lead ONLY after confirmed successful database write
       if (onClearInitialLead) {
         onClearInitialLead();
       }
       await fetchQuotations();
       setSelectedQuotation(created);
       setActiveView('PREVIEW');
-      showToast(`Quotation ${created.quotation_no} created successfully! Official letterhead ready for print / save / download.`);
+      showToast(`Quotation ${created.quotation_no} created and persisted to database successfully!`);
     } catch (err: any) {
-      alert(err?.message || 'Failed to create quotation');
+      console.error('[QuotationsPage.handleSaveQuotation] Database write failed:', err);
+      alert(`DATABASE WRITE FAILED: ${err?.message || 'Database error'}\n\nOperation was NOT saved to the authoritative database. Your form input has been preserved.`);
     }
   };
 
@@ -372,23 +380,45 @@ export const QuotationsPage: React.FC<QuotationsPageProps> = ({
         </div>
       )}
 
-      {/* Database Warning / Error State with Manual Retry */}
-      {loadNotice && (
-        <div className="flex items-center justify-between p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs text-amber-300 shadow-sm animate-fade-in">
-          <div className="flex items-center gap-2">
-            <span className="font-semibold text-amber-200">Database Notice:</span>
-            <span>{loadNotice}</span>
+      {/* Database Setup Required / Error State with Manual Retry */}
+      {dbError && (
+        <div className="p-4 rounded-2xl bg-red-950/40 border-2 border-red-500/50 text-xs text-red-200 shadow-xl space-y-3 animate-fade-in">
+          <div className="flex items-start justify-between gap-3 flex-wrap sm:flex-nowrap">
+            <div className="flex items-start gap-3">
+              <ShieldAlert className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
+              <div className="space-y-1">
+                <div className="font-bold text-sm text-red-100 flex items-center gap-2">
+                  <span>Authoritative Database Schema Missing</span>
+                  {dbError.code && (
+                    <span className="px-1.5 py-0.5 rounded font-mono text-[10px] bg-red-900/60 text-red-300 border border-red-700/60">
+                      {dbError.code}
+                    </span>
+                  )}
+                </div>
+                <p className="text-red-300 leading-relaxed">
+                  {dbError.isSchemaMissing ? (
+                    <>
+                      The table <code className="text-amber-300 bg-black/40 px-1 py-0.5 rounded font-mono">public.quotations</code> was not found in the connected Supabase database schema cache.
+                      Migration <strong className="text-white font-mono">database/10_quotations_table_ddl_and_rpc.sql</strong> must be executed in your Supabase project SQL Editor before quotations can be stored remotely.
+                    </>
+                  ) : (
+                    dbError.message
+                  )}
+                </p>
+                <p className="text-[11px] text-red-400/90 italic">
+                  * Authoritative production mode is active. Data is NOT silently saved to local storage to prevent divergence. Execute the migration in Supabase, then click Retry.
+                </p>
+              </div>
+            </div>
+
+            <button
+              onClick={() => fetchQuotations()}
+              disabled={isRetrying}
+              className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-500 text-white font-bold text-xs shadow-md transition cursor-pointer disabled:opacity-50 shrink-0 flex items-center gap-1.5 self-start sm:self-center"
+            >
+              <span>{isRetrying ? 'Checking Supabase...' : 'Retry Database Connection'}</span>
+            </button>
           </div>
-          <button
-            onClick={() => {
-              setIsRetrying(true);
-              fetchQuotations();
-            }}
-            disabled={isRetrying}
-            className="px-3 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 font-semibold cursor-pointer disabled:opacity-50 transition shrink-0"
-          >
-            {isRetrying ? 'Retrying...' : 'Retry Remote Fetch'}
-          </button>
         </div>
       )}
 

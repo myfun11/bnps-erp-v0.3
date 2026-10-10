@@ -54,18 +54,34 @@ function ErpAppShell() {
     // 1. Initial remote count synchronization on authentication
     const syncRemoteCounts = async () => {
       try {
-        const [cList, aList, qList] = await Promise.all([
-          customerService.fetchCustomers().catch(() => erpStore.getCustomers()),
-          agentNetworkService.list().catch(() => erpStore.getAgents()),
-          quotationService.list().catch(() => erpStore.getQuotations()),
+        const [cRes, aRes, qRes] = await Promise.allSettled([
+          customerService.fetchCustomers(),
+          agentNetworkService.list(),
+          quotationService.list(),
         ]);
         if (mounted) {
-          setCustomerCount(cList.length);
-          setAgentCount(aList.length);
-          setQuotationCount(qList.length);
+          if (cRes.status === 'fulfilled') {
+            setCustomerCount(cRes.value.length);
+          } else if (!isSupabaseConfigured) {
+            setCustomerCount(erpStore.getCustomers().length);
+          }
+
+          if (aRes.status === 'fulfilled') {
+            setAgentCount(aRes.value.length);
+          } else if (!isSupabaseConfigured) {
+            setAgentCount(erpStore.getAgents().length);
+          }
+
+          if (qRes.status === 'fulfilled') {
+            setQuotationCount(qRes.value.length);
+          } else if (!isSupabaseConfigured) {
+            setQuotationCount(erpStore.getQuotations().length);
+          } else {
+            setQuotationCount(0);
+          }
         }
       } catch (err) {
-        if (mounted) {
+        if (mounted && !isSupabaseConfigured) {
           setCustomerCount(erpStore.getCustomers().length);
           setAgentCount(erpStore.getAgents().length);
           setQuotationCount(erpStore.getQuotations().length);
@@ -77,9 +93,9 @@ function ErpAppShell() {
       syncRemoteCounts();
     }
 
-    // 2. Local store listener: updates counts from in-memory store without triggering remote fetches
+    // 2. Local store listener: updates counts from in-memory store in offline/demo mode only
     const updateCountsFromStore = () => {
-      if (mounted) {
+      if (mounted && !isSupabaseConfigured) {
         setCustomerCount(erpStore.getCustomers().length);
         setAgentCount(erpStore.getAgents().length);
         setQuotationCount(erpStore.getQuotations().length);
