@@ -33,11 +33,19 @@ export const quotationService = {
   async create(input: Omit<Quotation, 'id' | 'quotation_no' | 'created_at'>): Promise<Quotation> {
     if (isSupabaseConfigured) {
       const now = new Date();
-      const qtnNo = `BNPS/QTN/${String(now.getFullYear()).slice(-2)}${String(now.getMonth() + 1).padStart(2, '0')}/${Math.floor(100 + Math.random() * 900)}`;
+      // Generate collision-resistant quotation number:
+      // Format: BNPS/QTN/YYMM/<5-digit-time>-<3-digit-random>
+      const timePart = Date.now().toString().slice(-5);
+      const randPart = Math.floor(100 + Math.random() * 900);
+      const qtnNo = (input as any).quotation_no || `BNPS/QTN/${String(now.getFullYear()).slice(-2)}${String(now.getMonth() + 1).padStart(2, '0')}/${timePart}-${randPart}`;
+
+      // Clean payload: strip client temporary 'id' and 'created_at' so PostgreSQL generates valid UUID and timestamp
+      const { id, created_at, ...cleanPayload } = input as any;
+
       const { data, error } = await supabase
         .from('quotations')
         .insert({
-          ...input,
+          ...cleanPayload,
           quotation_no: qtnNo,
         })
         .select()

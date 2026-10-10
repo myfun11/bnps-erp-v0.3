@@ -7,7 +7,7 @@ import {
   CELL_TYPES 
 } from '../../../lib/solarPricingData';
 import { CHHATTISGARH_DISTRICTS, BRANCHES_LIST } from '../../../services/mockData';
-import { Quotation, QuotationEquipmentItem, BranchLocation } from '../../../types/database';
+import { Quotation, QuotationEquipmentItem, BranchLocation, Lead } from '../../../types/database';
 import { useAuth } from '../../../context/AuthContext';
 import { 
   Calculator, 
@@ -22,36 +22,47 @@ import {
   Wrench, 
   Cpu, 
   Sun,
+  FileText,
   X 
 } from 'lucide-react';
 
 interface QuotationBuilderFormProps {
+  initialLead?: Lead | null;
   onSave: (quotation: Quotation) => void;
   onCancel: () => void;
 }
 
-export const QuotationBuilderForm: React.FC<QuotationBuilderFormProps> = ({ onSave, onCancel }) => {
+export const QuotationBuilderForm: React.FC<QuotationBuilderFormProps> = ({ initialLead, onSave, onCancel }) => {
   const { currentProfile, userRole } = useAuth();
   const isBranchScoped = ['branch_manager', 'field_officer'].includes(userRole);
   const userBranch = (currentProfile?.branch || 'Jaijaipur') as BranchLocation;
 
+  // Lead linkage
+  const [leadId, setLeadId] = useState<string | undefined>(initialLead?.id);
+  const [leadCode, setLeadCode] = useState<string | undefined>(initialLead?.lead_code);
+
   // 1. Customer & Address
-  const [customerName, setCustomerName] = useState('');
-  const [phone, setPhone] = useState('');
-  const [email, setEmail] = useState('');
-  const [branch, setBranch] = useState<BranchLocation>(isBranchScoped ? userBranch : 'Sakti');
-  const [state] = useState('Chhattisgarh');
-  const [district, setDistrict] = useState('Sakti');
-  const [tehsil, setTehsil] = useState('Sakti');
-  const [block, setBlock] = useState('Sakti');
-  const [panchayatVillage, setPanchayatVillage] = useState('');
-  const [addressLine, setAddressLine] = useState('');
-  const [pincode, setPincode] = useState('495689');
-  const [consumerNumber, setConsumerNumber] = useState('');
-  const [sanctionedLoad, setSanctionedLoad] = useState(4.0);
+  const [customerName, setCustomerName] = useState(initialLead?.full_name || '');
+  const [phone, setPhone] = useState(initialLead?.mobile || '');
+  const [email, setEmail] = useState(initialLead?.email || '');
+  const [branch, setBranch] = useState<BranchLocation>(
+    isBranchScoped 
+      ? userBranch 
+      : ((initialLead?.branch as BranchLocation) || 'Sakti')
+  );
+  const [state, setState] = useState(initialLead?.state || 'Chhattisgarh');
+  const [district, setDistrict] = useState(initialLead?.district || 'Sakti');
+  const [tehsil, setTehsil] = useState(initialLead?.tehsil || 'Sakti');
+  const [block, setBlock] = useState(initialLead?.block || 'Sakti');
+  const [panchayatVillage, setPanchayatVillage] = useState(initialLead?.panchayat_village || '');
+  const [addressLine, setAddressLine] = useState(initialLead?.address_line || '');
+  const [pincode, setPincode] = useState(initialLead?.pincode || '495689');
+  const [consumerNumber, setConsumerNumber] = useState(initialLead?.consumer_number || '');
+  const [sanctionedLoad, setSanctionedLoad] = useState<number>(initialLead?.sanctioned_load_kw || 4.0);
+  const [discomName, setDiscomName] = useState<string>(initialLead?.discom_name || `CSPDCL (${initialLead?.district || 'Sakti'} Circle)`);
 
   // 2. Solar System Core
-  const [solarKw, setSolarKw] = useState<number>(3.3);
+  const [solarKw, setSolarKw] = useState<number>(initialLead?.proposed_capacity_kw || 3.3);
   const [systemType, setSystemType] = useState<'ON_GRID' | 'OFF_GRID' | 'HYBRID'>('ON_GRID');
   const [cellType, setCellType] = useState<string>('Bifacial (Dual Glass DCR)');
 
@@ -112,6 +123,31 @@ export const QuotationBuilderForm: React.FC<QuotationBuilderFormProps> = ({ onSa
     }
   }, [isBranchScoped, currentProfile?.branch]);
 
+  // Synchronize lead prefill data if initialLead updates
+  useEffect(() => {
+    if (initialLead) {
+      setLeadId(initialLead.id);
+      setLeadCode(initialLead.lead_code);
+      setCustomerName(initialLead.full_name || '');
+      setPhone(initialLead.mobile || '');
+      setEmail(initialLead.email || '');
+      if (!isBranchScoped && initialLead.branch) {
+        setBranch(initialLead.branch as BranchLocation);
+      }
+      if (initialLead.state) setState(initialLead.state);
+      if (initialLead.district) setDistrict(initialLead.district);
+      if (initialLead.tehsil) setTehsil(initialLead.tehsil);
+      if (initialLead.block) setBlock(initialLead.block);
+      if (initialLead.panchayat_village) setPanchayatVillage(initialLead.panchayat_village);
+      if (initialLead.address_line) setAddressLine(initialLead.address_line);
+      if (initialLead.pincode) setPincode(initialLead.pincode);
+      if (initialLead.consumer_number) setConsumerNumber(initialLead.consumer_number);
+      if (initialLead.sanctioned_load_kw) setSanctionedLoad(initialLead.sanctioned_load_kw);
+      if (initialLead.discom_name) setDiscomName(initialLead.discom_name);
+      if (initialLead.proposed_capacity_kw) setSolarKw(initialLead.proposed_capacity_kw);
+    }
+  }, [initialLead, isBranchScoped]);
+
   // Handle Equipment row editing
   const handleUpdateEquipment = (id: string, field: 'quantity' | 'unit_price', val: number) => {
     setEquipmentList(prev => prev.map(item => {
@@ -149,19 +185,21 @@ export const QuotationBuilderForm: React.FC<QuotationBuilderFormProps> = ({ onSa
   const gstAmount = Math.round(subtotalBeforeTax * 0.138); // 13.8% composite solar GST
   const grossTotalCost = subtotalBeforeTax + gstAmount;
 
-  // Central Subsidy PM Surya Ghar DBT
+  // Central Subsidy PM Surya Ghar DBT (Direct to Customer A/C Benefit)
   let centralSubsidy = 0;
   if (solarKw <= 1.0) centralSubsidy = 30000;
   else if (solarKw <= 2.0) centralSubsidy = 60000;
   else centralSubsidy = 78000;
 
-  // Chhattisgarh State Subsidy
+  // Chhattisgarh State Subsidy (Direct to Customer A/C Benefit)
   let stateSubsidy = 0;
   if (solarKw >= 5.0) stateSubsidy = 25000;
   else if (solarKw >= 3.0) stateSubsidy = 15000;
   else stateSubsidy = 5000;
 
-  const netCustomerCost = Math.max(grossTotalCost - centralSubsidy - stateSubsidy, 10000);
+  // Net Customer Payable to BNPS equals full Gross Turnkey Project Cost.
+  // Government subsidy is disbursed directly to the customer's bank account via DBT post-commissioning and does not reduce vendor payable.
+  const netCustomerCost = grossTotalCost;
 
   // Monthly savings & loan
   const monthlyUnits = Math.round(solarKw * 4.3 * 30);
@@ -187,11 +225,13 @@ export const QuotationBuilderForm: React.FC<QuotationBuilderFormProps> = ({ onSa
     const newQuotation: Quotation = {
       id: `quot-${Date.now()}`,
       quotation_no: qtnNo,
+      lead_id: leadId,
+      lead_code: leadCode,
       customer_name: customerName,
       phone,
       email: email || undefined,
       address_line: addressLine || undefined,
-      state: 'Chhattisgarh',
+      state: state || 'Chhattisgarh',
       district,
       tehsil,
       block,
@@ -200,7 +240,7 @@ export const QuotationBuilderForm: React.FC<QuotationBuilderFormProps> = ({ onSa
       branch: finalBranch,
       consumer_number: consumerNumber || `CSPDCL-${Date.now().toString().slice(-8)}`,
       sanctioned_load_kw: sanctionedLoad,
-      discom_name: `CSPDCL (${district} Circle)`,
+      discom_name: discomName || `CSPDCL (${district} Circle)`,
       roof_type: structureType,
       system_type: systemType,
       cell_type: cellType,
@@ -226,16 +266,16 @@ export const QuotationBuilderForm: React.FC<QuotationBuilderFormProps> = ({ onSa
       total_project_cost: grossTotalCost,
       central_subsidy_amount: centralSubsidy,
       state_subsidy_amount: stateSubsidy,
-      net_customer_cost: netCustomerCost,
+      net_customer_cost: grossTotalCost,
       monthly_savings_est: monthlySavings,
       annual_savings_est: monthlySavings * 12,
-      payback_period_years: Number((netCustomerCost / (monthlySavings * 12)).toFixed(1)),
+      payback_period_years: Number((grossTotalCost / (monthlySavings * 12)).toFixed(1)),
       lifetime_savings_est: monthlySavings * 12 * 25,
       loan_eligible_amount: loanEligible,
       est_monthly_emi: estMonthlyEmi,
       status: 'SENT',
       valid_until: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-      prepared_by: `${currentProfile.full_name} (${branch} Branch)`,
+      prepared_by: `${currentProfile.full_name} (${finalBranch} Branch)`,
       created_at: new Date().toISOString(),
     };
 
@@ -244,6 +284,22 @@ export const QuotationBuilderForm: React.FC<QuotationBuilderFormProps> = ({ onSa
 
   return (
     <form onSubmit={handleFormSubmit} className="space-y-6">
+      {/* Originating Lead Notification Banner */}
+      {leadCode && (
+        <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-3.5 flex items-center justify-between text-xs text-amber-300 shadow-sm animate-fade-in">
+          <div className="flex items-center gap-2.5">
+            <FileText className="w-4 h-4 text-amber-400 shrink-0" />
+            <div>
+              <span>Originating Lead: <strong className="text-amber-200">{leadCode}</strong> • {customerName || 'Customer'}</span>
+              <span className="text-[11px] text-slate-400 block mt-0.5">Quotation will remain linked to Lead #{leadCode}. Review and edit details below.</span>
+            </div>
+          </div>
+          <span className="font-mono text-[10px] bg-amber-500/20 text-amber-300 px-2.5 py-1 rounded-full border border-amber-500/40 shrink-0 font-bold">
+            Linked to Lead
+          </span>
+        </div>
+      )}
+
       {/* 1. Customer Name & Address */}
       <div className="bg-slate-900/90 rounded-2xl p-5 border border-slate-800 space-y-4 shadow-md">
         <h4 className="text-sm font-bold text-amber-400 uppercase tracking-wider flex items-center gap-2">
@@ -345,7 +401,7 @@ export const QuotationBuilderForm: React.FC<QuotationBuilderFormProps> = ({ onSa
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
           <div className="sm:col-span-2">
             <label className="block text-xs font-semibold text-slate-300 mb-1">House / Street Address</label>
             <input
@@ -367,6 +423,29 @@ export const QuotationBuilderForm: React.FC<QuotationBuilderFormProps> = ({ onSa
               className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs font-mono text-slate-200 focus:outline-none focus:border-amber-500"
             />
           </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-300 mb-1">Sanctioned Load (kW)</label>
+            <input
+              type="number"
+              step="0.5"
+              min="1"
+              value={sanctionedLoad}
+              onChange={(e) => setSanctionedLoad(Number(e.target.value) || 1)}
+              className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs font-mono text-slate-200 focus:outline-none focus:border-amber-500"
+            />
+          </div>
+        </div>
+
+        <div className="pt-2">
+          <label className="block text-xs font-semibold text-slate-300 mb-1">DISCOM / Electricity Board</label>
+          <input
+            type="text"
+            value={discomName}
+            onChange={(e) => setDiscomName(e.target.value)}
+            placeholder="e.g. CSPDCL (Janjgir Circle)"
+            className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-amber-500"
+          />
         </div>
       </div>
 
@@ -759,25 +838,28 @@ export const QuotationBuilderForm: React.FC<QuotationBuilderFormProps> = ({ onSa
           <div className="p-4 bg-slate-950 rounded-xl border border-slate-800 flex flex-col justify-between space-y-3">
             <div className="space-y-1.5 text-xs">
               <div className="flex justify-between text-slate-300">
-                <span>Gross Project Cost:</span>
+                <span>Total Turnkey Project Cost:</span>
                 <span className="font-mono font-bold text-slate-100">₹{grossTotalCost.toLocaleString('en-IN')}</span>
               </div>
               <div className="flex justify-between text-emerald-400 font-semibold">
-                <span>Central PM Surya Ghar DBT Subsidy:</span>
-                <span className="font-mono font-bold">- ₹{centralSubsidy.toLocaleString('en-IN')}</span>
+                <span>Central PM Surya Ghar DBT Benefit (to Customer A/C):</span>
+                <span className="font-mono font-bold">₹{centralSubsidy.toLocaleString('en-IN')}</span>
               </div>
               <div className="flex justify-between text-emerald-400 font-semibold">
-                <span>State Solar Subsidy (CG):</span>
-                <span className="font-mono font-bold">- ₹{stateSubsidy.toLocaleString('en-IN')}</span>
+                <span>State Solar Subsidy CG (to Customer A/C):</span>
+                <span className="font-mono font-bold">₹{stateSubsidy.toLocaleString('en-IN')}</span>
               </div>
+              <p className="text-[10px] text-slate-400 italic pt-1 border-t border-slate-900">
+                * Note: PM Surya Ghar subsidy is paid directly to customer's bank account via government DBT post-commissioning and is not deducted from the vendor project cost payable to BNPS.
+              </p>
             </div>
 
             <div className="pt-2 border-t border-slate-800 text-center space-y-1">
               <div className="text-[11px] text-amber-300 font-bold uppercase tracking-wider">
-                FINAL NET PAYABLE AMOUNT BY CUSTOMER
+                NET CUSTOMER PAYABLE TO VENDOR (BNPS)
               </div>
               <div className="text-3xl font-black font-mono text-amber-400">
-                ₹{netCustomerCost.toLocaleString('en-IN')}
+                ₹{grossTotalCost.toLocaleString('en-IN')}
               </div>
               <div className="text-[10px] text-slate-400">
                 Monthly Savings: ₹{monthlySavings.toLocaleString('en-IN')}/mo | 7% Loan EMI: ~₹{estMonthlyEmi.toLocaleString('en-IN')}/mo

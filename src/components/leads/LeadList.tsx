@@ -24,12 +24,14 @@ import {
 
 interface LeadListProps {
   onOpenCustomer: (customerId: string) => void;
+  onQuoteLead?: (lead: Lead) => void;
   openNewLeadDirectly?: boolean;
   onCloseNewLeadDirectly?: () => void;
 }
 
 export const LeadList: React.FC<LeadListProps> = ({ 
   onOpenCustomer, 
+  onQuoteLead,
   openNewLeadDirectly = false,
   onCloseNewLeadDirectly 
 }) => {
@@ -38,9 +40,6 @@ export const LeadList: React.FC<LeadListProps> = ({
   const [selectedStage, setSelectedStage] = useState<string>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
   const [convertTargetLead, setConvertTargetLead] = useState<Lead | null>(null);
-  const [quotationTargetLead, setQuotationTargetLead] = useState<Lead | null>(null);
-  const [quoteCapacity, setQuoteCapacity] = useState(3.3);
-  const [quoteStructure, setQuoteStructure] = useState('ELEVATED_GI_HOT_DIP');
   const [showNewLeadModal, setShowNewLeadModal] = useState(openNewLeadDirectly);
   const [successBanner, setSuccessBanner] = useState<string | null>(null);
 
@@ -385,8 +384,9 @@ export const LeadList: React.FC<LeadListProps> = ({
                       {/* Quotation Button (Lead -> Quotation Lifecycle Step) */}
                       <button
                         onClick={() => {
-                          setQuotationTargetLead(lead);
-                          setQuoteCapacity(lead.proposed_capacity_kw || 3.3);
+                          if (onQuoteLead) {
+                            onQuoteLead(lead);
+                          }
                         }}
                         className="flex items-center gap-1 px-2.5 py-1 rounded bg-amber-500/15 hover:bg-amber-500 text-amber-300 hover:text-slate-950 font-semibold text-xs border border-amber-500/30 transition-all cursor-pointer"
                         title="Generate Solar Quotation / Proposal for this Lead"
@@ -424,133 +424,6 @@ export const LeadList: React.FC<LeadListProps> = ({
           setTimeout(() => setSuccessBanner(null), 5000);
         }}
       />
-
-      {/* Generate Quotation Modal for Lead (Lead -> Quotation Workflow) */}
-      {quotationTargetLead && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fade-in">
-          <div className="w-full max-w-lg bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl overflow-hidden p-6 space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-              <div className="flex items-center gap-2">
-                <FileText className="w-5 h-5 text-amber-400" />
-                <h3 className="text-base font-bold text-slate-100">
-                  Generate Quotation / Proposal for Lead
-                </h3>
-              </div>
-              <button 
-                onClick={() => setQuotationTargetLead(null)}
-                className="text-slate-400 hover:text-white text-xs"
-              >
-                ✕
-              </button>
-            </div>
-
-            <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 text-xs space-y-1">
-              <div>Lead: <strong className="text-amber-400">{quotationTargetLead.lead_code}</strong> • {quotationTargetLead.full_name}</div>
-              <div className="text-slate-400">{quotationTargetLead.address_line}, {quotationTargetLead.district} • Mobile: {quotationTargetLead.mobile}</div>
-            </div>
-
-            <div className="space-y-3 text-xs">
-              <div>
-                <label className="block text-slate-400 mb-1">System Capacity (kW)</label>
-                <input
-                  type="number"
-                  step="0.1"
-                  min="1"
-                  max="100"
-                  value={quoteCapacity}
-                  onChange={(e) => setQuoteCapacity(parseFloat(e.target.value) || 3.3)}
-                  className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-slate-100 focus:outline-none focus:border-amber-400"
-                />
-              </div>
-
-              <div>
-                <label className="block text-slate-400 mb-1">Mounting Structure Type</label>
-                <select
-                  value={quoteStructure}
-                  onChange={(e) => setQuoteStructure(e.target.value)}
-                  className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-slate-100 focus:outline-none focus:border-amber-400"
-                >
-                  <option value="ELEVATED_GI_HOT_DIP">Elevated GI Hot-Dip Galvanized</option>
-                  <option value="STANDARD_FLAT_ROOF">Standard Flat Roof Flush</option>
-                  <option value="TIN_SHED_CUSTOM">Tin Shed / Industrial Profile</option>
-                </select>
-              </div>
-
-              {/* Price Calculation Preview */}
-              <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl space-y-1.5 font-mono">
-                {(() => {
-                  const baseRate = 56000;
-                  const totalCost = quoteCapacity * baseRate;
-                  const subsidy = quoteCapacity <= 2 ? 60000 : quoteCapacity === 3 ? 78000 : 78000;
-                  const netCost = Math.max(0, totalCost - subsidy);
-                  return (
-                    <>
-                      <div className="flex justify-between text-slate-300">
-                        <span>Total Project Cost ({quoteCapacity} kW):</span>
-                        <strong>₹{totalCost.toLocaleString('en-IN')}</strong>
-                      </div>
-                      <div className="flex justify-between text-emerald-400">
-                        <span>PM Surya Ghar Govt Subsidy:</span>
-                        <strong>- ₹{subsidy.toLocaleString('en-IN')}</strong>
-                      </div>
-                      <div className="flex justify-between text-amber-300 font-bold border-t border-amber-500/30 pt-1">
-                        <span>Net Customer Payable:</span>
-                        <strong>₹{netCost.toLocaleString('en-IN')}</strong>
-                      </div>
-                    </>
-                  );
-                })()}
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-2 pt-2 border-t border-slate-800">
-              <button
-                type="button"
-                onClick={() => setQuotationTargetLead(null)}
-                className="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-300"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  const baseRate = 56000;
-                  const totalCost = quoteCapacity * baseRate;
-                  const subsidy = quoteCapacity <= 2 ? 60000 : quoteCapacity === 3 ? 78000 : 78000;
-                  const netCost = Math.max(0, totalCost - subsidy);
-
-                  const newQuotation = erpStore.createQuotation({
-                    lead_id: quotationTargetLead.id,
-                    lead_code: quotationTargetLead.lead_code,
-                    customer_name: quotationTargetLead.full_name,
-                    phone: quotationTargetLead.mobile,
-                    capacity_kw: quoteCapacity,
-                    total_project_cost: totalCost,
-                    central_subsidy_amount: subsidy,
-                    state_subsidy_amount: 0,
-                    net_customer_cost: netCost,
-                    monthly_savings_est: Math.round(quoteCapacity * 120 * 6.5),
-                    status: 'SENT',
-                    solar_brand: 'Tier-1 Mono PERC Bi-facial',
-                    inverter_brand: 'Growatt Dual MPPT Smart Inverter',
-                    module_wattage_wp: 550,
-                    structure_type: quoteStructure,
-                  });
-
-                  if (newQuotation) {
-                    setQuotationTargetLead(null);
-                    setSuccessBanner(`Quotation ${newQuotation.quotation_no} generated for Lead ${quotationTargetLead.lead_code}!`);
-                    setTimeout(() => setSuccessBanner(null), 5000);
-                  }
-                }}
-                className="px-4 py-2 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold shadow-md shadow-amber-500/20"
-              >
-                Confirm & Create Quotation
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* NEW SOLAR LEAD REGISTRATION MODAL (CHHATTISGARH ADDRESS HIERARCHY) */}
       {showNewLeadModal && (

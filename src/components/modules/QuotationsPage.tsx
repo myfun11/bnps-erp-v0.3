@@ -4,7 +4,7 @@ import { quotationService } from '../../services/quotationService';
 import { useAuth } from '../../context/AuthContext';
 import { isSupabaseConfigured } from '../../lib/supabaseClient';
 import { BRANCHES_LIST } from '../../services/mockData';
-import { Quotation, QuotationStatusType } from '../../types/database';
+import { Quotation, QuotationStatusType, Lead } from '../../types/database';
 import { QuotationBuilderForm } from './quotations/QuotationBuilderForm';
 import { QuotationLetterheadDoc } from './quotations/QuotationLetterheadDoc';
 import { downloadQuotationTextDoc, triggerPrintQuotation } from '../../lib/quotationExport';
@@ -31,9 +31,18 @@ import {
   ShieldAlert
 } from 'lucide-react';
 
-export const QuotationsPage: React.FC = () => {
+interface QuotationsPageProps {
+  initialLead?: Lead | null;
+  onClearInitialLead?: () => void;
+}
+
+export const QuotationsPage: React.FC<QuotationsPageProps> = ({
+  initialLead,
+  onClearInitialLead,
+}) => {
   const { 
     currentProfile, 
+    currentAgent,
     userRole, 
     canViewQuotations, 
     canCreateQuotations, 
@@ -48,11 +57,18 @@ export const QuotationsPage: React.FC = () => {
     isSupabaseConfigured ? [] : erpStore.getQuotations()
   );
   
-  // Default view is BUILDER (Create Quotation) if permitted, otherwise REGISTER
+  // Default view is BUILDER (Create Quotation) if permitted or initialLead provided, otherwise REGISTER
   const [activeView, setActiveView] = useState<'BUILDER' | 'REGISTER' | 'PREVIEW'>(
-    canCreateQuotations ? 'BUILDER' : 'REGISTER'
+    initialLead || canCreateQuotations ? 'BUILDER' : 'REGISTER'
   );
   const [selectedQuotation, setSelectedQuotation] = useState<Quotation | null>(null);
+
+  // When an initialLead is provided from LeadList "Quote", automatically open BUILDER view
+  useEffect(() => {
+    if (initialLead) {
+      setActiveView('BUILDER');
+    }
+  }, [initialLead]);
 
   // Filters for Quotation Register Table
   const [searchQuery, setSearchQuery] = useState('');
@@ -112,6 +128,10 @@ export const QuotationsPage: React.FC = () => {
     }
     try {
       const created = await quotationService.create(newQuot);
+      // Consume prefill lead once so subsequent new quotes start clean
+      if (onClearInitialLead) {
+        onClearInitialLead();
+      }
       await fetchQuotations();
       setSelectedQuotation(created);
       setActiveView('PREVIEW');
@@ -171,10 +191,10 @@ export const QuotationsPage: React.FC = () => {
       `Your official rooftop solar quotation is ready:\n\n` +
       `📌 Quotation No: ${q.quotation_no}\n` +
       `⚡ Capacity: ${q.capacity_kw} kW (${q.solar_brand || 'Tier-1'} ${q.module_quantity || 6} Panels)\n` +
-      `💰 Total Project Cost: ₹${q.total_project_cost.toLocaleString('en-IN')}\n` +
-      `🎁 Central DBT Subsidy: -₹${q.central_subsidy_amount.toLocaleString('en-IN')}\n` +
-      `🎁 State Subsidy (CG): -₹${q.state_subsidy_amount.toLocaleString('en-IN')}\n` +
-      `✅ *Net Customer Payable: ₹${q.net_customer_cost.toLocaleString('en-IN')}*\n` +
+      `💰 Total Project Cost (Payable to BNPS): ₹${q.total_project_cost.toLocaleString('en-IN')}\n` +
+      `✅ *Net Customer Payable to Vendor: ₹${q.total_project_cost.toLocaleString('en-IN')}*\n` +
+      `🎁 Govt DBT Subsidy Benefit: ₹${(q.central_subsidy_amount + q.state_subsidy_amount).toLocaleString('en-IN')} (Center: ₹${q.central_subsidy_amount.toLocaleString('en-IN')}, CG State: ₹${q.state_subsidy_amount.toLocaleString('en-IN')})\n` +
+      `ℹ️ Note: Govt subsidy is credited directly to customer's bank account via DBT post-commissioning.\n` +
       `💡 Monthly Bill Savings: ~₹${q.monthly_savings_est.toLocaleString('en-IN')}/month\n` +
       `🏦 Bank Loan EMI: ~₹${(q.est_monthly_emi || 1650).toLocaleString('en-IN')}/month\n\n` +
       `Head Office: Near By HDFC Bank, Jaijaipur, Chhattisgarh\n` +
@@ -216,7 +236,7 @@ export const QuotationsPage: React.FC = () => {
     // Agent isolation: agents may only view quotations for their own assigned leads
     const matchesAgent = userRole === 'agent'
       ? Boolean(
-          (q.lead_id && erpStore.getLeads().some(l => l.id === q.lead_id && (l.source_agent_id === currentProfile?.id || l.assigned_officer_id === currentProfile?.id)))
+          (q.lead_id && erpStore.getLeads().some(l => l.id === q.lead_id && (l.source_agent_id === currentAgent?.id || l.source_agent_id === currentProfile?.id || l.assigned_officer_id === currentProfile?.id)))
           || (q.prepared_by && currentProfile?.full_name && q.prepared_by.toLowerCase().includes(currentProfile.full_name.toLowerCase()))
         )
       : true;
@@ -307,7 +327,10 @@ export const QuotationsPage: React.FC = () => {
         <div className="flex items-center gap-2.5 w-full md:w-auto">
           {activeView !== 'BUILDER' && canCreateQuotations && (
             <button
-              onClick={() => setActiveView('BUILDER')}
+              onClick={() => {
+                if (onClearInitialLead) onClearInitialLead();
+                setActiveView('BUILDER');
+              }}
               className="flex-1 md:flex-initial flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs shadow-md shadow-amber-500/20 transition cursor-pointer"
             >
               <Plus className="w-4 h-4" />
@@ -380,8 +403,12 @@ export const QuotationsPage: React.FC = () => {
 
           {/* Quotation Builder Component with All Requested Fields and Live Estimate */}
           <QuotationBuilderForm
+            initialLead={initialLead}
             onSave={handleSaveQuotation}
-            onCancel={() => setActiveView('REGISTER')}
+            onCancel={() => {
+              if (onClearInitialLead) onClearInitialLead();
+              setActiveView('REGISTER');
+            }}
           />
         </div>
       )}
@@ -509,8 +536,8 @@ export const QuotationsPage: React.FC = () => {
                   <th className="p-3.5">System Size & Type</th>
                   <th className="p-3.5">Brand & Hardware</th>
                   <th className="p-3.5 text-right">Project Cost</th>
-                  <th className="p-3.5 text-right">Subsidies</th>
-                  <th className="p-3.5 text-right">Net Payable</th>
+                  <th className="p-3.5 text-right">Govt DBT Subsidy</th>
+                  <th className="p-3.5 text-right">Net Payable to BNPS</th>
                   <th className="p-3.5 text-center">Status</th>
                   <th className="p-3.5 text-center min-w-[210px]">Print / Save / Actions</th>
                 </tr>
@@ -596,20 +623,20 @@ export const QuotationsPage: React.FC = () => {
                     {/* Subsidies */}
                     <td className="p-3.5 text-right">
                       <div className="font-mono text-emerald-400 font-bold">
-                        -₹{(q.central_subsidy_amount + q.state_subsidy_amount).toLocaleString('en-IN')}
+                        ₹{(q.central_subsidy_amount + q.state_subsidy_amount).toLocaleString('en-IN')}
                       </div>
                       <div className="text-[10px] text-slate-400">
-                        DBT: ₹{q.central_subsidy_amount.toLocaleString('en-IN')}
+                        DBT to Customer A/C
                       </div>
                     </td>
 
                     {/* Net Customer Cost */}
                     <td className="p-3.5 text-right">
                       <div className="font-mono font-bold text-amber-300 text-sm">
-                        ₹{q.net_customer_cost.toLocaleString('en-IN')}
+                        ₹{q.total_project_cost.toLocaleString('en-IN')}
                       </div>
                       <div className="text-[10px] text-sky-400">
-                        EMI: ₹{(q.est_monthly_emi || 1650).toLocaleString('en-IN')}/mo
+                        EMI: ~₹{(q.est_monthly_emi || 1650).toLocaleString('en-IN')}/mo
                       </div>
                     </td>
 

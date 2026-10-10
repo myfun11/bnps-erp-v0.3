@@ -501,7 +501,7 @@ export const QuotationLetterheadDoc: React.FC<QuotationLetterheadDocProps> = ({
           <div className="flex items-center justify-between border-b border-emerald-300 pb-1.5">
             <div className="flex items-center gap-1.5 font-black text-emerald-950 uppercase tracking-wide text-xs">
               <Sparkles className="w-4 h-4 text-emerald-700" />
-              <span>PM Surya Ghar: Muft Bijli Yojana — Government Subsidy Benefit</span>
+              <span>PM Surya Ghar: Muft Bijli Yojana — Government Subsidy Information</span>
             </div>
             <span className="font-mono font-bold text-[11px] px-2.5 py-0.5 rounded-full bg-emerald-600 text-white">
               CSPDCL Approved
@@ -510,16 +510,16 @@ export const QuotationLetterheadDoc: React.FC<QuotationLetterheadDocProps> = ({
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-center">
             <div className="p-2 bg-white rounded-lg border border-emerald-200">
-              <div className="text-slate-500 text-[10px]">Gross Turnkey Project Cost</div>
+              <div className="text-slate-500 text-[10px]">Total Turnkey Project Cost</div>
               <div className="font-mono font-bold text-slate-900 text-sm mt-0.5">
                 ₹ {totalAmount.toLocaleString('en-IN')}
               </div>
             </div>
 
             <div className="p-2 bg-white rounded-lg border border-emerald-200">
-              <div className="text-emerald-700 font-semibold text-[10px]">Total Government Subsidy (DBT + State)</div>
+              <div className="text-emerald-700 font-semibold text-[10px]">Govt DBT Subsidy (Direct to Customer A/C)</div>
               <div className="font-mono font-bold text-emerald-700 text-sm mt-0.5">
-                - ₹ {(quotation.central_subsidy_amount + quotation.state_subsidy_amount).toLocaleString('en-IN')}
+                ₹ {(quotation.central_subsidy_amount + quotation.state_subsidy_amount).toLocaleString('en-IN')}
               </div>
               <div className="text-[9px] text-slate-500 font-mono mt-0.5">
                 (Center: ₹{quotation.central_subsidy_amount.toLocaleString('en-IN')} + State: ₹{quotation.state_subsidy_amount.toLocaleString('en-IN')})
@@ -528,15 +528,19 @@ export const QuotationLetterheadDoc: React.FC<QuotationLetterheadDocProps> = ({
 
             <div className="p-2 bg-emerald-600 text-white rounded-lg shadow-sm">
               <div className="text-emerald-100 text-[10px] font-semibold uppercase">
-                Net Customer Payable
+                Net Customer Payable to BNPS
               </div>
               <div className="font-mono font-black text-base mt-0.5">
-                ₹ {quotation.net_customer_cost.toLocaleString('en-IN')}
+                ₹ {totalAmount.toLocaleString('en-IN')}
               </div>
               <div className="text-[9px] text-emerald-100 mt-0.5">
                 7% Bank Loan EMI: ~₹{(quotation.est_monthly_emi || 1650).toLocaleString('en-IN')}/Month
               </div>
             </div>
+          </div>
+
+          <div className="text-[10px] text-emerald-900 italic text-center pt-1 border-t border-emerald-200">
+            * Note: Government PM Surya Ghar subsidy is disbursed directly to the eligible customer's bank account via DBT post-commissioning and does not reduce the vendor project cost payable to BNPS.
           </div>
         </div>
 

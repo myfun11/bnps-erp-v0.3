@@ -33,6 +33,7 @@ import { UserAdministrationPage } from './components/modules/UserAdministrationP
 import { Footer } from './components/layout/Footer';
 
 import { erpStore } from './services/erpStore';
+import { Lead } from './types/database';
 
 function ErpAppShell() {
   const { isAuthenticated } = useAuth();
@@ -41,6 +42,7 @@ function ErpAppShell() {
   const [isCommissionTestOpen, setIsCommissionTestOpen] = useState(false);
   const [openNewLeadModal, setOpenNewLeadModal] = useState(false);
   const [highlightCustomerId, setHighlightCustomerId] = useState<string | null>(null);
+  const [prefillLeadForQuotation, setPrefillLeadForQuotation] = useState<Lead | null>(null);
 
   const [customerCount, setCustomerCount] = useState<number>(erpStore.getCustomers().length);
   const [agentCount, setAgentCount] = useState<number>(erpStore.getAgents().length);
@@ -101,6 +103,11 @@ function ErpAppShell() {
     setActiveTab('customers');
   };
 
+  const handleQuoteLead = (lead: Lead) => {
+    setPrefillLeadForQuotation(lead);
+    setActiveTab('quotations');
+  };
+
   const handleSelectSearchEntity = (type: string, id: string) => {
     if (type === 'customer' || type === 'pmsg') {
       setHighlightCustomerId(id);
@@ -159,6 +166,7 @@ function ErpAppShell() {
             {activeTab === 'leads' && (
               <LeadList
                 onOpenCustomer={handleOpenCustomer}
+                onQuoteLead={handleQuoteLead}
                 openNewLeadDirectly={openNewLeadModal}
                 onCloseNewLeadDirectly={() => setOpenNewLeadModal(false)}
               />
@@ -181,7 +189,10 @@ function ErpAppShell() {
             )}
 
             {activeTab === 'quotations' && (
-              <QuotationsPage />
+              <QuotationsPage
+                initialLead={prefillLeadForQuotation}
+                onClearInitialLead={() => setPrefillLeadForQuotation(null)}
+              />
             )}
 
             {activeTab === 'projects' && (

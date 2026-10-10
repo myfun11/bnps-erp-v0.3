@@ -46,11 +46,15 @@ BOS & Protection: ACDB/DCDB, 4 sq.mm UV DC Cable, Chemical Earthing, LA & Smart 
 3. PROJECT ESTIMATE & PM SURYA GHAR SUBSIDY BREAKDOWN
 --------------------------------------------------------------------------------
 Gross Turnkey Project Cost             : ₹${q.total_project_cost.toLocaleString('en-IN')}
-(-) Central Govt PM Surya Ghar DBT      : ₹${q.central_subsidy_amount.toLocaleString('en-IN')}
-(-) Chhattisgarh State Solar Incentive  : ₹${q.state_subsidy_amount.toLocaleString('en-IN')}
+Govt Central PM Surya Ghar DBT Benefit : ₹${q.central_subsidy_amount.toLocaleString('en-IN')} (Direct to Customer A/C)
+Govt Chhattisgarh State Solar Benefit  : ₹${q.state_subsidy_amount.toLocaleString('en-IN')} (Direct to Customer A/C)
+Total Estimated Government Subsidy     : ₹${(q.central_subsidy_amount + q.state_subsidy_amount).toLocaleString('en-IN')} (Credited via DBT)
 --------------------------------------------------------------------------------
-FINAL NET PAYABLE AMOUNT BY CUSTOMER   : ₹${q.net_customer_cost.toLocaleString('en-IN')}
+NET CUSTOMER PAYABLE TO BNPS (VENDOR)  : ₹${q.total_project_cost.toLocaleString('en-IN')}
 --------------------------------------------------------------------------------
+* Note: Government PM Surya Ghar subsidy is disbursed directly to the customer's
+  bank account via DBT post-commissioning and is not deducted from the vendor
+  payment payable to BNPS.
 
 --------------------------------------------------------------------------------
 4. GENERATION RETURN & 7% BANK LOAN EMI
