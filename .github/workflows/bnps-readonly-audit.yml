@@ -39,8 +39,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "22"
-          cache: npm
-          cache-dependency-path: package-lock.json
 
       - name: Install dependencies
         run: npm install --no-audit --no-fund
@@ -56,31 +54,29 @@ jobs:
         run: |
           python3 - <<'PY'
           from pathlib import Path
-          import re
 
           files = sorted(Path("database").glob("*.sql"))
           if not files:
               print("WARNING: No database/*.sql files found.")
               raise SystemExit(0)
 
+          all_sql = "\n".join(p.read_text(encoding="utf-8", errors="replace") for p in files)
+          upper_sql = all_sql.upper()
           print(f"SQL files inspected: {len(files)}")
-          all_sql = "\\n".join(p.read_text(encoding="utf-8", errors="replace") for p in files)
-          print(f"SECURITY DEFINER declarations: {len(re.findall(r'\\bSECURITY\\s+DEFINER\\b', all_sql, re.I))}")
-          print(f"RLS enable statements: {len(re.findall(r'ALTER\\s+TABLE[^;]+ENABLE\\s+ROW\\s+LEVEL\\s+SECURITY', all_sql, re.I))}")
-          print(f"CREATE POLICY statements: {len(re.findall(r'CREATE\\s+POLICY', all_sql, re.I))}")
-          print(f"REVOKE statements: {len(re.findall(r'\\bREVOKE\\b', all_sql, re.I))}")
-          print(f"GRANT statements: {len(re.findall(r'\\bGRANT\\b', all_sql, re.I))}")
+          print(f"SECURITY DEFINER declarations: {upper_sql.count('SECURITY DEFINER')}")
+          print(f"RLS enable statements: {upper_sql.count('ENABLE ROW LEVEL SECURITY')}")
+          print(f"CREATE POLICY statements: {upper_sql.count('CREATE POLICY')}")
+          print(f"REVOKE statements: {upper_sql.count('REVOKE')}")
+          print(f"GRANT statements: {upper_sql.count('GRANT')}")
 
-          # Heuristic only: flags SECURITY DEFINER bodies for manual review;
-          # it does not prove a vulnerability or replace a database/runtime test.
+          # Lightweight source inventory only. Runtime permissions are checked
+          # separately against Supabase when the optional DB secret is configured.
           for path in files:
               sql = path.read_text(encoding="utf-8", errors="replace")
-              for match in re.finditer(r'CREATE\\s+OR\\s+REPLACE\\s+FUNCTION\\s+([\\w.]+)[\\s\\S]{0,5000}?SECURITY\\s+DEFINER', sql, re.I):
-                  name = match.group(1)
-                  body = sql[match.start():match.end()]
-                  if not any(token in body.lower() for token in ("auth.uid()", "current_auth_profile_id()", "has_erp_permission(", "is_current_super_admin()")):
-                      print(f"REVIEW: {path}: SECURITY DEFINER {name} has no common auth/permission marker in inspected prefix.")
-          print("Static inventory complete. REVIEW lines are manual-review flags, not confirmed exploits.")
+              upper = sql.upper()
+              if "SECURITY DEFINER" in upper and "REVOKE" not in upper:
+                  print(f"REVIEW: {path}: contains SECURITY DEFINER but no REVOKE text; inspect function EXECUTE grants.")
+          print("Inventory completed; REVIEW flags require human inspection and do not prove an exploit.")
           PY
 
   live-database-audit:
@@ -122,8 +118,7 @@ jobs:
                  c.relforcerowsecurity AS force_rls
           FROM pg_class c
           JOIN pg_namespace n ON n.oid = c.relnamespace
-          WHERE n.nspname = 'public'
-            AND c.relkind = 'r'
+          WHERE n.nspname = 'public' AND c.relkind = 'r'
           ORDER BY c.relname;
 
           SELECT 'TABLES_WITHOUT_POLICIES' AS audit_section,
@@ -134,9 +129,7 @@ jobs:
             AND c.relkind = 'r'
             AND c.relrowsecurity
             AND NOT EXISTS (
-              SELECT 1
-              FROM pg_policy pol
-              WHERE pol.polrelid = c.oid
+              SELECT 1 FROM pg_policy pol WHERE pol.polrelid = c.oid
             )
           ORDER BY c.relname;
 
@@ -156,8 +149,7 @@ jobs:
                  has_function_privilege('authenticated', p.oid, 'EXECUTE') AS authenticated_can_execute
           FROM pg_proc p
           JOIN pg_namespace n ON n.oid = p.pronamespace
-          WHERE n.nspname = 'public'
-            AND p.prosecdef
+          WHERE n.nspname = 'public' AND p.prosecdef
           ORDER BY p.proname;
 
           COMMIT;
