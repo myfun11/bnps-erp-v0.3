@@ -1,0 +1,164 @@
+name: BNPS ERP Read-Only Audit
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/**"
+      - "database/**"
+      - "package.json"
+      - "package-lock.json"
+      - "vite.config.*"
+      - "tsconfig*.json"
+      - ".github/workflows/bnps-readonly-audit.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "src/**"
+      - "database/**"
+      - "package.json"
+      - "package-lock.json"
+      - "vite.config.*"
+      - "tsconfig*.json"
+      - ".github/workflows/bnps-readonly-audit.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  source-audit:
+    name: Source and build checks (no database writes)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: TypeScript check
+        run: npm run lint
+
+      - name: Production build
+        run: npm run build
+
+      - name: Static SQL security inventory
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          files = sorted(Path("database").glob("*.sql"))
+          if not files:
+              print("WARNING: No database/*.sql files found.")
+              raise SystemExit(0)
+
+          print(f"SQL files inspected: {len(files)}")
+          all_sql = "\\n".join(p.read_text(encoding="utf-8", errors="replace") for p in files)
+          print(f"SECURITY DEFINER declarations: {len(re.findall(r'\\bSECURITY\\s+DEFINER\\b', all_sql, re.I))}")
+          print(f"RLS enable statements: {len(re.findall(r'ALTER\\s+TABLE[^;]+ENABLE\\s+ROW\\s+LEVEL\\s+SECURITY', all_sql, re.I))}")
+          print(f"CREATE POLICY statements: {len(re.findall(r'CREATE\\s+POLICY', all_sql, re.I))}")
+          print(f"REVOKE statements: {len(re.findall(r'\\bREVOKE\\b', all_sql, re.I))}")
+          print(f"GRANT statements: {len(re.findall(r'\\bGRANT\\b', all_sql, re.I))}")
+
+          # Heuristic only: flags SECURITY DEFINER bodies for manual review;
+          # it does not prove a vulnerability or replace a database/runtime test.
+          for path in files:
+              sql = path.read_text(encoding="utf-8", errors="replace")
+              for match in re.finditer(r'CREATE\\s+OR\\s+REPLACE\\s+FUNCTION\\s+([\\w.]+)[\\s\\S]{0,5000}?SECURITY\\s+DEFINER', sql, re.I):
+                  name = match.group(1)
+                  body = sql[match.start():match.end()]
+                  if not any(token in body.lower() for token in ("auth.uid()", "current_auth_profile_id()", "has_erp_permission(", "is_current_super_admin()")):
+                      print(f"REVIEW: {path}: SECURITY DEFINER {name} has no common auth/permission marker in inspected prefix.")
+          print("Static inventory complete. REVIEW lines are manual-review flags, not confirmed exploits.")
+          PY
+
+  live-database-audit:
+    name: Supabase catalog audit (read-only)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
+    env:
+      SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+    steps:
+      - name: Check whether read-only database secret is configured
+        id: secret-check
+        shell: bash
+        run: |
+          if [ -n "$SUPABASE_DB_URL" ]; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+            echo "SUPABASE_DB_URL is configured; running catalog-only read-only audit."
+          else
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "SKIPPED: Add repository Actions secret SUPABASE_DB_URL to enable live catalog checks."
+          fi
+
+      - name: Install PostgreSQL client
+        if: steps.secret-check.outputs.configured == 'true'
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes postgresql-client
+
+      - name: Inspect live Supabase catalog in read-only transaction
+        if: steps.secret-check.outputs.configured == 'true'
+        shell: bash
+        run: |
+          psql "$SUPABASE_DB_URL" -X --set ON_ERROR_STOP=1 --no-psqlrc --pset pager=off <<'SQL'
+          BEGIN READ ONLY;
+
+          SELECT 'PUBLIC_TABLE_RLS' AS audit_section,
+                 c.relname AS object_name,
+                 c.relrowsecurity AS rls_enabled,
+                 c.relforcerowsecurity AS force_rls
+          FROM pg_class c
+          JOIN pg_namespace n ON n.oid = c.relnamespace
+          WHERE n.nspname = 'public'
+            AND c.relkind = 'r'
+          ORDER BY c.relname;
+
+          SELECT 'TABLES_WITHOUT_POLICIES' AS audit_section,
+                 c.relname AS table_name
+          FROM pg_class c
+          JOIN pg_namespace n ON n.oid = c.relnamespace
+          WHERE n.nspname = 'public'
+            AND c.relkind = 'r'
+            AND c.relrowsecurity
+            AND NOT EXISTS (
+              SELECT 1
+              FROM pg_policy pol
+              WHERE pol.polrelid = c.oid
+            )
+          ORDER BY c.relname;
+
+          SELECT 'HIGH_RISK_TABLE_PRIVILEGES' AS audit_section,
+                 table_name, grantee, privilege_type
+          FROM information_schema.role_table_grants
+          WHERE table_schema = 'public'
+            AND grantee IN ('anon', 'authenticated')
+            AND privilege_type IN ('TRUNCATE', 'DELETE', 'INSERT', 'UPDATE')
+          ORDER BY table_name, grantee, privilege_type;
+
+          SELECT 'SECURITY_DEFINER_EXECUTE' AS audit_section,
+                 n.nspname AS schema_name,
+                 p.proname AS function_name,
+                 pg_get_function_identity_arguments(p.oid) AS arguments,
+                 has_function_privilege('anon', p.oid, 'EXECUTE') AS anon_can_execute,
+                 has_function_privilege('authenticated', p.oid, 'EXECUTE') AS authenticated_can_execute
+          FROM pg_proc p
+          JOIN pg_namespace n ON n.oid = p.pronamespace
+          WHERE n.nspname = 'public'
+            AND p.prosecdef
+          ORDER BY p.proname;
+
+          COMMIT;
+          SQL
