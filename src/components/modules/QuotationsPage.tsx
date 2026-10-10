@@ -53,9 +53,7 @@ export const QuotationsPage: React.FC<QuotationsPageProps> = ({
   const isBranchScoped = ['branch_manager', 'field_officer'].includes(userRole);
   const userBranch = currentProfile?.branch;
 
-  const [quotations, setQuotations] = useState<Quotation[]>(
-    isSupabaseConfigured ? [] : erpStore.getQuotations()
-  );
+  const [quotations, setQuotations] = useState<Quotation[]>([]);
   
   // Default view is BUILDER (Create Quotation) if permitted or initialLead provided, otherwise REGISTER
   const [activeView, setActiveView] = useState<'BUILDER' | 'REGISTER' | 'PREVIEW'>(
@@ -91,18 +89,14 @@ export const QuotationsPage: React.FC<QuotationsPageProps> = ({
       setDbError(null);
     } catch (err: any) {
       console.error('[QuotationsPage.fetchQuotations] Database error:', err);
-      // Authoritative production rule: Do NOT replace failed database load with erpStore
-      if (!isSupabaseConfigured) {
-        setQuotations(erpStore.getQuotations());
-      } else {
-        setQuotations([]);
-        const isMissing = isMissingSchemaError(err);
-        setDbError({
-          message: err?.message || 'Failed to load remote quotations from Supabase',
-          code: err?.code || (isMissing ? 'PGRST205' : 'DB_ERROR'),
-          isSchemaMissing: isMissing,
-        });
-      }
+      // Fail closed: never replace a failed Supabase read with local or mock quotations.
+      setQuotations([]);
+      const isMissing = isMissingSchemaError(err);
+      setDbError({
+        message: err?.message || 'Failed to load quotations from Supabase',
+        code: err?.code || (isMissing ? 'PGRST205' : 'DB_ERROR'),
+        isSchemaMissing: isMissing,
+      });
     } finally {
       setIsRetrying(false);
     }
@@ -110,13 +104,7 @@ export const QuotationsPage: React.FC<QuotationsPageProps> = ({
 
   useEffect(() => {
     fetchQuotations();
-    // In production, do NOT subscribe to local store; only in deliberate offline/demo mode
-    if (!isSupabaseConfigured) {
-      const unsub = erpStore.subscribe(() => {
-        setQuotations(erpStore.getQuotations());
-      });
-      return () => unsub();
-    }
+
   }, []);
 
   const showToast = (msg: string) => {
@@ -375,7 +363,7 @@ export const QuotationsPage: React.FC<QuotationsPageProps> = ({
             Demo Mode
           </span>
           <span className="text-slate-400">
-            Supabase credentials are not configured. Quotations are managed in local in-memory storage (<span className="text-amber-300 font-mono">erpStore</span>) and will not persist across browser reloads.
+            Supabase credentials are not configured. Quotation listing, creation, status updates, and conversion are disabled until the authoritative database connection is configured.
           </span>
         </div>
       )}
