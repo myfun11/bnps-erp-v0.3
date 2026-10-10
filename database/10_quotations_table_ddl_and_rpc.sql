@@ -309,7 +309,7 @@ BEGIN
         v_quot.capacity_kw,
         v_quot.total_project_cost,
         v_quot.central_subsidy_amount,
-        v_quot.net_customer_cost,
+        v_quot.total_project_cost, -- Authoritative business rule: customer_payable_amount equals full approved vendor project cost
         'SITE_SURVEY',
         false,
         v_quot.is_test

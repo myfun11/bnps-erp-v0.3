@@ -87,15 +87,15 @@ export const QuotationsPage: React.FC<QuotationsPageProps> = ({
     try {
       const data = await quotationService.list();
       setQuotations(data);
-      setLoadNotice(null);
+      if (quotationService.isPendingMigration()) {
+        setLoadNotice("Database Schema Notice: Table 'public.quotations' is pending execution in Supabase. Operating with local store data.");
+      } else {
+        setLoadNotice(null);
+      }
     } catch (err: any) {
       console.error('Failed to fetch quotations:', err);
       setLoadNotice(err?.message || 'Failed to load remote quotations');
-      if (!isSupabaseConfigured) {
-        setQuotations(erpStore.getQuotations());
-      } else {
-        setQuotations([]);
-      }
+      setQuotations(erpStore.getQuotations());
     } finally {
       setIsRetrying(false);
     }
@@ -103,13 +103,13 @@ export const QuotationsPage: React.FC<QuotationsPageProps> = ({
 
   useEffect(() => {
     fetchQuotations();
-    if (!isSupabaseConfigured) {
-      const unsub = erpStore.subscribe(() => {
-        // Synchronize in-memory quotations in offline/demo mode only
+    const unsub = erpStore.subscribe(() => {
+      // Synchronize in-memory quotations whenever erpStore updates
+      if (!isSupabaseConfigured || quotationService.isPendingMigration()) {
         setQuotations(erpStore.getQuotations());
-      });
-      return () => unsub();
-    }
+      }
+    });
+    return () => unsub();
   }, []);
 
   const showToast = (msg: string) => {
@@ -359,6 +359,18 @@ export const QuotationsPage: React.FC<QuotationsPageProps> = ({
           )}
         </div>
       </div>
+
+      {/* Demo / Offline In-Memory Storage Indicator */}
+      {!isSupabaseConfigured && (
+        <div className="flex items-center gap-2.5 p-3 rounded-xl bg-slate-900 border border-amber-500/30 text-xs text-slate-300 shadow-sm animate-fade-in">
+          <span className="px-2 py-0.5 rounded font-mono font-bold text-[10px] bg-amber-500/20 text-amber-300 border border-amber-500/30 uppercase tracking-wide shrink-0">
+            Demo Mode
+          </span>
+          <span className="text-slate-400">
+            Supabase credentials are not configured. Quotations are managed in local in-memory storage (<span className="text-amber-300 font-mono">erpStore</span>) and will not persist across browser reloads.
+          </span>
+        </div>
+      )}
 
       {/* Database Warning / Error State with Manual Retry */}
       {loadNotice && (

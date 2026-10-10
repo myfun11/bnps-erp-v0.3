@@ -50,7 +50,7 @@ export const ProjectsPage: React.FC = () => {
             <span>Solar Rooftop Projects (Installation & Grid Sync Pipeline)</span>
           </h2>
           <p className="text-xs text-slate-400 mt-0.5">
-            Full project engineering cycle • Capacity kW • Customer contract values & subsidy deductions
+            Full project engineering cycle • Capacity kW • Customer contract values & DBT subsidy tracking
           </p>
         </div>
       </div>

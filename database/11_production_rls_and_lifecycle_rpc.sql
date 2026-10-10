@@ -179,8 +179,9 @@ BEGIN
         v_state_subsidy := 5000.00;
     END IF;
 
-    -- Net Payable
-    v_net_customer_cost := GREATEST(v_gross_cost - v_central_subsidy - v_state_subsidy, 10000.00);
+    -- Net Customer Payable to BNPS (Authoritative Rule: Govt subsidy is DBT benefit paid directly
+    -- to eligible customer bank account post-commissioning and does NOT reduce vendor project cost)
+    v_net_customer_cost := v_gross_cost;
 
     -- Savings estimation
     v_monthly_units := ROUND(p_capacity_kw * 4.3 * 30);

@@ -897,7 +897,7 @@ class ErpDataStore {
       capacity_kw: q.capacity_kw,
       total_contract_amount: q.total_project_cost,
       discom_subsidy_amount: q.central_subsidy_amount,
-      customer_payable_amount: q.net_customer_cost,
+      customer_payable_amount: q.total_project_cost, // Authoritative rule: equals full approved vendor project cost
       status: 'SITE_SURVEY',
       commission_distributed: false,
       is_test: false,

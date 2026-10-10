@@ -55,9 +55,9 @@ function ErpAppShell() {
     const syncRemoteCounts = async () => {
       try {
         const [cList, aList, qList] = await Promise.all([
-          customerService.fetchCustomers(),
-          agentNetworkService.list(),
-          quotationService.list(),
+          customerService.fetchCustomers().catch(() => erpStore.getCustomers()),
+          agentNetworkService.list().catch(() => erpStore.getAgents()),
+          quotationService.list().catch(() => erpStore.getQuotations()),
         ]);
         if (mounted) {
           setCustomerCount(cList.length);
@@ -65,7 +65,7 @@ function ErpAppShell() {
           setQuotationCount(qList.length);
         }
       } catch (err) {
-        if (mounted && !isSupabaseConfigured) {
+        if (mounted) {
           setCustomerCount(erpStore.getCustomers().length);
           setAgentCount(erpStore.getAgents().length);
           setQuotationCount(erpStore.getQuotations().length);
