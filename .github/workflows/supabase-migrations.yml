@@ -48,7 +48,7 @@ jobs:
           test -n "${SUPABASE_PROJECT_REF:-}" || { echo "::error::Missing SUPABASE_PROJECT_REF secret"; exit 1; }
           test -n "${SUPABASE_DB_PASSWORD:-}" || { echo "::error::Missing SUPABASE_DB_PASSWORD secret"; exit 1; }
           supabase link --project-ref "$SUPABASE_PROJECT_REF" --password "$SUPABASE_DB_PASSWORD"
-          supabase migration list
+          supabase migration list --linked
 
       - name: Apply reviewed migrations only when explicitly approved
         if: ${{ inputs.apply_migrations == true }}
