@@ -1,5 +1,4 @@
 import { supabase, isSupabaseConfigured } from '../lib/supabaseClient';
-import { erpStore } from './erpStore';
 import { Quotation, QuotationStatusType } from '../types/database';
 
 /**
@@ -25,13 +24,19 @@ export const isMissingSchemaError = (err: any): boolean => {
 export const quotationService = {
   isConfigured: () => isSupabaseConfigured,
 
+  assertConfigured() {
+    if (!isSupabaseConfigured) {
+      throw new Error('Supabase is not configured. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY. Quotations cannot be saved to local storage.');
+    }
+  },
+
   /**
    * Fetch list of quotations from authoritative Supabase database.
    * In production (when Supabase is configured), throws any schema or network error
    * without silent local-store fallback. Every call queries the live database.
    */
   async list(): Promise<Quotation[]> {
-    if (isSupabaseConfigured) {
+    this.assertConfigured();
       const { data, error } = await supabase
         .from('quotations')
         .select('*')
@@ -49,10 +54,7 @@ export const quotationService = {
         throw err;
       }
 
-      return (data || []) as Quotation[];
-    }
-    // Deliberate offline/demo mode only (when Supabase credentials are not configured)
-    return erpStore.getQuotations();
+    return (data || []) as Quotation[];
   },
 
   /**
@@ -60,7 +62,7 @@ export const quotationService = {
    * Throws database errors directly. Does not silently create local-only records in production.
    */
   async create(input: Omit<Quotation, 'id' | 'quotation_no' | 'created_at'>): Promise<Quotation> {
-    if (isSupabaseConfigured) {
+    this.assertConfigured();
       const now = new Date();
       const timePart = Date.now().toString().slice(-5);
       const randPart = Math.floor(100 + Math.random() * 900);
@@ -92,17 +94,14 @@ export const quotationService = {
         throw new Error('No data returned from database after quotation creation');
       }
 
-      return data as Quotation;
-    }
-    // Deliberate offline/demo mode only
-    return erpStore.createQuotation(input);
+    return data as Quotation;
   },
 
   /**
    * Update quotation status in authoritative Supabase database.
    */
   async updateStatus(id: string, status: QuotationStatusType): Promise<void> {
-    if (isSupabaseConfigured) {
+    this.assertConfigured();
       const { error } = await supabase
         .from('quotations')
         .update({ status, updated_at: new Date().toISOString() })
@@ -118,16 +117,14 @@ export const quotationService = {
         (err as any).code = error.code;
         throw err;
       }
-      return;
-    }
-    erpStore.updateQuotationStatus(id, status);
+    return;
   },
 
   /**
    * Convert quotation to active customer & project via atomic transaction in Supabase.
    */
   async convertToCustomer(quotationId: string, actorProfileId?: string) {
-    if (isSupabaseConfigured) {
+    this.assertConfigured();
       if (!actorProfileId) {
         throw new Error('Actor profile ID is required for conversion');
       }
@@ -152,8 +149,6 @@ export const quotationService = {
         throw new Error((data as any).message || 'Database conversion transaction failed');
       }
 
-      return data;
-    }
-    return erpStore.convertQuotationToCustomer(quotationId, actorProfileId);
+    return data;
   },
 };
