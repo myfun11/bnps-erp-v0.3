@@ -81,7 +81,11 @@ export const LeadList: React.FC<LeadListProps> = ({
         setLeads(data);
       }
     } catch (err) {
-      console.error('Failed to fetch leads from leadService:', err);
+      console.error('Failed to fetch leads from authoritative backend:', err);
+      if (leadService.isConfigured()) {
+        setLeads([]);
+        return;
+      }
       if (userRole === 'agent') {
         if (!currentAgent?.id) {
           setLeads([]);
@@ -95,9 +99,12 @@ export const LeadList: React.FC<LeadListProps> = ({
   };
 
   useEffect(() => {
-    loadData();
-    const unsubscribe = erpStore.subscribe(loadData);
-    return () => unsubscribe();
+    void loadData();
+    if (!leadService.isConfigured()) {
+      const unsubscribe = erpStore.subscribe(loadData);
+      return () => unsubscribe();
+    }
+    return undefined;
   }, [userRole, currentAgent?.id]);
 
   // Filter leads
@@ -122,45 +129,49 @@ export const LeadList: React.FC<LeadListProps> = ({
 
   const handleCreateLead = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newLeadForm.full_name || !newLeadForm.mobile) {
+    if (!newLeadForm.full_name.trim() || !newLeadForm.mobile.trim()) {
       alert('Please enter applicant name and mobile number');
       return;
     }
+    if (!newLeadForm.father_name.trim() || !newLeadForm.dob) {
+      alert('Please enter the customer father name and date of birth for KYC matching.');
+      return;
+    }
 
- const res = await erpStore.createLead(
-      {
-      source_agent_id: userRole === 'agent'
-  ? currentAgent?.id
-  : undefined,
-        assigned_officer_id: currentProfile.id,
-        full_name: newLeadForm.full_name,
-        father_name: newLeadForm.father_name || undefined,
-        dob: newLeadForm.dob || undefined,
-        mobile: newLeadForm.mobile,
-        alternate_phone: newLeadForm.alternate_phone || undefined,
-        email: newLeadForm.email || undefined,
-        discom_name: newLeadForm.discom_name,
-        consumer_number: newLeadForm.consumer_number || undefined,
-        sanctioned_load_kw: Number(newLeadForm.sanctioned_load_kw),
-        proposed_capacity_kw: Number(newLeadForm.proposed_capacity_kw),
-        address_line: newLeadForm.address_line,
-        state: newLeadForm.state,
-        district: newLeadForm.district,
-        tehsil: newLeadForm.tehsil,
-        block: newLeadForm.block,
-        panchayat_village: newLeadForm.panchayat_village,
-        pincode: newLeadForm.pincode,
-        stage: 'NEW',
-        notes: newLeadForm.notes,
-        is_test: false,
-      },
-      currentProfile.id
-    );
+    const leadInput = {
+      source_agent_id: userRole === 'agent' ? currentAgent?.id : undefined,
+      assigned_officer_id: userRole === 'agent' ? undefined : (currentProfile.id || undefined),
+      full_name: newLeadForm.full_name.trim(),
+      father_name: newLeadForm.father_name.trim(),
+      dob: newLeadForm.dob,
+      mobile: newLeadForm.mobile.trim(),
+      alternate_phone: newLeadForm.alternate_phone || undefined,
+      email: newLeadForm.email || undefined,
+      discom_name: newLeadForm.discom_name,
+      consumer_number: newLeadForm.consumer_number || undefined,
+      sanctioned_load_kw: Number(newLeadForm.sanctioned_load_kw),
+      proposed_capacity_kw: Number(newLeadForm.proposed_capacity_kw),
+      address_line: newLeadForm.address_line,
+      state: newLeadForm.state,
+      district: newLeadForm.district,
+      tehsil: newLeadForm.tehsil,
+      block: newLeadForm.block,
+      panchayat_village: newLeadForm.panchayat_village,
+      pincode: newLeadForm.pincode,
+      stage: 'NEW' as const,
+      notes: newLeadForm.notes,
+      is_test: false,
+    };
 
-    if (res.success && res.lead) {
+    try {
+      const lead = leadService.isConfigured()
+        ? await leadService.createLead(leadInput)
+        : (await erpStore.createLead(leadInput, currentProfile.id)).lead;
+      if (!lead) throw new Error('Lead was not returned by the selected backend.');
+
       setShowNewLeadModal(false);
       if (onCloseNewLeadDirectly) onCloseNewLeadDirectly();
-      setSuccessBanner(`New lead ${res.lead.lead_code} (District: ${newLeadForm.district}) registered successfully!`);
+      setSuccessBanner(`New lead ${lead.lead_code} (District: ${newLeadForm.district}) registered successfully!`);
       setTimeout(() => setSuccessBanner(null), 4000);
       setNewLeadForm({
         full_name: '',
@@ -175,13 +186,17 @@ export const LeadList: React.FC<LeadListProps> = ({
         sanctioned_load_kw: 5.0,
         address_line: '',
         state: 'Chhattisgarh',
-        district: 'Raipur',
-        tehsil: 'Raipur',
-        block: 'Dharsiwa',
+        district: 'Janjgir-Champa',
+        tehsil: 'Jaijaipur',
+        block: 'Jaijaipur',
         panchayat_village: '',
-        pincode: '492001',
+        pincode: '495690',
         notes: '',
       });
+      await loadData();
+    } catch (err) {
+      console.error('[LeadList.handleCreateLead] Lead creation failed:', err);
+      alert(err instanceof Error ? err.message : 'Lead could not be created in the authoritative backend.');
     }
   };
 
