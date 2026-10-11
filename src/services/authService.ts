@@ -43,9 +43,12 @@ export const authService = {
     });
     if (error) throw new Error(`Password update failed: ${error.message}`);
     if (!data?.success) throw new Error(data?.message || 'Password update failed.');
-    // A password update can invalidate a refresh token on some Auth configurations.
-    // The protected app_metadata update is authoritative; the app also clears its local gate.
-    try { await supabase.auth.refreshSession(); } catch { /* next login will receive fresh app_metadata */ }
+    // Refresh so the client receives the server-controlled app_metadata flag.
+    const { error: refreshError } = await supabase.auth.refreshSession();
+    if (refreshError) {
+      await supabase.auth.signOut();
+      throw new Error('Password changed. Please log in again with the new password.');
+    }
     return data;
   },
 
