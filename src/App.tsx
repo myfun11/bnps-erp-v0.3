@@ -35,7 +35,8 @@ import { Footer } from './components/layout/Footer';
 import { erpStore } from './services/erpStore';
 import { Lead } from './types/database';
 
-function FirstLoginPasswordChange({ onChangePassword }: { onChangePassword: (password: string) => Promise<void> }) {
+function FirstLoginPasswordChange({ onChangePassword }: { onChangePassword: (currentPassword: string, newPassword: string) => Promise<void> }) {
+  const [currentPassword, setCurrentPassword] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
@@ -44,8 +45,16 @@ function FirstLoginPasswordChange({ onChangePassword }: { onChangePassword: (pas
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
     setError('');
+    if (!currentPassword) {
+      setError('Temporary password दोबारा दर्ज करें।');
+      return;
+    }
     if (password.length < 12) {
       setError('Password कम से कम 12 characters का होना चाहिए।');
+      return;
+    }
+    if (password === currentPassword) {
+      setError('नया password temporary password से अलग होना चाहिए।');
       return;
     }
     if (password !== confirmPassword) {
@@ -54,7 +63,7 @@ function FirstLoginPasswordChange({ onChangePassword }: { onChangePassword: (pas
     }
     setSaving(true);
     try {
-      await onChangePassword(password);
+      await onChangePassword(currentPassword, password);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Password update नहीं हो सका।');
     } finally {
@@ -67,6 +76,9 @@ function FirstLoginPasswordChange({ onChangePassword }: { onChangePassword: (pas
       <form onSubmit={submit} className="w-full max-w-md rounded-2xl border border-slate-700 bg-slate-900 p-6 space-y-4">
         <h1 className="text-xl font-bold">पहली बार Login — Password बदलें</h1>
         <p className="text-sm text-slate-300">सुरक्षा के लिए temporary password बदलना आवश्यक है। नया password कम से कम 12 characters का रखें।</p>
+        <label className="block text-sm">Temporary Password
+          <input className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2" type="password" autoComplete="current-password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} required />
+        </label>
         <label className="block text-sm">नया Password
           <input className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2" type="password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={12} />
         </label>
