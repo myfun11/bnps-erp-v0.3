@@ -44,6 +44,121 @@ END $$;
 CREATE INDEX IF NOT EXISTS documents_entity_category_created_idx
   ON public.documents (entity_type, entity_id, doc_category, created_at DESC);
 
+-- Enforce the first-login password change at the database authorization boundary.
+-- This prevents bypassing the frontend gate by calling PostgREST/RPC directly.
+CREATE OR REPLACE FUNCTION public.current_session_requires_password_change()
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SET search_path = public, pg_temp
+AS $
+  SELECT coalesce(auth.jwt()->'app_metadata'->>'must_change_password', 'false') = 'true';
+$;
+
+REVOKE ALL ON FUNCTION public.current_session_requires_password_change() FROM PUBLIC, anon, authenticated;
+
+CREATE OR REPLACE FUNCTION public.current_auth_profile_id()
+RETURNS uuid
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $
+  SELECT p.id
+  FROM public.profiles p
+  WHERE p.auth_user_id = auth.uid()
+    AND p.is_active = true
+    AND NOT public.current_session_requires_password_change()
+  LIMIT 1;
+$;
+
+CREATE OR REPLACE FUNCTION public.current_user_role()
+RETURNS public.user_role_type
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $
+  SELECT p.role
+  FROM public.profiles p
+  WHERE p.auth_user_id = auth.uid()
+    AND p.is_active = true
+    AND NOT public.current_session_requires_password_change()
+  LIMIT 1;
+$;
+
+CREATE OR REPLACE FUNCTION public.has_erp_permission(perm_code text)
+RETURNS boolean
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $
+DECLARE
+  v_profile_id uuid;
+  v_permission_id uuid;
+  v_user_effect varchar(10);
+  v_has_role_permission boolean := false;
+BEGIN
+  IF public.current_session_requires_password_change() THEN
+    RETURN false;
+  END IF;
+
+  SELECT p.id INTO v_profile_id
+  FROM public.profiles p
+  WHERE p.auth_user_id = auth.uid() AND p.is_active = true
+  LIMIT 1;
+
+  IF v_profile_id IS NULL THEN
+    RETURN false;
+  END IF;
+
+  SELECT p.id INTO v_permission_id
+  FROM public.permissions p
+  WHERE p.code = perm_code
+  LIMIT 1;
+
+  IF v_permission_id IS NULL THEN
+    RETURN false;
+  END IF;
+
+  SELECT upo.effect INTO v_user_effect
+  FROM public.user_permission_overrides upo
+  WHERE upo.user_id = v_profile_id AND upo.permission_id = v_permission_id
+  LIMIT 1;
+
+  IF v_user_effect = 'DENY' THEN
+    RETURN false;
+  END IF;
+  IF v_user_effect = 'GRANT' THEN
+    RETURN true;
+  END IF;
+
+  SELECT EXISTS (
+    SELECT 1
+    FROM public.user_roles ur
+    JOIN public.dynamic_role_permissions drp ON drp.role_id = ur.role_id
+    WHERE ur.user_id = v_profile_id AND drp.permission_id = v_permission_id
+  ) INTO v_has_role_permission;
+
+  IF v_has_role_permission THEN
+    RETURN true;
+  END IF;
+
+  IF EXISTS (
+    SELECT 1
+    FROM public.role_permissions rp
+    JOIN public.profiles p ON p.role = rp.role
+    JOIN public.permissions pp ON pp.id = rp.permission_id
+    WHERE p.id = v_profile_id AND pp.code = perm_code
+  ) THEN
+    RETURN true;
+  END IF;
+
+  RETURN false;
+END;
+$;
+
 -- A SECURITY DEFINER insert RPC must not let an agent attach KYC documents to another entity.
 CREATE OR REPLACE FUNCTION public.enforce_document_entity_scope()
 RETURNS trigger
