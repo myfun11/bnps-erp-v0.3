@@ -6,12 +6,10 @@ import { Lead, DocumentRecord } from '../types/database';
  */
 export const normalizeIdentityString = (input?: string | null): string => {
   if (!input) return '';
-  let str = input.toLowerCase().trim();
-  // Strip honorifics
-  str = str.replace(/^(shri|smt|mr\.|mr|mrs\.|mrs|dr\.|dr|late|s\/o|d\/o|w\/o)\s+/i, '');
-  // Collapse whitespace
-  str = str.replace(/\s+/g, ' ').trim();
-  return str;
+  // Mirror the database normalizer: punctuation becomes spaces before honorific stripping.
+  let str = input.toLowerCase().trim().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+  str = str.replace(/^(shri|smt|mr|mrs|ms|dr|late|s o|d o|w o)\s+/u, '');
+  return str.replace(/\s+/g, ' ').trim();
 };
 
 /**
