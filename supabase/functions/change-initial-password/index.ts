@@ -48,7 +48,11 @@ Deno.serve(async (req: Request) => {
   } catch {
     return json({ success: false, error: "INVALID_JSON" }, 400);
   }
+  const currentPassword = typeof body.current_password === "string" ? body.current_password : "";
   const newPassword = typeof body.new_password === "string" ? body.new_password : "";
+  if (!currentPassword || !user.email || newPassword === currentPassword) {
+    return json({ success: false, error: "CURRENT_PASSWORD_REQUIRED_OR_REUSED", message: "Enter the current temporary password and choose a different new password." }, 400);
+  }
   if (newPassword.length < 12 || newPassword.length > 128) {
     return json({ success: false, error: "PASSWORD_POLICY", message: "Password must be 12 to 128 characters." }, 400);
   }
