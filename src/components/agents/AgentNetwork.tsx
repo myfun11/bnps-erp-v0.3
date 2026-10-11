@@ -43,6 +43,14 @@ export const AgentNetwork: React.FC = () => {
   const [errorBanner, setErrorBanner] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [newlyCreatedAgent, setNewlyCreatedAgent] = useState<Agent | null>(null);
+  const [newlyCreatedCredentials, setNewlyCreatedCredentials] = useState<{
+    agentId: string;
+    agentCode: string;
+    fullName: string;
+    branch: string;
+    loginEmail: string;
+    temporaryPassword: string;
+  } | null>(null);
 
   // Search & Filter States
   const [searchQuery, setSearchQuery] = useState('');
@@ -143,10 +151,6 @@ export const AgentNetwork: React.FC = () => {
 
     setIsSubmittingOnboarding(true);
 
-    const defaultPwd =
-      newAgentForm.login_password ||
-      `${newAgentForm.full_name.split(' ')[0]}@${newAgentForm.branch}2026`;
-
     try {
       // 1. Create Agent record
       const result = await agentNetworkService.create({
@@ -155,7 +159,7 @@ export const AgentNetwork: React.FC = () => {
         email: newAgentForm.email,
         branch: newAgentForm.branch,
         sponsor_agent_id: newAgentForm.sponsor_agent_id || undefined,
-        password: defaultPwd,
+        password: newAgentForm.login_password || undefined,
         pan_number: newAgentForm.pan_number || undefined,
         bank_account_no: newAgentForm.bank_account_no || undefined,
         bank_name: newAgentForm.bank_name || undefined,
@@ -164,6 +168,16 @@ export const AgentNetwork: React.FC = () => {
       });
 
       const agentId = result.agent_id;
+      if (result.password_display_once && result.temporary_password && result.login_email) {
+        setNewlyCreatedCredentials({
+          agentId,
+          agentCode: result.agent_code,
+          fullName: newAgentForm.full_name,
+          branch: newAgentForm.branch,
+          loginEmail: result.login_email,
+          temporaryPassword: result.temporary_password,
+        });
+      }
 
       // 2. Upload mandatory KYC documents in parallel
       await Promise.all([
@@ -303,6 +317,54 @@ export const AgentNetwork: React.FC = () => {
         <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs flex items-center justify-between">
           <span>{successBanner}</span>
           <button onClick={() => setSuccessBanner(null)} className="text-emerald-400 hover:text-white">✕</button>
+        </div>
+      )}
+
+      {/* One-time login credentials: held in component memory only, never persisted */}
+      {newlyCreatedCredentials && (
+        <div className="p-5 rounded-2xl bg-amber-950/80 border-2 border-amber-500/50 shadow-xl space-y-3">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <Lock className="w-5 h-5 text-amber-300" />
+              <h3 className="text-sm font-bold text-amber-200">Agent Login Credentials — Copy Now</h3>
+            </div>
+            <button onClick={() => setNewlyCreatedCredentials(null)} className="text-slate-300 hover:text-white text-xs">
+              Hide password
+            </button>
+          </div>
+          <p className="text-xs text-amber-100/80">
+            This temporary password is shown only once and is not saved in BNPS records. Share it securely with the agent and ask them to change it after login.
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-slate-950/70 p-3 rounded-xl border border-amber-500/30 text-xs font-mono">
+            <div>
+              <span className="text-slate-400 block text-[10px] uppercase font-sans">Agent Code</span>
+              <span className="text-amber-300 font-bold">{newlyCreatedCredentials.agentCode}</span>
+            </div>
+            <div>
+              <span className="text-slate-400 block text-[10px] uppercase font-sans">Branch</span>
+              <span className="text-slate-200">{newlyCreatedCredentials.branch}</span>
+            </div>
+            <div>
+              <span className="text-slate-400 block text-[10px] uppercase font-sans">Login Email</span>
+              <span className="text-emerald-300 font-bold break-all">{newlyCreatedCredentials.loginEmail}</span>
+            </div>
+            <div>
+              <span className="text-slate-400 block text-[10px] uppercase font-sans">Temporary Password</span>
+              <span className="text-white font-bold break-all select-all">{newlyCreatedCredentials.temporaryPassword}</span>
+            </div>
+          </div>
+          <div className="flex justify-end">
+            <button
+              onClick={() => handleCopy(
+                `BNPS ERP Agent Login\nName: ${newlyCreatedCredentials.fullName}\nAgent Code: ${newlyCreatedCredentials.agentCode}\nBranch: ${newlyCreatedCredentials.branch}\nLogin Email: ${newlyCreatedCredentials.loginEmail}\nTemporary Password: ${newlyCreatedCredentials.temporaryPassword}\nPlease change the password after first login.`,
+                `credentials-${newlyCreatedCredentials.agentId}`
+              )}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold text-xs"
+            >
+              {copiedId === `credentials-${newlyCreatedCredentials.agentId}` ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+              <span>{copiedId === `credentials-${newlyCreatedCredentials.agentId}` ? 'Copied' : 'Copy Login & Password'}</span>
+            </button>
+          </div>
         </div>
       )}
 
