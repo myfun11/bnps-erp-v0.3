@@ -44,14 +44,12 @@ export const documentService = {
         .order('created_at', { ascending: false });
 
       if (error) {
-        console.warn('[documentService.fetchDocuments] Falling back to local store:', error.message);
-        return erpStore.getDocuments();
+        throw new Error(`Unable to load documents from Supabase: ${error.message}`);
       }
 
       return (data || []) as DocumentRecord[];
     } catch (err) {
-      console.warn('[documentService.fetchDocuments] Network error, falling back to local store:', err);
-      return erpStore.getDocuments();
+      throw new Error(`Unable to load documents from Supabase: ${getErrorMessage(err)}`);
     }
   },
 
@@ -69,14 +67,12 @@ export const documentService = {
         .order('created_at', { ascending: false });
 
       if (error) {
-        console.warn('[documentService.fetchDocumentsByEntity] Falling back to local store:', error.message);
-        return erpStore.getDocuments({ entityType, entityId });
+        throw new Error(`Unable to load entity documents from Supabase: ${error.message}`);
       }
 
       return (data || []) as DocumentRecord[];
     } catch (err) {
-      console.warn('[documentService.fetchDocumentsByEntity] Network error, falling back to local store:', err);
-      return erpStore.getDocuments({ entityType, entityId });
+      throw new Error(`Unable to load entity documents from Supabase: ${getErrorMessage(err)}`);
     }
   },
 
@@ -222,10 +218,8 @@ export const documentService = {
         throw error;
       }
     } catch (err) {
-      console.warn('[documentService.verifyDocument] RPC error, updating local store:', err);
+      throw new Error(`Document verification failed: ${getErrorMessage(err)}`);
     }
-
-    erpStore.verifyDocument(documentId);
   },
 
   async rejectDocument(
@@ -256,10 +250,8 @@ export const documentService = {
         throw error;
       }
     } catch (err) {
-      console.warn('[documentService.rejectDocument] RPC error, updating local store:', err);
+      throw new Error(`Document rejection failed: ${getErrorMessage(err)}`);
     }
-
-    erpStore.rejectDocument(documentId, reason);
   },
 
   async createSignedUrl(
@@ -267,7 +259,7 @@ export const documentService = {
     expiresIn = 300
   ): Promise<string> {
     if (!isSupabaseConfigured) {
-      return '#preview-document';
+      throw new Error('Document preview is unavailable in offline/demo mode.');
     }
 
     try {
@@ -275,13 +267,17 @@ export const documentService = {
         .from(STORAGE_BUCKET)
         .createSignedUrl(filePath, expiresIn);
 
-      if (error || !data?.signedUrl) {
-        return '#preview-document';
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      if (!data?.signedUrl) {
+        throw new Error('Supabase did not return a signed document URL.');
       }
 
       return data.signedUrl;
-    } catch {
-      return '#preview-document';
+    } catch (err) {
+      throw new Error(`Unable to create secure document preview: ${getErrorMessage(err)}`);
     }
   },
 
@@ -293,10 +289,7 @@ export const documentService = {
       .remove([filePath]);
 
     if (error) {
-      console.warn(
-        '[documentService.removeUploadedFile]',
-        error.message
-      );
+      throw new Error(`Unable to remove uploaded document: ${error.message}`);
     }
   },
 };
