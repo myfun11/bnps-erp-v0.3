@@ -179,18 +179,14 @@ export const ConvertLeadModal: React.FC<ConvertLeadModalProps> = ({
   );
 
   // Check required documents presence & statuses (Active/valid: UPLOADED or VERIFIED)
-  const isCategoryComplete = (cat: RequiredCategory) => {
-    return Boolean(
-      leadDocuments.find(
-        (d) => d.doc_category === cat && d.status === 'VERIFIED'
-      )
-    );
+  // Documents are fetched newest-first. Only the latest record for each category counts.
+  // This keeps an older VERIFIED upload from bypassing a newer pending/rejected replacement.
+  const getCategoryDoc = (cat: RequiredCategory) => {
+    return leadDocuments.find((d) => d.doc_category === cat);
   };
 
-  const getCategoryDoc = (cat: RequiredCategory) => {
-    return leadDocuments.find(
-      (d) => d.doc_category === cat && (d.status === 'UPLOADED' || d.status === 'VERIFIED')
-    );
+  const isCategoryComplete = (cat: RequiredCategory) => {
+    return getCategoryDoc(cat)?.status === 'VERIFIED';
   };
 
   const isElectricityBillComplete = isCategoryComplete('electricity_bill');
