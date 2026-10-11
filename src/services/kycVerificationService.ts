@@ -104,18 +104,25 @@ export const evaluateLeadKycMatching = (
   let fatherNameMatch = true;
   let dobMatch = true;
   let coreDocsCount = 0;
+  let backendMatchedCount = 0;
+  let backendMismatch = false;
 
   for (const core of CORE_KYC_CATEGORIES) {
-    const doc = documents.find(
-      (d) => d.doc_category === core.category && (d.status === 'UPLOADED' || d.status === 'VERIFIED')
-    );
+    // The document list is newest-first; the newest upload is authoritative even if rejected/pending.
+    const doc = documents.find((d) => d.doc_category === core.category);
 
-    if (!doc) {
+    if (!doc || doc.status === 'REJECTED') {
       missingDocs.push(core.label);
       continue;
     }
 
     coreDocsCount++;
+    const backendMatched = doc.status === 'VERIFIED'
+      && doc.extraction_status === 'MATCHED'
+      && doc.kyc_match_status === 'MATCHED';
+    if (backendMatched) backendMatchedCount++;
+    if (doc.extraction_status === 'MISMATCH' || doc.kyc_match_status === 'MISMATCH') backendMismatch = true;
+    if (!backendMatched && !backendMismatch) missingDocs.push(`${core.label} (pending trusted auto-verification)`);
 
     // Fail closed: only values actually extracted from the uploaded document may be compared.
     // Never substitute lead-form values for OCR results.
@@ -151,7 +158,7 @@ export const evaluateLeadKycMatching = (
       mismatches.push(`${core.label} DOB ("${extractedDob || 'Missing'}") does not match Lead DOB ("${lead.dob || 'Missing'}")`);
     }
 
-    const isFullyMatched = docNameMatches && docFatherMatches && docDobMatches;
+    const isFullyMatched = backendMatched && docNameMatches && docFatherMatches && docDobMatches;
 
     docExtractions.push({
       categoryId: core.category,
@@ -178,16 +185,23 @@ export const evaluateLeadKycMatching = (
 
   // All 3 core documents must be present to achieve overall match
   const coreDocsPresent = coreDocsCount === CORE_KYC_CATEGORIES.length;
-  const allMatch = coreDocsPresent && nameMatch && fatherNameMatch && dobMatch && mismatches.length === 0;
+  const allMatch = coreDocsPresent && backendMatchedCount === CORE_KYC_CATEGORIES.length
+    && nameMatch && fatherNameMatch && dobMatch && mismatches.length === 0;
 
   let summaryMessage = '';
   let badgeType: 'success' | 'warning' | 'pending' = 'pending';
 
   if (!coreDocsPresent) {
-    summaryMessage = `Upload all 3 key KYC documents (Aadhaar, PAN, Bank Passbook) and complete trusted document extraction. (Pending: ${missingDocs.join(', ')})`;
+    summaryMessage = `Upload all 3 key KYC documents (Aadhaar, PAN, Bank Passbook). (Pending: ${missingDocs.join(', ')})`;
+    badgeType = 'pending';
+  } else if (backendMismatch) {
+    summaryMessage = `Backend KYC mismatch detected. Review/re-upload the mismatching document(s). ${mismatches.join('; ')}`;
+    badgeType = 'warning';
+  } else if (backendMatchedCount !== CORE_KYC_CATEGORIES.length) {
+    summaryMessage = `Documents are uploaded, but trusted OCR matching is still pending. ${missingDocs.join(', ')}`;
     badgeType = 'pending';
   } else if (allMatch) {
-    summaryMessage = `Extracted values matched: name and father's name across Aadhaar, PAN and bank passbook; DOB on Aadhaar and PAN. Backend extraction must be trusted before auto-verification.`;
+    summaryMessage = `Backend auto-verification confirmed: name and father's name across Aadhaar, PAN and bank passbook; DOB on Aadhaar and PAN.`;
     badgeType = 'success';
   } else {
     summaryMessage = `Identity mismatch detected: ${mismatches.join('; ')}`;
