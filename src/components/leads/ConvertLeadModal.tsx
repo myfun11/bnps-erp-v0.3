@@ -88,8 +88,8 @@ const DOCUMENT_REQUIREMENTS: DocumentRequirement[] = [
     category: 'pan',
     label: 'PAN Card (Optional)',
     description: 'Optional tax identification document (never blocks conversion)',
-    required: false,
-    isCoreKyc: false,
+    required: true,
+    isCoreKyc: true,
   },
 ];
 
@@ -143,21 +143,14 @@ export const ConvertLeadModal: React.FC<ConvertLeadModalProps> = ({
     if (lead && isOpen) {
       setConsumerNumber(lead.consumer_number || '');
       setFullName(lead.full_name || '');
-      setFatherName(lead.father_name || 'Ram Prasad Kashyap');
-      setDob(lead.dob || '1984-06-15');
+      setFatherName(lead.father_name || '');
+      setDob(lead.dob || '');
       setErrorMsg(null);
       setUploadError(null);
       setExpandedDocCategory(null);
       setDocKycEdits({});
       refreshDocuments(lead.id);
 
-      // Auto-populate lead father_name & dob if not already set
-      if (!lead.father_name || !lead.dob) {
-        erpStore.updateLeadDetails(lead.id, {
-          father_name: lead.father_name || 'Ram Prasad Kashyap',
-          dob: lead.dob || '1984-06-15',
-        });
-      }
     }
   }, [lead, isOpen, refreshDocuments]);
 
@@ -204,10 +197,12 @@ export const ConvertLeadModal: React.FC<ConvertLeadModalProps> = ({
   const isBankProofComplete = isCategoryComplete('bank_proof');
   const isNocB1Complete = isCategoryComplete('noc_b1');
   const isSitePhotoComplete = isCategoryComplete('site_photo');
+  const isPanComplete = isCategoryComplete('pan');
 
   const allRequiredDocsComplete =
     isElectricityBillComplete &&
     isAadhaarComplete &&
+    isPanComplete &&
     isBankProofComplete &&
     isNocB1Complete &&
     isSitePhotoComplete;
@@ -216,6 +211,7 @@ export const ConvertLeadModal: React.FC<ConvertLeadModalProps> = ({
     allRequiredDocsComplete &&
     hasCompleteLocation &&
     consumerNumber.trim().length > 0 &&
+    kycResult.allMatch &&
     !loading &&
     uploadingCategory === null;
 
@@ -292,19 +288,6 @@ export const ConvertLeadModal: React.FC<ConvertLeadModalProps> = ({
     setExpandedDocCategory(null);
   };
 
-  // Quick action: sync document extracted data directly to match Lead customer info
-  const handleQuickMatchDoc = (docId: string) => {
-    erpStore.updateDocumentKyc(docId, {
-      extracted_name: activeLead.full_name,
-      extracted_father_name: activeLead.father_name || '',
-      extracted_dob: activeLead.dob || '',
-    });
-
-    erpStore.runLeadKycAutoVerification(lead.id);
-    refreshDocuments(lead.id);
-    setExpandedDocCategory(null);
-  };
-
   const handleConvert = async () => {
     if (loading) return; // Prevent duplicate conversion on repeated clicks
 
@@ -320,6 +303,10 @@ export const ConvertLeadModal: React.FC<ConvertLeadModalProps> = ({
 
     if (!allRequiredDocsComplete) {
       setErrorMsg(ERROR_MESSAGES.DOCUMENTS_INCOMPLETE);
+      return;
+    }
+    if (!kycResult.allMatch) {
+      setErrorMsg('KYC verification is pending. Customer creation is blocked until trusted document extraction matches name and father name on Aadhaar, PAN and bank passbook, and DOB on Aadhaar and PAN.');
       return;
     }
 
@@ -414,7 +401,7 @@ export const ConvertLeadModal: React.FC<ConvertLeadModalProps> = ({
                       type="text"
                       value={fatherName}
                       onChange={(e) => setFatherName(e.target.value)}
-                      placeholder="e.g. Ram Prasad Kashyap"
+                      placeholder="Enter exact name as printed on the documents"
                       className="w-full px-2.5 py-1.5 rounded bg-slate-800 border border-slate-700 text-slate-100 text-xs focus:outline-none focus:border-amber-400"
                     />
                   </div>
@@ -607,9 +594,9 @@ export const ConvertLeadModal: React.FC<ConvertLeadModalProps> = ({
                   const isExpanded = expandedDocCategory === req.category;
 
                   const currentDocKyc = docKycEdits[req.category] || {
-                    name: doc?.extracted_name || activeLead.full_name,
-                    fatherName: doc?.extracted_father_name || activeLead.father_name || '',
-                    dob: doc?.extracted_dob || activeLead.dob || '',
+                    name: doc?.extracted_name || '',
+                    fatherName: doc?.extracted_father_name || '',
+                    dob: doc?.extracted_dob || '',
                   };
 
                   return (
@@ -730,13 +717,7 @@ export const ConvertLeadModal: React.FC<ConvertLeadModalProps> = ({
                             <span className="font-semibold text-amber-300">
                               Extracted KYC Identity on this Document:
                             </span>
-                            <button
-                              type="button"
-                              onClick={() => handleQuickMatchDoc(doc.id)}
-                              className="text-[10px] text-emerald-400 hover:text-emerald-300 underline cursor-pointer"
-                            >
-                              Auto-fill matching Customer Identity
-                            </button>
+
                           </div>
                           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                             <div>
@@ -744,6 +725,7 @@ export const ConvertLeadModal: React.FC<ConvertLeadModalProps> = ({
                               <input
                                 type="text"
                                 value={currentDocKyc.name}
+                                disabled
                                 onChange={(e) => {
                                   const val = e.target.value;
                                   setDocKycEdits((prev) => ({
@@ -759,6 +741,7 @@ export const ConvertLeadModal: React.FC<ConvertLeadModalProps> = ({
                               <input
                                 type="text"
                                 value={currentDocKyc.fatherName}
+                                disabled
                                 onChange={(e) => {
                                   const val = e.target.value;
                                   setDocKycEdits((prev) => ({
@@ -774,6 +757,7 @@ export const ConvertLeadModal: React.FC<ConvertLeadModalProps> = ({
                               <input
                                 type="text"
                                 value={currentDocKyc.dob}
+                                disabled
                                 placeholder="YYYY-MM-DD or DD/MM/YYYY"
                                 onChange={(e) => {
                                   const val = e.target.value;
