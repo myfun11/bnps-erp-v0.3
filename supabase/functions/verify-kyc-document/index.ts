@@ -149,6 +149,20 @@ Deno.serve(async (req: Request) => {
 
   const entityType = String(doc.entity_type).toLowerCase();
   const category = String(doc.doc_category).toLowerCase();
+
+  // Authorize access to the entity before disclosing document state or metadata.
+  const accessChecks = await Promise.all(["document.upload", "document.verify"].map((permission) =>
+    userClient.rpc("document_entity_access_allowed", {
+      p_entity_type: entityType,
+      p_entity_id: doc.entity_id,
+      p_doc_category: category,
+      p_required_permission: permission,
+    })
+  ));
+  if (!accessChecks.some((p) => p.data === true && !p.error)) {
+    return json({ success: false, error: "FORBIDDEN" }, 403);
+  }
+
   const allowedCategory = entityType === "agent"
     ? ["aadhaar_front", "aadhaar_back", "pan", "bank_proof"].includes(category)
     : entityType === "lead"
@@ -161,18 +175,6 @@ Deno.serve(async (req: Request) => {
   }
   if (doc.file_size_bytes !== null && doc.file_size_bytes > 10 * 1024 * 1024) {
     return json({ success: false, error: "DOCUMENT_TOO_LARGE" }, 413);
-  }
-
-  const accessChecks = await Promise.all(["document.upload", "document.verify"].map((permission) =>
-    userClient.rpc("document_entity_access_allowed", {
-      p_entity_type: entityType,
-      p_entity_id: doc.entity_id,
-      p_doc_category: category,
-      p_required_permission: permission,
-    })
-  ));
-  if (!accessChecks.some((p) => p.data === true && !p.error)) {
-    return json({ success: false, error: "FORBIDDEN" }, 403);
   }
 
   if (doc.extraction_status !== "PENDING") {
