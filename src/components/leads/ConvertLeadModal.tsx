@@ -829,7 +829,7 @@ export const ConvertLeadModal: React.FC<ConvertLeadModalProps> = ({
             <div>
               Automated KYC & Conversion Rules:
               <ul className="list-disc pl-4 mt-1 space-y-0.5 text-slate-300">
-                <li><strong className="text-emerald-300">Automatic Document Verification:</strong> Aadhaar, Bank Passbook और Electricity Bill में Customer Name, Father Name और DOB मैच होने पर documents अपने आप VERIFIED हो जाते हैं।</li>
+                <li><strong className="text-emerald-300">Automatic KYC Verification:</strong> Aadhaar और PAN पर Name, Father Name और DOB; Bank Passbook पर केवल Name और Father Name match होने पर KYC documents auto-verified होते हैं। Electricity Bill अलग से VERIFIED होना आवश्यक है।</li>
                 <li>All 5 required items uploaded (Electricity Bill, Aadhaar, Bank Proof, NOC/B1, Site Photo)</li>
                 <li>Complete geographic location hierarchy verified</li>
                 <li>Customer views query lead KYC documents directly through verified relationship</li>
