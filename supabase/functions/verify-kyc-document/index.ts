@@ -190,7 +190,7 @@ Deno.serve(async (req: Request) => {
       extraction_status: "PROCESSING",
       extraction_error: null,
       extraction_provider: "google_gemini",
-      extraction_model: "gemini-2.5-flash",
+      extraction_model: "gemini-3.8-flash",
     })
     .eq("id", documentId)
     .eq("extraction_status", "PENDING")
@@ -220,7 +220,7 @@ Deno.serve(async (req: Request) => {
 
   let extracted: Record<string, unknown>;
   try {
-    const geminiResponse = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent", {
+    const geminiResponse = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent", {
       method: "POST",
       headers: { "Content-Type": "application/json", "x-goog-api-key": geminiApiKey },
       body: JSON.stringify({
@@ -252,7 +252,7 @@ Deno.serve(async (req: Request) => {
     if (!geminiResponse.ok) {
       await adminClient.from("documents").update({
         extraction_status: "ERROR", extraction_error: "OCR_PROVIDER_ERROR",
-        extraction_provider: "google_gemini", extraction_model: "gemini-2.5-flash",
+        extraction_provider: "google_gemini", extraction_model: "gemini-3.8-flash",
       }).eq("id", documentId);
       return json({ success: false, error: "OCR_PROVIDER_ERROR", message: "OCR provider did not complete the extraction. The document remains unverified." }, 502);
     }
@@ -263,7 +263,7 @@ Deno.serve(async (req: Request) => {
   } catch {
     await adminClient.from("documents").update({
       extraction_status: "ERROR", extraction_error: "OCR_EXTRACTION_FAILED",
-      extraction_provider: "google_gemini", extraction_model: "gemini-2.5-flash",
+      extraction_provider: "google_gemini", extraction_model: "gemini-3.8-flash",
     }).eq("id", documentId);
     return json({ success: false, error: "OCR_EXTRACTION_FAILED", message: "OCR extraction failed. The document remains unverified." }, 502);
   }
@@ -286,7 +286,7 @@ Deno.serve(async (req: Request) => {
     extraction_status: extractionStatus,
     extraction_is_legible: legible,
     extraction_provider: "google_gemini",
-    extraction_model: "gemini-2.5-flash",
+    extraction_model: "gemini-3.8-flash",
     extraction_confidence: confidence,
     extraction_error: extractionStatus === "EXTRACTED" ? null : (!typeMatches ? "DOCUMENT_TYPE_MISMATCH" : !legible ? "DOCUMENT_NOT_LEGIBLE" : "LOW_OCR_CONFIDENCE"),
     extracted_at: new Date().toISOString(),
