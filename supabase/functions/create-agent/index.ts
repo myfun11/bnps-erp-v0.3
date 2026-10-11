@@ -89,21 +89,26 @@ Deno.serve(async (req) => {
     const bank_name = typeof body.bank_name === "string" ? body.bank_name.trim() : null;
     const bank_ifsc = typeof body.bank_ifsc === "string" ? body.bank_ifsc.trim().toUpperCase() : null;
     const tds_percentage = body.tds_percentage === undefined || body.tds_percentage === null ? 5 : Number(body.tds_percentage);
-    const suppliedPassword = typeof body.password === "string" ? body.password : "";
+    // Prevent older frontend builds from creating accounts whose one-time password they cannot display.
+    if (body.credentials_flow_version !== 1) {
+      return jsonResponse({
+        success: false,
+        error: "CLIENT_UPDATE_REQUIRED",
+        message: "Please refresh/update BNPS ERP before creating an agent; the login-credentials screen is required.",
+      }, 409);
+    }
     if (!full_name || !email || !phone || !branch) {
       return jsonResponse({ success: false, error: "VALIDATION_ERROR", message: "Name, email, mobile and branch are required." }, 400);
     }
     if (!/^\S+@\S+\.\S+$/.test(email)) {
       return jsonResponse({ success: false, error: "VALIDATION_ERROR", message: "A valid login email address is required." }, 400);
     }
-    if (suppliedPassword && suppliedPassword.length < 12) {
-      return jsonResponse({ success: false, error: "WEAK_PASSWORD", message: "Password must be at least 12 characters." }, 400);
-    }
     if (!Number.isFinite(tds_percentage) || tds_percentage < 0 || tds_percentage > 100) {
       return jsonResponse({ success: false, error: "VALIDATION_ERROR", message: "TDS percentage must be between 0 and 100." }, 400);
     }
 
-    const temporaryPassword = suppliedPassword || generateTemporaryPassword();
+    // Always generate the password server-side; never trust predictable client defaults.
+    const temporaryPassword = generateTemporaryPassword();
     const adminClient = createClient(supabaseUrl, serviceRoleKey, {
       auth: { autoRefreshToken: false, persistSession: false },
     });
