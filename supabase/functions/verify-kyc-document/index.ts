@@ -56,7 +56,7 @@ function expectedDocTypes(category: string): string[] {
   if (category === "aadhaar_front") return ["aadhaar_front", "aadhaar"];
   if (category === "aadhaar_back") return ["aadhaar_back", "aadhaar"];
   if (category === "pan") return ["pan"];
-  if (category === "bank_proof") return ["bank_passbook", "bank_proof"];
+  if (category === "bank_proof") return ["bank_passbook"];
   return [];
 }
 
