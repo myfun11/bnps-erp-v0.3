@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Lead, DocumentRecord } from '../../types/database';
 import { erpStore } from '../../services/erpStore';
 import { documentService } from '../../services/documentService';
+import { leadService } from '../../services/leadService';
 import { useAuth } from '../../context/AuthContext';
 import { ERROR_MESSAGES } from '../../lib/constants';
 import { 
@@ -181,7 +182,7 @@ export const ConvertLeadModal: React.FC<ConvertLeadModalProps> = ({
   const isCategoryComplete = (cat: RequiredCategory) => {
     return Boolean(
       leadDocuments.find(
-        (d) => d.doc_category === cat && (d.status === 'UPLOADED' || d.status === 'VERIFIED')
+        (d) => d.doc_category === cat && d.status === 'VERIFIED'
       )
     );
   };
@@ -223,20 +224,39 @@ export const ConvertLeadModal: React.FC<ConvertLeadModalProps> = ({
     : undefined;
 
   // Save updated Lead Master Identity
-  const handleSaveLeadIdentity = () => {
+  const handleSaveLeadIdentity = async () => {
+    if (!fullName.trim() || !fatherName.trim() || !dob.trim()) {
+      setUploadError('Name, father name and DOB are required before KYC matching.');
+      return;
+    }
     setSavingIdentity(true);
+    setUploadError(null);
     try {
-      erpStore.updateLeadDetails(lead.id, {
-        full_name: fullName.trim(),
-        father_name: fatherName.trim(),
-        dob: dob.trim(),
-      });
-      // Re-trigger auto-verification and document status update
-      erpStore.runLeadKycAutoVerification(lead.id);
-      refreshDocuments(lead.id);
+      if (leadService.isConfigured()) {
+        await leadService.updateLead(lead.id, {
+          full_name: fullName.trim(),
+          father_name: fatherName.trim(),
+          dob: dob.trim(),
+        });
+        if (leadDocuments.length > 0) {
+          const result = await documentService.evaluateKycEntity('lead', lead.id);
+          if (result.evaluation?.status === 'MISMATCH') {
+            setUploadError('KYC mismatch detected. Customer conversion remains blocked.');
+          }
+        }
+      } else {
+        erpStore.updateLeadDetails(lead.id, {
+          full_name: fullName.trim(),
+          father_name: fatherName.trim(),
+          dob: dob.trim(),
+        });
+        erpStore.runLeadKycAutoVerification(lead.id);
+      }
+      await refreshDocuments(lead.id);
       setIsEditingIdentity(false);
     } catch (err: any) {
-      console.error('[ConvertLeadModal] Failed to update lead identity:', err);
+      console.error('[ConvertLeadModal] Failed to save lead identity:', err);
+      setUploadError(err?.message || 'Lead identity could not be saved to the authoritative backend.');
     } finally {
       setSavingIdentity(false);
     }
@@ -251,7 +271,7 @@ export const ConvertLeadModal: React.FC<ConvertLeadModalProps> = ({
     setErrorMsg(null);
 
     try {
-      await documentService.uploadDocument(
+      const uploaded = await documentService.uploadDocument(
         file,
         'lead',
         lead.id,
@@ -259,10 +279,22 @@ export const ConvertLeadModal: React.FC<ConvertLeadModalProps> = ({
         lead.is_test
       );
 
-      // Re-run auto verification in store
-      erpStore.runLeadKycAutoVerification(lead.id);
+      if (leadService.isConfigured()) {
+        if (['aadhaar', 'aadhaar_front', 'pan', 'bank_proof'].includes(category)) {
+          if (!uploaded?.id) throw new Error('Document uploaded but its Supabase record could not be reloaded for OCR.');
+          const ocr = await documentService.extractKycDocument(uploaded.id);
+          if (ocr.extraction_status !== 'EXTRACTED') {
+            setUploadError(ocr.message || 'OCR needs manual review. This document is not verified.');
+          }
+          if ((ocr.evaluation as { status?: string } | undefined)?.status === 'MISMATCH') {
+            setUploadError('KYC information does not match. Customer conversion remains blocked.');
+          }
+        }
+      } else {
+        erpStore.runLeadKycAutoVerification(lead.id);
+      }
 
-      // Refresh documents to verify actual creation and auto-verified status
+      // Refresh from Supabase after OCR / matching, never from the local store in live mode.
       await refreshDocuments(lead.id);
     } catch (err: any) {
       console.error('[ConvertLeadModal] Upload error:', err);
@@ -299,11 +331,9 @@ export const ConvertLeadModal: React.FC<ConvertLeadModalProps> = ({
 
     try {
       // Call atomic transactional command
-      const res = await erpStore.convertLeadAtomic(
-        lead.id, 
-        consumerNumber.trim(), 
-        currentProfile?.id || 'prof-super-admin-01'
-      );
+      const res = leadService.isConfigured()
+        ? await leadService.convertLeadAtomic(lead.id, consumerNumber.trim(), currentProfile.id)
+        : await erpStore.convertLeadAtomic(lead.id, consumerNumber.trim(), currentProfile?.id || 'demo-profile');
 
       if (res.success && res.customer) {
         onConversionSuccess(res.customer.customer_code);
