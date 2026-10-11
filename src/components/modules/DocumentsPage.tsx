@@ -390,7 +390,7 @@ export const DocumentsPage: React.FC = () => {
                           <Clock className="w-3 h-3" />
                         )}
 
-                        <span>{document.status}</span>
+                        <span>{document.status}{document.auto_verified ? ' (Auto KYC)' : ''}</span>
                       </span>
 
                       {document.status === 'REJECTED' &&

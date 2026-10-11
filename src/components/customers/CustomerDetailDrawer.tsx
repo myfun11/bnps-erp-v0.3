@@ -261,6 +261,18 @@ export const CustomerDetailDrawer: React.FC<CustomerDetailDrawerProps> = ({
                     <span className="text-slate-400 block">Aadhaar (Masked)</span>
                     <span className="text-slate-100 font-mono">{customer.aadhaar_masked || 'XXXX-XXXX-Verified'}</span>
                   </div>
+                  {customer.father_name && (
+                    <div>
+                      <span className="text-slate-400 block">Father's Name</span>
+                      <span className="text-slate-100 font-medium">{customer.father_name}</span>
+                    </div>
+                  )}
+                  {customer.dob && (
+                    <div>
+                      <span className="text-slate-400 block">Date of Birth (DOB)</span>
+                      <span className="text-slate-100 font-mono">{customer.dob}</span>
+                    </div>
+                  )}
                 </div>
 
                 <div className="pt-2 border-t border-slate-700/40 text-xs">

@@ -53,6 +53,8 @@ export const LeadList: React.FC<LeadListProps> = ({
   // Form state for new lead with Chhattisgarh Address Hierarchy
   const [newLeadForm, setNewLeadForm] = useState({
     full_name: '',
+    father_name: '',
+    dob: '',
     mobile: '',
     alternate_phone: '',
     email: '',
@@ -132,6 +134,8 @@ export const LeadList: React.FC<LeadListProps> = ({
   : undefined,
         assigned_officer_id: currentProfile.id,
         full_name: newLeadForm.full_name,
+        father_name: newLeadForm.father_name || undefined,
+        dob: newLeadForm.dob || undefined,
         mobile: newLeadForm.mobile,
         alternate_phone: newLeadForm.alternate_phone || undefined,
         email: newLeadForm.email || undefined,
@@ -160,6 +164,8 @@ export const LeadList: React.FC<LeadListProps> = ({
       setTimeout(() => setSuccessBanner(null), 4000);
       setNewLeadForm({
         full_name: '',
+        father_name: '',
+        dob: '',
         mobile: '',
         alternate_phone: '',
         email: '',
@@ -321,6 +327,14 @@ export const LeadList: React.FC<LeadListProps> = ({
                       </div>
                     )}
 
+                    {/* KYC Master Info if populated */}
+                    {(lead.father_name || lead.dob) && (
+                      <div className="text-[11px] text-slate-400 flex items-center gap-2 bg-slate-950/40 px-2 py-0.5 rounded border border-slate-800/80">
+                        {lead.father_name && <span>Father: <strong className="text-slate-300">{lead.father_name}</strong></span>}
+                        {lead.dob && <span>DOB: <strong className="text-slate-300 font-mono">{lead.dob}</strong></span>}
+                      </div>
+                    )}
+
                     <div className="flex items-center gap-2">
                       <Zap className="w-3.5 h-3.5 text-amber-400 shrink-0" />
                       <span>Capacity: <strong className="text-slate-100">{lead.proposed_capacity_kw || 3.3} kW</strong></span>
@@ -468,6 +482,33 @@ export const LeadList: React.FC<LeadListProps> = ({
                     value={newLeadForm.full_name}
                     onChange={(e) => setNewLeadForm({ ...newLeadForm, full_name: e.target.value })}
                     placeholder="e.g. Ramesh Kumar Sahu"
+                    className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-xs text-slate-100 focus:outline-none focus:border-amber-400"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">
+                    Father's / Husband's Name
+                  </label>
+                  <input
+                    type="text"
+                    value={newLeadForm.father_name}
+                    onChange={(e) => setNewLeadForm({ ...newLeadForm, father_name: e.target.value })}
+                    placeholder="e.g. Ram Prasad Sahu"
+                    className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-xs text-slate-100 focus:outline-none focus:border-amber-400"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">
+                    Date of Birth (DOB)
+                  </label>
+                  <input
+                    type="date"
+                    value={newLeadForm.dob}
+                    onChange={(e) => setNewLeadForm({ ...newLeadForm, dob: e.target.value })}
                     className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-xs text-slate-100 focus:outline-none focus:border-amber-400"
                   />
                 </div>

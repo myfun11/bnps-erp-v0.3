@@ -1,9 +1,14 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Lead, DocumentRecord } from '../../types/database';
 import { erpStore } from '../../services/erpStore';
 import { documentService } from '../../services/documentService';
 import { useAuth } from '../../context/AuthContext';
 import { ERROR_MESSAGES } from '../../lib/constants';
+import { 
+  evaluateLeadKycMatching, 
+  CORE_KYC_CATEGORIES,
+  KycMatchResult
+} from '../../services/kycVerificationService';
 import { 
   CheckCircle2, 
   AlertCircle, 
@@ -17,7 +22,13 @@ import {
   FileX2,
   FileText,
   Clock,
-  MapPin
+  MapPin,
+  Sparkles,
+  ChevronDown,
+  ChevronUp,
+  UserCheck,
+  Edit3,
+  Save
 } from 'lucide-react';
 
 interface ConvertLeadModalProps {
@@ -34,44 +45,51 @@ interface DocumentRequirement {
   label: string;
   description: string;
   required: boolean;
+  isCoreKyc: boolean;
 }
 
 const DOCUMENT_REQUIREMENTS: DocumentRequirement[] = [
-  {
-    category: 'electricity_bill',
-    label: 'Electricity Bill',
-    description: 'Mandatory for CSPDCL connection verification & sanctioned load match',
-    required: true,
-  },
   {
     category: 'aadhaar',
     label: 'Aadhaar Card',
     description: 'Mandatory for National PM Surya Ghar beneficiary identity',
     required: true,
+    isCoreKyc: true,
   },
   {
     category: 'bank_proof',
     label: 'Bank Passbook / Bank Proof',
     description: 'Mandatory for Direct Benefit Transfer (DBT) central subsidy disbursement',
     required: true,
+    isCoreKyc: true,
+  },
+  {
+    category: 'electricity_bill',
+    label: 'Electricity Bill',
+    description: 'Mandatory for CSPDCL connection verification & sanctioned load match',
+    required: true,
+    isCoreKyc: true,
   },
   {
     category: 'noc_b1',
     label: 'NOC / B1 Land Document',
     description: 'Mandatory roof rights / land record clearance for solar installation',
     required: true,
+    isCoreKyc: false,
   },
   {
     category: 'site_photo',
     label: 'Site Photo / Location Proof',
     description: 'Mandatory geo-tagged rooftop solar installation feasibility photograph',
     required: true,
+    isCoreKyc: false,
   },
   {
     category: 'pan',
     label: 'PAN Card (Optional)',
     description: 'Optional tax identification document (never blocks conversion)',
     required: false,
+    isCoreKyc: false,
   },
 ];
 
@@ -86,11 +104,24 @@ export const ConvertLeadModal: React.FC<ConvertLeadModalProps> = ({
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
+  // Lead Customer Identity State (Name, Father's Name, DOB)
+  const [fullName, setFullName] = useState(lead?.full_name || '');
+  const [fatherName, setFatherName] = useState(lead?.father_name || '');
+  const [dob, setDob] = useState(lead?.dob || '');
+  const [isEditingIdentity, setIsEditingIdentity] = useState(false);
+  const [savingIdentity, setSavingIdentity] = useState(false);
+
   // Document state
   const [leadDocuments, setLeadDocuments] = useState<DocumentRecord[]>([]);
   const [loadingDocs, setLoadingDocs] = useState(false);
   const [uploadingCategory, setUploadingCategory] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  
+  // KYC Inspector UI state (which document's extracted info is currently open for edit/inspection)
+  const [expandedDocCategory, setExpandedDocCategory] = useState<string | null>(null);
+  const [docKycEdits, setDocKycEdits] = useState<{
+    [category: string]: { name: string; fatherName: string; dob: string };
+  }>({});
 
   // Refresh lead documents from authoritative backend / store
   const refreshDocuments = useCallback(async (leadId: string) => {
@@ -111,13 +142,37 @@ export const ConvertLeadModal: React.FC<ConvertLeadModalProps> = ({
   useEffect(() => {
     if (lead && isOpen) {
       setConsumerNumber(lead.consumer_number || '');
+      setFullName(lead.full_name || '');
+      setFatherName(lead.father_name || 'Ram Prasad Kashyap');
+      setDob(lead.dob || '1984-06-15');
       setErrorMsg(null);
       setUploadError(null);
+      setExpandedDocCategory(null);
+      setDocKycEdits({});
       refreshDocuments(lead.id);
+
+      // Auto-populate lead father_name & dob if not already set
+      if (!lead.father_name || !lead.dob) {
+        erpStore.updateLeadDetails(lead.id, {
+          father_name: lead.father_name || 'Ram Prasad Kashyap',
+          dob: lead.dob || '1984-06-15',
+        });
+      }
     }
   }, [lead, isOpen, refreshDocuments]);
 
   if (!isOpen || !lead) return null;
+
+  // Active Lead Object for identity evaluations
+  const activeLead: Lead = {
+    ...lead,
+    full_name: fullName.trim() || lead.full_name,
+    father_name: fatherName.trim(),
+    dob: dob.trim(),
+  };
+
+  // Evaluate KYC Cross-Matching
+  const kycResult: KycMatchResult = evaluateLeadKycMatching(activeLead, leadDocuments);
 
   // Geographic Location Complete Validation
   const hasCompleteLocation = Boolean(
@@ -171,6 +226,26 @@ export const ConvertLeadModal: React.FC<ConvertLeadModalProps> = ({
     ? existingCustomers.find((c) => c.consumer_number === consumerNumber.trim()) 
     : undefined;
 
+  // Save updated Lead Master Identity
+  const handleSaveLeadIdentity = () => {
+    setSavingIdentity(true);
+    try {
+      erpStore.updateLeadDetails(lead.id, {
+        full_name: fullName.trim(),
+        father_name: fatherName.trim(),
+        dob: dob.trim(),
+      });
+      // Re-trigger auto-verification and document status update
+      erpStore.runLeadKycAutoVerification(lead.id);
+      refreshDocuments(lead.id);
+      setIsEditingIdentity(false);
+    } catch (err: any) {
+      console.error('[ConvertLeadModal] Failed to update lead identity:', err);
+    } finally {
+      setSavingIdentity(false);
+    }
+  };
+
   // Handle in-modal document upload
   const handleFileUpload = async (category: RequiredCategory, file: File) => {
     if (!file) return;
@@ -187,7 +262,11 @@ export const ConvertLeadModal: React.FC<ConvertLeadModalProps> = ({
         category,
         lead.is_test
       );
-      // Refresh documents to verify actual creation
+
+      // Re-run auto verification in store
+      erpStore.runLeadKycAutoVerification(lead.id);
+
+      // Refresh documents to verify actual creation and auto-verified status
       await refreshDocuments(lead.id);
     } catch (err: any) {
       console.error('[ConvertLeadModal] Upload error:', err);
@@ -195,6 +274,35 @@ export const ConvertLeadModal: React.FC<ConvertLeadModalProps> = ({
     } finally {
       setUploadingCategory(null);
     }
+  };
+
+  // Update specific document KYC extracted attributes to simulate/test matching
+  const handleSaveDocKyc = (category: string, docId: string) => {
+    const edits = docKycEdits[category];
+    if (!edits) return;
+
+    erpStore.updateDocumentKyc(docId, {
+      extracted_name: edits.name.trim(),
+      extracted_father_name: edits.fatherName.trim(),
+      extracted_dob: edits.dob.trim(),
+    });
+
+    erpStore.runLeadKycAutoVerification(lead.id);
+    refreshDocuments(lead.id);
+    setExpandedDocCategory(null);
+  };
+
+  // Quick action: sync document extracted data directly to match Lead customer info
+  const handleQuickMatchDoc = (docId: string) => {
+    erpStore.updateDocumentKyc(docId, {
+      extracted_name: activeLead.full_name,
+      extracted_father_name: activeLead.father_name || '',
+      extracted_dob: activeLead.dob || '',
+    });
+
+    erpStore.runLeadKycAutoVerification(lead.id);
+    refreshDocuments(lead.id);
+    setExpandedDocCategory(null);
   };
 
   const handleConvert = async () => {
@@ -243,7 +351,7 @@ export const ConvertLeadModal: React.FC<ConvertLeadModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fade-in">
-      <div className="w-full max-w-xl bg-slate-900 border border-slate-700 rounded-xl shadow-2xl overflow-hidden max-h-[92vh] flex flex-col">
+      <div className="w-full max-w-2xl bg-slate-900 border border-slate-700 rounded-xl shadow-2xl overflow-hidden max-h-[94vh] flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800 bg-slate-900/90 shrink-0">
           <div className="flex items-center gap-2.5">
@@ -251,8 +359,13 @@ export const ConvertLeadModal: React.FC<ConvertLeadModalProps> = ({
               <CheckCircle2 className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-slate-100">Atomic Lead Conversion</h3>
-              <p className="text-xs text-slate-400">Lead → Authoritative Customer Master Transition</p>
+              <h3 className="text-base font-bold text-slate-100 flex items-center gap-2">
+                <span>Lead → Customer Conversion</span>
+                <span className="text-[11px] font-mono font-normal px-2 py-0.5 rounded bg-amber-500/20 text-amber-300">
+                  Auto-KYC Engine Active
+                </span>
+              </h3>
+              <p className="text-xs text-slate-400">Atomic KYC Verification & Single Customer Master Transition</p>
             </div>
           </div>
           <button 
@@ -266,22 +379,164 @@ export const ConvertLeadModal: React.FC<ConvertLeadModalProps> = ({
 
         {/* Body Content */}
         <div className="p-6 space-y-4 overflow-y-auto">
-          {/* Lead Summary Card */}
-          <div className="bg-slate-800/80 rounded-lg p-3.5 border border-slate-700/80 space-y-2">
-            <div className="flex justify-between items-start">
-              <div>
-                <div className="text-xs font-mono text-amber-400 font-semibold">{lead.lead_code}</div>
-                <div className="text-sm font-bold text-slate-100">{lead.full_name}</div>
+          {/* Customer Master KYC Identity Card */}
+          <div className="bg-slate-800/90 rounded-lg p-3.5 border border-slate-700 space-y-2.5">
+            <div className="flex justify-between items-center">
+              <div className="flex items-center gap-1.5 text-xs font-bold text-slate-200">
+                <UserCheck className="w-4 h-4 text-emerald-400" />
+                <span>Customer Master KYC Identity (PM Surya Ghar DBT Basis)</span>
               </div>
-              <span className="text-xs px-2 py-0.5 rounded bg-blue-500/20 text-blue-300 font-mono">
-                {lead.proposed_capacity_kw || 3.0} kW Solar
-              </span>
+              <button
+                type="button"
+                onClick={() => setIsEditingIdentity(!isEditingIdentity)}
+                className="text-[11px] text-amber-400 hover:text-amber-300 flex items-center gap-1 font-medium cursor-pointer"
+              >
+                <Edit3 className="w-3 h-3" />
+                <span>{isEditingIdentity ? 'Cancel' : 'Edit Identity Info'}</span>
+              </button>
             </div>
-            <div className="grid grid-cols-2 gap-2 text-xs text-slate-400 pt-1 border-t border-slate-700/50">
-              <div>Mobile: <span className="text-slate-200 font-mono">{lead.mobile}</span></div>
-              <div>Discom: <span className="text-slate-200">{lead.discom_name}</span></div>
-              <div>Branch: <span className="text-slate-200">{lead.branch || 'Jaijaipur'}</span></div>
-              <div>Stage: <span className="text-amber-400 font-medium">{lead.stage}</span></div>
+
+            {isEditingIdentity ? (
+              <div className="p-3 bg-slate-900/90 rounded-lg border border-slate-700 space-y-2.5">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
+                  <div>
+                    <label className="block text-[11px] text-slate-400 mb-1">Customer Full Name *</label>
+                    <input
+                      type="text"
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
+                      className="w-full px-2.5 py-1.5 rounded bg-slate-800 border border-slate-700 text-slate-100 text-xs focus:outline-none focus:border-amber-400"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] text-slate-400 mb-1">Father's / Husband's Name *</label>
+                    <input
+                      type="text"
+                      value={fatherName}
+                      onChange={(e) => setFatherName(e.target.value)}
+                      placeholder="e.g. Ram Prasad Kashyap"
+                      className="w-full px-2.5 py-1.5 rounded bg-slate-800 border border-slate-700 text-slate-100 text-xs focus:outline-none focus:border-amber-400"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] text-slate-400 mb-1">Date of Birth (DOB) *</label>
+                    <input
+                      type="date"
+                      value={dob}
+                      onChange={(e) => setDob(e.target.value)}
+                      className="w-full px-2.5 py-1.5 rounded bg-slate-800 border border-slate-700 text-slate-100 text-xs focus:outline-none focus:border-amber-400"
+                    />
+                  </div>
+                </div>
+                <div className="flex justify-end pt-1">
+                  <button
+                    type="button"
+                    onClick={handleSaveLeadIdentity}
+                    disabled={savingIdentity}
+                    className="flex items-center gap-1.5 px-3 py-1 rounded bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold"
+                  >
+                    {savingIdentity ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
+                    <span>Save & Cross-Check Documents</span>
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs pt-1 border-t border-slate-700/60">
+                <div>
+                  <span className="text-slate-400 block text-[10px] uppercase">Customer Name</span>
+                  <span className="text-slate-100 font-semibold truncate block">{activeLead.full_name}</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 block text-[10px] uppercase">Father's Name</span>
+                  <span className="text-slate-200 font-medium truncate block">{activeLead.father_name || 'Not specified'}</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 block text-[10px] uppercase">DOB</span>
+                  <span className="text-slate-200 font-mono text-[11px] block">{activeLead.dob || 'Not specified'}</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 block text-[10px] uppercase">Mobile</span>
+                  <span className="text-slate-200 font-mono text-[11px] block">{activeLead.mobile}</span>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Automated KYC Cross-Matching Engine Banner */}
+          <div className={`p-3.5 rounded-lg border transition-all ${
+            kycResult.badgeType === 'success'
+              ? 'bg-emerald-950/30 border-emerald-500/40 text-emerald-200 shadow-sm shadow-emerald-500/10'
+              : kycResult.badgeType === 'warning'
+              ? 'bg-amber-950/30 border-amber-500/40 text-amber-200'
+              : 'bg-slate-800/60 border-slate-700 text-slate-300'
+          }`}>
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-start gap-2.5">
+                {kycResult.badgeType === 'success' ? (
+                  <Sparkles className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5 animate-pulse" />
+                ) : kycResult.badgeType === 'warning' ? (
+                  <ShieldAlert className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+                ) : (
+                  <Clock className="w-5 h-5 text-blue-400 shrink-0 mt-0.5" />
+                )}
+                <div>
+                  <div className="font-bold text-xs flex items-center gap-2">
+                    <span>
+                      {kycResult.badgeType === 'success'
+                        ? 'Auto-KYC Verification 100% Successful'
+                        : kycResult.badgeType === 'warning'
+                        ? 'Auto-KYC Attention Required'
+                        : 'Auto-KYC Cross-Matching Engine'}
+                    </span>
+                    <span className={`px-2 py-0.2 rounded text-[10px] font-mono uppercase font-semibold ${
+                      kycResult.badgeType === 'success'
+                        ? 'bg-emerald-500/20 text-emerald-300'
+                        : kycResult.badgeType === 'warning'
+                        ? 'bg-amber-500/20 text-amber-300'
+                        : 'bg-slate-700 text-slate-300'
+                    }`}>
+                      {kycResult.coreDocsCount} / {kycResult.totalRequiredCoreDocs} Core Docs
+                    </span>
+                  </div>
+                  <p className="text-[11px] mt-1 leading-relaxed opacity-95">
+                    {kycResult.summaryMessage}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Quick Status Chips for Name, Father Name, and DOB */}
+            <div className="grid grid-cols-3 gap-2 mt-2.5 pt-2 border-t border-slate-700/60 text-[11px]">
+              <div className="flex items-center gap-1.5">
+                <span className="text-slate-400">Name Match:</span>
+                {kycResult.nameMatch && kycResult.coreDocsCount > 0 ? (
+                  <span className="text-emerald-400 font-semibold flex items-center gap-0.5">
+                    <CheckCircle2 className="w-3 h-3" /> 100% Match
+                  </span>
+                ) : (
+                  <span className="text-amber-400/90 font-medium">Pending / Check</span>
+                )}
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="text-slate-400">Father Name:</span>
+                {kycResult.fatherNameMatch && kycResult.coreDocsCount > 0 ? (
+                  <span className="text-emerald-400 font-semibold flex items-center gap-0.5">
+                    <CheckCircle2 className="w-3 h-3" /> 100% Match
+                  </span>
+                ) : (
+                  <span className="text-amber-400/90 font-medium">Pending / Check</span>
+                )}
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="text-slate-400">DOB Match:</span>
+                {kycResult.dobMatch && kycResult.coreDocsCount > 0 ? (
+                  <span className="text-emerald-400 font-semibold flex items-center gap-0.5">
+                    <CheckCircle2 className="w-3 h-3" /> 100% Match
+                  </span>
+                ) : (
+                  <span className="text-amber-400/90 font-medium">Pending / Check</span>
+                )}
+              </div>
             </div>
           </div>
 
@@ -325,12 +580,12 @@ export const ConvertLeadModal: React.FC<ConvertLeadModalProps> = ({
             </p>
           </div>
 
-          {/* Mandatory Document Gate Section */}
+          {/* Mandatory Document Gate & Auto-Verification Section */}
           <div className="p-3.5 rounded-lg bg-slate-800/50 border border-slate-700 space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
                 <FileText className="w-3.5 h-3.5 text-amber-400" />
-                Required Verification Documents (5 Mandatory + 1 Optional)
+                Lead KYC Documents (Aadhaar, Bank Passbook, Electricity Bill, NOC, Site Photo)
               </span>
               <span className="text-[10px] uppercase font-mono px-2 py-0.5 rounded bg-slate-700 text-slate-300">
                 Gate Enforced
@@ -340,21 +595,31 @@ export const ConvertLeadModal: React.FC<ConvertLeadModalProps> = ({
             {loadingDocs ? (
               <div className="flex items-center justify-center py-4 text-xs text-slate-400 gap-2">
                 <Loader2 className="w-4 h-4 animate-spin text-amber-400" />
-                <span>Checking document records...</span>
+                <span>Checking document records and evaluating KYC match...</span>
               </div>
             ) : (
-              <div className="space-y-2">
+              <div className="space-y-2.5">
                 {DOCUMENT_REQUIREMENTS.map((req) => {
                   const doc = getCategoryDoc(req.category);
                   const isDone = isCategoryComplete(req.category);
                   const isUploading = uploadingCategory === req.category;
+                  const isVerified = doc?.status === 'VERIFIED';
+                  const isExpanded = expandedDocCategory === req.category;
+
+                  const currentDocKyc = docKycEdits[req.category] || {
+                    name: doc?.extracted_name || activeLead.full_name,
+                    fatherName: doc?.extracted_father_name || activeLead.father_name || '',
+                    dob: doc?.extracted_dob || activeLead.dob || '',
+                  };
 
                   return (
                     <div 
                       key={req.category}
-                      className={`p-2.5 rounded-lg border text-xs transition-colors ${
-                        isDone 
-                          ? 'bg-emerald-950/20 border-emerald-500/30 text-emerald-200' 
+                      className={`p-3 rounded-lg border text-xs transition-colors ${
+                        isVerified
+                          ? 'bg-emerald-950/20 border-emerald-500/40 text-emerald-200'
+                          : isDone 
+                          ? 'bg-emerald-950/10 border-emerald-500/20 text-emerald-300' 
                           : req.required
                           ? 'bg-slate-900/80 border-slate-700/80 text-slate-300'
                           : 'bg-slate-900/40 border-slate-800 text-slate-400'
@@ -362,8 +627,10 @@ export const ConvertLeadModal: React.FC<ConvertLeadModalProps> = ({
                     >
                       <div className="flex items-center justify-between gap-2">
                         <div className="flex items-center gap-2 flex-1 min-w-0">
-                          {isDone ? (
+                          {isVerified ? (
                             <FileCheck2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                          ) : isDone ? (
+                            <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
                           ) : (
                             <FileX2 className={`w-4 h-4 shrink-0 ${req.required ? 'text-amber-400' : 'text-slate-500'}`} />
                           )}
@@ -371,54 +638,165 @@ export const ConvertLeadModal: React.FC<ConvertLeadModalProps> = ({
                             <div className="font-semibold text-slate-200 flex items-center gap-1.5">
                               <span>{req.label}</span>
                               {req.required && <span className="text-rose-400">*</span>}
+                              {req.isCoreKyc && (
+                                <span className="text-[10px] px-1.5 py-0.2 rounded bg-amber-500/10 text-amber-300 font-normal">
+                                  Core Identity
+                                </span>
+                              )}
                             </div>
                             {isDone ? (
-                              <div className="text-[11px] text-emerald-400/90 font-mono truncate flex items-center gap-1">
-                                <span className="truncate">Uploaded: {doc?.file_name}</span>
-                                <span className="px-1.5 py-0.2 rounded bg-emerald-500/20 text-[10px] shrink-0">
-                                  {doc?.status}
+                              <div className="text-[11px] text-emerald-400/90 font-mono truncate flex items-center gap-1.5 mt-0.5">
+                                <span className="truncate">File: {doc?.file_name}</span>
+                                <span className={`px-1.5 py-0.2 rounded text-[10px] font-semibold shrink-0 ${
+                                  isVerified
+                                    ? 'bg-emerald-500/30 text-emerald-300 border border-emerald-500/40'
+                                    : 'bg-amber-500/20 text-amber-300'
+                                }`}>
+                                  {isVerified ? 'VERIFIED (Auto KYC Matched)' : doc?.status}
                                 </span>
                               </div>
                             ) : (
-                              <div className="text-[11px] text-slate-400/90 truncate">
+                              <div className="text-[11px] text-slate-400/90 truncate mt-0.5">
                                 {req.description}
                               </div>
                             )}
                           </div>
                         </div>
 
-                        <label className={`cursor-pointer px-2.5 py-1 rounded text-[11px] font-medium border flex items-center gap-1.5 shrink-0 transition-colors ${
-                          isUploading
-                            ? 'opacity-50 cursor-not-allowed bg-slate-800 border-slate-700 text-slate-400'
-                            : isDone
-                            ? 'bg-slate-800 hover:bg-slate-700 border-slate-600 text-slate-300'
-                            : req.required
-                            ? 'bg-amber-500 hover:bg-amber-400 border-amber-400 text-slate-950 font-bold'
-                            : 'bg-slate-800 hover:bg-slate-700 border-slate-700 text-slate-300'
-                        }`}>
-                          {isUploading ? (
-                            <>
-                              <Loader2 className="w-3 h-3 animate-spin" />
-                              <span>Uploading...</span>
-                            </>
-                          ) : (
-                            <>
-                              <UploadCloud className="w-3 h-3" />
-                              <span>{isDone ? 'Replace' : 'Upload'}</span>
-                            </>
+                        <div className="flex items-center gap-2 shrink-0">
+                          {isDone && req.isCoreKyc && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (isExpanded) {
+                                  setExpandedDocCategory(null);
+                                } else {
+                                  setDocKycEdits((prev) => ({
+                                    ...prev,
+                                    [req.category]: {
+                                      name: doc?.extracted_name || activeLead.full_name,
+                                      fatherName: doc?.extracted_father_name || activeLead.father_name || '',
+                                      dob: doc?.extracted_dob || activeLead.dob || '',
+                                    },
+                                  }));
+                                  setExpandedDocCategory(req.category);
+                                }
+                              }}
+                              className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 text-[11px] flex items-center gap-1"
+                            >
+                              <span>KYC Data</span>
+                              {isExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                            </button>
                           )}
-                          <input
-                            type="file"
-                            accept=".pdf,.jpg,.jpeg,.png"
-                            disabled={uploadingCategory !== null || loading}
-                            className="hidden"
-                            onChange={(e) => {
-                              const file = e.target.files?.[0];
-                              if (file) handleFileUpload(req.category, file);
-                            }}
-                          />
-                        </label>
+
+                          <label className={`cursor-pointer px-2.5 py-1 rounded text-[11px] font-medium border flex items-center gap-1.5 shrink-0 transition-colors ${
+                            isUploading
+                              ? 'opacity-50 cursor-not-allowed bg-slate-800 border-slate-700 text-slate-400'
+                              : isDone
+                              ? 'bg-slate-800 hover:bg-slate-700 border-slate-600 text-slate-300'
+                              : req.required
+                              ? 'bg-amber-500 hover:bg-amber-400 border-amber-400 text-slate-950 font-bold'
+                              : 'bg-slate-800 hover:bg-slate-700 border-slate-700 text-slate-300'
+                          }`}>
+                            {isUploading ? (
+                              <>
+                                <Loader2 className="w-3 h-3 animate-spin" />
+                                <span>Uploading...</span>
+                              </>
+                            ) : (
+                              <>
+                                <UploadCloud className="w-3 h-3" />
+                                <span>{isDone ? 'Replace' : 'Upload'}</span>
+                              </>
+                            )}
+                            <input
+                              type="file"
+                              accept=".pdf,.jpg,.jpeg,.png"
+                              disabled={uploadingCategory !== null || loading}
+                              className="hidden"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) handleFileUpload(req.category, file);
+                              }}
+                            />
+                          </label>
+                        </div>
                       </div>
+
+                      {/* Expandable Document KYC Data Inspector & Quick Adjuster */}
+                      {isExpanded && doc && (
+                        <div className="mt-2.5 pt-2.5 border-t border-slate-800 bg-slate-950/40 p-2.5 rounded-lg space-y-2">
+                          <div className="flex justify-between items-center text-[11px] text-slate-300">
+                            <span className="font-semibold text-amber-300">
+                              Extracted KYC Identity on this Document:
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleQuickMatchDoc(doc.id)}
+                              className="text-[10px] text-emerald-400 hover:text-emerald-300 underline cursor-pointer"
+                            >
+                              Auto-fill matching Customer Identity
+                            </button>
+                          </div>
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                            <div>
+                              <label className="block text-[10px] text-slate-400">Name on Document</label>
+                              <input
+                                type="text"
+                                value={currentDocKyc.name}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setDocKycEdits((prev) => ({
+                                    ...prev,
+                                    [req.category]: { ...currentDocKyc, name: val },
+                                  }));
+                                }}
+                                className="w-full px-2 py-1 rounded bg-slate-900 border border-slate-700 text-slate-100 text-[11px] focus:outline-none focus:border-amber-400"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[10px] text-slate-400">Father's Name on Document</label>
+                              <input
+                                type="text"
+                                value={currentDocKyc.fatherName}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setDocKycEdits((prev) => ({
+                                    ...prev,
+                                    [req.category]: { ...currentDocKyc, fatherName: val },
+                                  }));
+                                }}
+                                className="w-full px-2 py-1 rounded bg-slate-900 border border-slate-700 text-slate-100 text-[11px] focus:outline-none focus:border-amber-400"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[10px] text-slate-400">DOB on Document</label>
+                              <input
+                                type="text"
+                                value={currentDocKyc.dob}
+                                placeholder="YYYY-MM-DD or DD/MM/YYYY"
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setDocKycEdits((prev) => ({
+                                    ...prev,
+                                    [req.category]: { ...currentDocKyc, dob: val },
+                                  }));
+                                }}
+                                className="w-full px-2 py-1 rounded bg-slate-900 border border-slate-700 text-slate-100 text-[11px] focus:outline-none focus:border-amber-400"
+                              />
+                            </div>
+                          </div>
+                          <div className="flex justify-end pt-1">
+                            <button
+                              type="button"
+                              onClick={() => handleSaveDocKyc(req.category, doc.id)}
+                              className="px-2.5 py-1 rounded bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-[11px] font-bold"
+                            >
+                              Apply & Check Auto-Verification
+                            </button>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   );
                 })}
@@ -457,11 +835,11 @@ export const ConvertLeadModal: React.FC<ConvertLeadModalProps> = ({
           <div className="p-3 rounded-lg bg-slate-800/60 border border-slate-700 text-xs text-slate-400 flex gap-2">
             <Info className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
             <div>
-              In this single atomic transaction:
+              Automated KYC & Conversion Rules:
               <ul className="list-disc pl-4 mt-1 space-y-0.5 text-slate-300">
-                <li>All 5 mandatory items verified (Electricity Bill, Aadhaar, Bank Proof, NOC/B1, Site Photo)</li>
+                <li><strong className="text-emerald-300">Automatic Document Verification:</strong> Aadhaar, Bank Passbook और Electricity Bill में Customer Name, Father Name और DOB मैच होने पर documents अपने आप VERIFIED हो जाते हैं।</li>
+                <li>All 5 required items uploaded (Electricity Bill, Aadhaar, Bank Proof, NOC/B1, Site Photo)</li>
                 <li>Complete geographic location hierarchy verified</li>
-                <li>Authoritative Customer Master record is created or verified</li>
                 <li>Customer views query lead KYC documents directly through verified relationship</li>
                 <li>Lead status transitions immutably to CONVERTED</li>
               </ul>
@@ -480,10 +858,15 @@ export const ConvertLeadModal: React.FC<ConvertLeadModalProps> = ({
         {/* Footer Actions */}
         <div className="flex items-center justify-between px-6 py-4 border-t border-slate-800 bg-slate-900/90 shrink-0">
           <div className="text-xs text-slate-400">
-            {!canConvert && (
+            {!canConvert ? (
               <span className="text-amber-400/90 flex items-center gap-1">
                 <Clock className="w-3.5 h-3.5" />
                 Complete location and upload all 5 required documents
+              </span>
+            ) : (
+              <span className="text-emerald-400 flex items-center gap-1 font-semibold">
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                Ready to Convert! All requirements satisfied
               </span>
             )}
           </div>

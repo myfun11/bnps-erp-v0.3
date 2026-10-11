@@ -149,6 +149,8 @@ export interface Lead {
   consumer_number?: string;
   sanctioned_load_kw?: number;
   proposed_capacity_kw?: number;
+  father_name?: string;
+  dob?: string;
   address_line?: string;
   state?: string;
   district?: string;
@@ -170,6 +172,8 @@ export interface Customer {
   customer_code: string;
   branch?: BranchLocation;
   full_name: string;
+  father_name?: string;
+  dob?: string;
   primary_mobile: string;
   alternate_mobile?: string;
   email?: string;
@@ -343,6 +347,10 @@ export interface DocumentRecord {
   verified_by?: string | null;
   verified_at?: string | null;
   rejection_reason?: string | null;
+  extracted_name?: string;
+  extracted_father_name?: string;
+  extracted_dob?: string;
+  auto_verified?: boolean;
   is_test: boolean;
   created_at: string;
   updated_at?: string | null;

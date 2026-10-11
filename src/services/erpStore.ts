@@ -40,6 +40,7 @@ import {
   StaffMember,
   BRANCHES_LIST
 } from './mockData';
+import { evaluateLeadKycMatching, KycMatchResult } from './kycVerificationService';
 import { isSupabaseConfigured } from '../lib/supabaseClient';
 import { leadService } from './leadService';
 import { customerService } from './customerService';
@@ -440,19 +441,21 @@ class ErpDataStore {
         customer_code: customerCode,
         branch: lead.branch || 'Jaijaipur',
         full_name: lead.full_name,
+        father_name: lead.father_name,
+        dob: lead.dob,
         primary_mobile: lead.mobile,
         alternate_mobile: lead.alternate_phone,
         email: lead.email,
         discom_name: lead.discom_name || 'CSPDCL',
         consumer_number: finalConsumerNumber,
         sanctioned_load_kw: lead.sanctioned_load_kw,
-        installation_address: lead.address_line,
+        installation_address: lead.address_line || 'Address',
         state: lead.state || 'Chhattisgarh',
-        district: lead.district,
+        district: lead.district || 'Janjgir-Champa',
         tehsil: lead.tehsil,
         block: lead.block,
         panchayat_village: lead.panchayat_village,
-        pincode: lead.pincode,
+        pincode: lead.pincode || '495690',
         lifecycle_status: 'REGISTERED',
         is_test: lead.is_test,
         created_at: new Date().toISOString(),
@@ -1205,8 +1208,26 @@ class ErpDataStore {
     actorProfileId?: string
   ): DocumentRecord {
     const now = new Date().toISOString();
+    
+    // Auto-populate extracted KYC fields for lead documents from lead's master info
+    let extractedName = doc.extracted_name;
+    let extractedFatherName = doc.extracted_father_name;
+    let extractedDob = doc.extracted_dob;
+
+    if (doc.entity_type === 'lead' || doc.entity_type === 'leads') {
+      const lead = this.leads.find((l) => l.id === doc.entity_id);
+      if (lead) {
+        if (extractedName === undefined) extractedName = lead.full_name;
+        if (extractedFatherName === undefined) extractedFatherName = lead.father_name || '';
+        if (extractedDob === undefined) extractedDob = lead.dob || '';
+      }
+    }
+
     const newDoc: DocumentRecord = {
       ...doc,
+      extracted_name: extractedName,
+      extracted_father_name: extractedFatherName,
+      extracted_dob: extractedDob,
       id: crypto.randomUUID(),
       created_at: now,
     };
@@ -1227,8 +1248,131 @@ class ErpDataStore {
       created_at: now,
     });
 
-    this.notify();
+    // Run automated KYC cross-matching if this is a lead document
+    if (newDoc.entity_type === 'lead' || newDoc.entity_type === 'leads') {
+      this.runLeadKycAutoVerification(newDoc.entity_id);
+    } else {
+      this.notify();
+    }
+
     return newDoc;
+  }
+
+  /**
+   * Evaluates identity fields across uploaded lead documents (Aadhaar, Bank Passbook, Electricity Bill)
+   * and automatically sets them to VERIFIED if all customer identity details (Name, Father Name, DOB) match.
+   */
+  public runLeadKycAutoVerification(leadId: string): KycMatchResult | null {
+    const lead = this.leads.find((l) => l.id === leadId);
+    if (!lead) return null;
+
+    const leadDocs = this.documents.filter(
+      (d) => (d.entity_type === 'lead' || d.entity_type === 'leads') && d.entity_id === leadId
+    );
+
+    const matchResult = evaluateLeadKycMatching(lead, leadDocs);
+
+    if (matchResult.allMatch) {
+      const now = new Date().toISOString();
+      let updatedAny = false;
+
+      this.documents = this.documents.map((doc) => {
+        if (
+          (doc.entity_type === 'lead' || doc.entity_type === 'leads') &&
+          doc.entity_id === leadId &&
+          ['aadhaar', 'bank_proof', 'electricity_bill', 'pan'].includes(doc.doc_category)
+        ) {
+          if (doc.status !== 'VERIFIED') {
+            updatedAny = true;
+          }
+          return {
+            ...doc,
+            status: 'VERIFIED' as DocStatusType,
+            auto_verified: true,
+            verified_by: 'Auto-KYC Engine',
+            verified_at: doc.verified_at || now,
+          };
+        }
+        return doc;
+      });
+
+      if (updatedAny) {
+        this.auditLogs.unshift({
+          id: crypto.randomUUID(),
+          actor_id: 'Auto-KYC Engine',
+          action: 'KYC_AUTO_VERIFIED',
+          entity_type: 'leads',
+          entity_id: leadId,
+          new_data: {
+            lead_code: lead.lead_code,
+            full_name: lead.full_name,
+            father_name: lead.father_name,
+            dob: lead.dob,
+            verified_docs: ['aadhaar', 'bank_proof', 'electricity_bill'],
+          },
+          created_at: now,
+        });
+
+        const lIndex = this.leads.findIndex((l) => l.id === leadId);
+        if (lIndex !== -1 && this.leads[lIndex].stage === 'DOCUMENT_PENDING') {
+          this.leads[lIndex] = {
+            ...this.leads[lIndex],
+            stage: 'READY_FOR_REGISTRATION',
+            updated_at: now,
+          };
+        }
+      }
+    }
+
+    this.notify();
+    return matchResult;
+  }
+
+  /**
+   * Updates extracted KYC attributes for an uploaded document and re-evaluates auto-verification
+   */
+  public updateDocumentKyc(
+    documentId: string,
+    kycData: { extracted_name?: string; extracted_father_name?: string; extracted_dob?: string }
+  ): boolean {
+    const index = this.documents.findIndex((d) => d.id === documentId);
+    if (index === -1) return false;
+
+    this.documents[index] = {
+      ...this.documents[index],
+      ...kycData,
+      status: 'UPLOADED',
+      auto_verified: false,
+    };
+
+    const doc = this.documents[index];
+    if (doc.entity_type === 'lead' || doc.entity_type === 'leads') {
+      this.runLeadKycAutoVerification(doc.entity_id);
+    } else {
+      this.notify();
+    }
+    return true;
+  }
+
+  /**
+   * Updates Lead identity information (Name, Father's Name, DOB) and re-evaluates document KYC
+   */
+  public updateLeadDetails(
+    leadId: string,
+    updates: Partial<Lead>
+  ): boolean {
+    const index = this.leads.findIndex((l) => l.id === leadId);
+    if (index === -1) return false;
+
+    this.leads[index] = {
+      ...this.leads[index],
+      ...updates,
+      updated_at: new Date().toISOString(),
+    };
+
+    this.runLeadKycAutoVerification(leadId);
+    this.notify();
+    return true;
   }
 
   public verifyDocument(documentId: string, actorId = 'Super Admin Jaijaipur'): boolean {
