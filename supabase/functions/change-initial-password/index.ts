@@ -32,6 +32,9 @@ Deno.serve(async (req: Request) => {
   const adminClient = createClient(supabaseUrl, serviceRoleKey, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
+  const passwordCheckClient = createClient(supabaseUrl, anonKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
 
   const { data: authData, error: authError } = await userClient.auth.getUser();
   const user = authData.user;
@@ -60,7 +63,7 @@ Deno.serve(async (req: Request) => {
     return json({ success: false, error: "PASSWORD_POLICY" }, 400);
   }
 
-  const { data: passwordCheck, error: passwordCheckError } = await userClient.auth.signInWithPassword({
+  const { data: passwordCheck, error: passwordCheckError } = await passwordCheckClient.auth.signInWithPassword({
     email: user.email,
     password: currentPassword,
   });
