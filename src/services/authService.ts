@@ -34,6 +34,18 @@ export const authService = {
     return data;
   },
 
+  async updatePasswordAndClearMustChange(newPassword: string) {
+    if (!isSupabaseConfigured) {
+      throw new Error('Supabase is not configured.');
+    }
+    const { data, error } = await supabase.auth.updateUser({
+      password: newPassword,
+      data: { must_change_password: false },
+    });
+    if (error) throw error;
+    return data;
+  },
+
   async signOut() {
     if (!isSupabaseConfigured) return;
     const { error } = await supabase.auth.signOut();
