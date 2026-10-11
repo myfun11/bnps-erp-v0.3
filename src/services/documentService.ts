@@ -43,16 +43,10 @@ export const documentService = {
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (error) {
-        console.warn('[documentService.fetchDocuments] Falling back to local store:', error.message);
-        return erpStore.getDocuments();
-      }
+      if (error) throw new Error(`Unable to load authoritative documents from Supabase: ${error.message}`);
 
       return (data || []) as DocumentRecord[];
-    } catch (err) {
-      console.warn('[documentService.fetchDocuments] Network error, falling back to local store:', err);
-      return erpStore.getDocuments();
-    }
+    } catch (err) { throw err instanceof Error ? err : new Error('Unable to load authoritative documents from Supabase.'); }
   },
 
   async fetchDocumentsByEntity(entityType: string, entityId: string): Promise<DocumentRecord[]> {
@@ -68,16 +62,10 @@ export const documentService = {
         .eq('entity_id', entityId)
         .order('created_at', { ascending: false });
 
-      if (error) {
-        console.warn('[documentService.fetchDocumentsByEntity] Falling back to local store:', error.message);
-        return erpStore.getDocuments({ entityType, entityId });
-      }
+      if (error) throw new Error(`Unable to load authoritative documents from Supabase: ${error.message}`);
 
       return (data || []) as DocumentRecord[];
-    } catch (err) {
-      console.warn('[documentService.fetchDocumentsByEntity] Network error, falling back to local store:', err);
-      return erpStore.getDocuments({ entityType, entityId });
-    }
+    } catch (err) { throw err instanceof Error ? err : new Error('Unable to load authoritative documents from Supabase.'); }
   },
 
   async uploadDocument(
@@ -221,11 +209,7 @@ export const documentService = {
         console.error('[documentService.verifyDocument]', error.message);
         throw error;
       }
-    } catch (err) {
-      console.warn('[documentService.verifyDocument] RPC error, updating local store:', err);
-    }
-
-    erpStore.verifyDocument(documentId);
+    } catch (err) { throw err instanceof Error ? err : new Error('Supabase document verification failed.'); }
   },
 
   async rejectDocument(
@@ -255,11 +239,7 @@ export const documentService = {
         console.error('[documentService.rejectDocument]', error.message);
         throw error;
       }
-    } catch (err) {
-      console.warn('[documentService.rejectDocument] RPC error, updating local store:', err);
-    }
-
-    erpStore.rejectDocument(documentId, reason);
+    } catch (err) { throw err instanceof Error ? err : new Error('Supabase document rejection failed.'); }
   },
 
   async createSignedUrl(
