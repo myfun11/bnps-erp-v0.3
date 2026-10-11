@@ -38,11 +38,14 @@ export const authService = {
     if (!isSupabaseConfigured) {
       throw new Error('Supabase is not configured.');
     }
-    const { data, error } = await supabase.auth.updateUser({
-      password: newPassword,
-      data: { must_change_password: false },
+    const { data, error } = await supabase.functions.invoke('change-initial-password', {
+      body: { new_password: newPassword },
     });
-    if (error) throw error;
+    if (error) throw new Error(`Password update failed: ${error.message}`);
+    if (!data?.success) throw new Error(data?.message || 'Password update failed.');
+    // A password update can invalidate a refresh token on some Auth configurations.
+    // The protected app_metadata update is authoritative; the app also clears its local gate.
+    try { await supabase.auth.refreshSession(); } catch { /* next login will receive fresh app_metadata */ }
     return data;
   },
 
