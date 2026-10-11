@@ -139,8 +139,9 @@ export const documentService = {
       throw uploadError;
     }
 
+    let createdDocument: DocumentRecord | null = null;
     try {
-      const { error: rpcError } = await supabase.rpc(
+      const { data: rpcData, error: rpcError } = await supabase.rpc(
         'create_document_atomic',
         {
           p_entity_type: entityType,
@@ -156,6 +157,10 @@ export const documentService = {
 
       if (rpcError) {
         throw rpcError;
+      }
+      const rpcResult = rpcData as { success?: boolean; document?: DocumentRecord } | null;
+      if (rpcResult?.success && rpcResult.document) {
+        createdDocument = rpcResult.document;
       }
     } catch (error) {
       console.error('[documentService.uploadDocument] RPC error:', getErrorMessage(error));
@@ -173,6 +178,8 @@ export const documentService = {
 
       throw error;
     }
+
+    if (createdDocument) return createdDocument;
 
     const { data, error: fetchError } = await supabase
       .from('documents')
