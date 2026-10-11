@@ -59,8 +59,8 @@ const DOCUMENT_REQUIREMENTS: DocumentRequirement[] = [
   },
   {
     category: 'bank_proof',
-    label: 'Bank Passbook / Bank Proof',
-    description: 'Mandatory for Direct Benefit Transfer (DBT) central subsidy disbursement',
+    label: 'Bank Passbook',
+    description: 'Mandatory for DBT; account-holder name and father name must be readable',
     required: true,
     isCoreKyc: true,
   },
