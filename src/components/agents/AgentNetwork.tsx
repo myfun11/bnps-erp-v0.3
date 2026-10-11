@@ -138,7 +138,7 @@ export const AgentNetwork: React.FC = () => {
       return;
     }
     if (!bankProofFile) {
-      alert('Bank Proof (Passbook or Cancelled Cheque) document upload is mandatory.');
+      alert('Bank Passbook document upload is mandatory. The account-holder name and father name must be readable.');
       return;
     }
 
@@ -1092,7 +1092,7 @@ export const AgentNetwork: React.FC = () => {
                       <option value="pan">PAN Card Document</option>
                       <option value="aadhaar_front">Aadhaar Card Front</option>
                       <option value="aadhaar_back">Aadhaar Card Back</option>
-                      <option value="bank_proof">Bank Passbook / Cheque</option>
+                      <option value="bank_proof">Bank Passbook (Name + Father Name)</option>
                       <option value="agent_agreement">Agent Agreement</option>
                     </select>
                     <input
