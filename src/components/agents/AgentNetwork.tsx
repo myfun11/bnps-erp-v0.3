@@ -69,7 +69,6 @@ export const AgentNetwork: React.FC = () => {
     email: '',
     branch: 'Jaijaipur' as BranchLocation,
     sponsor_agent_id: '',
-    login_password: '',
     pan_number: '',
     bank_account_no: '',
     bank_name: '',
@@ -196,7 +195,6 @@ export const AgentNetwork: React.FC = () => {
         email: '',
         branch: 'Jaijaipur',
         sponsor_agent_id: '',
-        login_password: '',
         pan_number: '',
         bank_account_no: '',
         bank_name: '',
@@ -245,6 +243,7 @@ export const AgentNetwork: React.FC = () => {
   const handleVerifyAgentDoc = async (docId: string) => {
     try {
       await documentService.verifyDocument(docId);
+      if (selectedAgentForKyc) setSelectedAgentDocuments(await documentService.fetchDocumentsByEntity('agent', selectedAgentForKyc.id));
       alert('Document marked as VERIFIED.');
     } catch (err: any) {
       alert(err?.message || 'Verification failed.');
@@ -258,6 +257,7 @@ export const AgentNetwork: React.FC = () => {
     }
     try {
       await documentService.rejectDocument(rejectDocId, rejectReason.trim());
+      if (selectedAgentForKyc) setSelectedAgentDocuments(await documentService.fetchDocumentsByEntity('agent', selectedAgentForKyc.id));
       setRejectDocId(null);
       setRejectReason('');
       alert('Document marked as REJECTED.');
