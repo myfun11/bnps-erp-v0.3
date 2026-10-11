@@ -191,6 +191,30 @@ export const documentService = {
     return data as DocumentRecord | null;
   },
 
+  async extractKycDocument(documentId: string): Promise<{ success: boolean; extraction_status: string; evaluation?: unknown; message?: string }> {
+    if (!isSupabaseConfigured) {
+      throw new Error('Trusted KYC OCR requires the live Supabase backend.');
+    }
+    const { data, error } = await supabase.functions.invoke('verify-kyc-document', {
+      body: { document_id: documentId },
+    });
+    if (error) throw new Error(`KYC OCR request failed: ${error.message}`);
+    if (!data?.success) throw new Error(data?.message || 'KYC OCR did not complete; the document remains unverified.');
+    return data as { success: boolean; extraction_status: string; evaluation?: unknown; message?: string };
+  },
+
+  async evaluateKycEntity(entityType: 'lead' | 'agent', entityId: string): Promise<{ success: boolean; evaluation?: { status?: string; auto_verified?: boolean }; message?: string }> {
+    if (!isSupabaseConfigured) {
+      throw new Error('Trusted KYC evaluation requires the live Supabase backend.');
+    }
+    const { data, error } = await supabase.functions.invoke('verify-kyc-document', {
+      body: { action: 'evaluate', entity_type: entityType, entity_id: entityId },
+    });
+    if (error) throw new Error(`KYC re-check failed: ${error.message}`);
+    if (!data?.success) throw new Error(data?.message || 'KYC re-check failed.');
+    return data as { success: boolean; evaluation?: { status?: string; auto_verified?: boolean }; message?: string };
+  },
+
   async verifyDocument(documentId: string): Promise<void> {
     if (!isSupabaseConfigured) {
       erpStore.verifyDocument(documentId);
