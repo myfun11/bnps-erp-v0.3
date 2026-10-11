@@ -43,6 +43,8 @@ export const AgentNetwork: React.FC = () => {
   const [errorBanner, setErrorBanner] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [newlyCreatedAgent, setNewlyCreatedAgent] = useState<Agent | null>(null);
+  const [newlyCreatedCredentials, setNewlyCreatedCredentials] = useState<{ agentId: string; agentCode: string; fullName: string; branch: string; loginEmail: string; temporaryPassword: string } | null>(null);
+  const [selectedAgentDocuments, setSelectedAgentDocuments] = useState<DocumentRecord[]>([]);
 
   // Search & Filter States
   const [searchQuery, setSearchQuery] = useState('');
@@ -143,10 +145,6 @@ export const AgentNetwork: React.FC = () => {
 
     setIsSubmittingOnboarding(true);
 
-    const defaultPwd =
-      newAgentForm.login_password ||
-      `${newAgentForm.full_name.split(' ')[0]}@${newAgentForm.branch}2026`;
-
     try {
       // 1. Create Agent record
       const result = await agentNetworkService.create({
@@ -155,7 +153,6 @@ export const AgentNetwork: React.FC = () => {
         email: newAgentForm.email,
         branch: newAgentForm.branch,
         sponsor_agent_id: newAgentForm.sponsor_agent_id || undefined,
-        password: defaultPwd,
         pan_number: newAgentForm.pan_number || undefined,
         bank_account_no: newAgentForm.bank_account_no || undefined,
         bank_name: newAgentForm.bank_name || undefined,
@@ -164,13 +161,16 @@ export const AgentNetwork: React.FC = () => {
       });
 
       const agentId = result.agent_id;
+      if (result.password_display_once && result.temporary_password && result.login_email) {
+        setNewlyCreatedCredentials({ agentId, agentCode: result.agent_code, fullName: newAgentForm.full_name, branch: newAgentForm.branch, loginEmail: result.login_email, temporaryPassword: result.temporary_password });
+      }
 
       // 2. Upload mandatory KYC documents in parallel
       await Promise.all([
-        documentService.uploadDocument(panFile, 'agents', agentId, 'pan', false),
-        documentService.uploadDocument(aadhaarFrontFile, 'agents', agentId, 'aadhaar_front', false),
-        documentService.uploadDocument(aadhaarBackFile, 'agents', agentId, 'aadhaar_back', false),
-        documentService.uploadDocument(bankProofFile, 'agents', agentId, 'bank_proof', false),
+        documentService.uploadDocument(panFile, 'agent', agentId, 'pan', false),
+        documentService.uploadDocument(aadhaarFrontFile, 'agent', agentId, 'aadhaar_front', false),
+        documentService.uploadDocument(aadhaarBackFile, 'agent', agentId, 'aadhaar_back', false),
+        documentService.uploadDocument(bankProofFile, 'agent', agentId, 'bank_proof', false),
       ]);
 
       await loadData();
@@ -185,7 +185,7 @@ export const AgentNetwork: React.FC = () => {
 
       setShowNewAgentModal(false);
       setSuccessBanner(
-        `Agent ${result.agent_code} (${newAgentForm.full_name}) successfully onboarded with 4 verified KYC documents!`
+        `Agent ${result.agent_code} (${newAgentForm.full_name}) created. Four KYC documents uploaded; identity verification remains pending until trusted document extraction and matching complete.`
       );
       setTimeout(() => setSuccessBanner(null), 6000);
 
@@ -226,11 +226,12 @@ export const AgentNetwork: React.FC = () => {
     try {
       await documentService.uploadDocument(
         drawerDocFile,
-        'agents',
+        'agent',
         selectedAgentForKyc.id,
         drawerDocCategory,
         false
       );
+      setSelectedAgentDocuments(await documentService.fetchDocumentsByEntity('agent', selectedAgentForKyc.id));
       setDrawerDocFile(null);
       alert('Document uploaded successfully to Agent KYC Vault.');
     } catch (err: any) {
@@ -284,10 +285,15 @@ export const AgentNetwork: React.FC = () => {
     return matchesSearch && matchesBranch && matchesLevel;
   });
 
-  // Current documents for selected drawer agent
-  const selectedAgentDocuments = selectedAgentForKyc
-    ? erpStore.getDocuments({ entityType: 'agents', entityId: selectedAgentForKyc.id })
-    : [];
+  // Agent documents are read from the authoritative backend, not the local demo store.
+  useEffect(() => {
+    let cancelled = false;
+    if (!selectedAgentForKyc) { setSelectedAgentDocuments([]); return; }
+    documentService.fetchDocumentsByEntity('agent', selectedAgentForKyc.id)
+      .then((rows) => { if (!cancelled) setSelectedAgentDocuments(rows); })
+      .catch((error) => { if (!cancelled) setErrorBanner(error instanceof Error ? error.message : 'Could not load agent KYC documents.'); });
+    return () => { cancelled = true; };
+  }, [selectedAgentForKyc?.id]);
 
   return (
     <div className="space-y-6 animate-fade-in font-sans">
@@ -361,6 +367,19 @@ export const AgentNetwork: React.FC = () => {
               <span>{copiedId === newlyCreatedAgent.id ? 'Copied to Clipboard!' : 'Copy Agent Credentials'}</span>
             </button>
           </div>
+        </div>
+      )}
+
+      {newlyCreatedCredentials && (
+        <div className="p-5 rounded-2xl bg-emerald-950/60 border-2 border-emerald-500/50 space-y-3">
+          <div className="flex items-center justify-between gap-3"><h3 className="text-sm font-bold text-emerald-300">Agent login credentials — shown once</h3><button type="button" onClick={() => setNewlyCreatedCredentials(null)} className="text-xs text-slate-300 hover:text-white">Hide credentials</button></div>
+          <p className="text-xs text-amber-200">Share securely with the agent. The temporary password is not stored by BNPS; the agent must change it after first login.</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-slate-950/70 p-3 rounded-xl border border-emerald-500/30 text-xs font-mono">
+            <div><span className="block text-slate-400 text-[10px] uppercase">Agent ID</span><span className="text-amber-300 font-bold">{newlyCreatedCredentials.agentCode}</span></div>
+            <div><span className="block text-slate-400 text-[10px] uppercase">Login email</span><span className="text-emerald-300 font-bold">{newlyCreatedCredentials.loginEmail}</span></div>
+            <div className="sm:col-span-2"><span className="block text-slate-400 text-[10px] uppercase">Temporary password</span><span className="text-white break-all">{newlyCreatedCredentials.temporaryPassword}</span></div>
+          </div>
+          <button type="button" onClick={() => handleCopy(`BNPS Agent Login\nAgent ID: ${newlyCreatedCredentials.agentCode}\nName: ${newlyCreatedCredentials.fullName}\nBranch: ${newlyCreatedCredentials.branch}\nLogin email: ${newlyCreatedCredentials.loginEmail}\nTemporary password: ${newlyCreatedCredentials.temporaryPassword}\nChange password after first login.`, `credentials-${newlyCreatedCredentials.agentId}`)} className="px-3 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-bold">{copiedId === `credentials-${newlyCreatedCredentials.agentId}` ? 'Copied' : 'Copy login ID and temporary password'}</button>
         </div>
       )}
 
@@ -545,7 +564,7 @@ export const AgentNetwork: React.FC = () => {
                 const sponsor = agents.find((a) => a.id === agent.sponsor_agent_id);
                 const isOwnProfile = agent.id === 'ag-mukesh-101' && userRole === 'agent';
                 const canViewPii = canViewSensitiveAgentPii || isOwnProfile;
-                const agentDocs = erpStore.getDocuments({ entityType: 'agents', entityId: agent.id });
+                const agentDocs = erpStore.getDocuments({ entityType: 'agent', entityId: agent.id });
 
                 return (
                   <tr key={agent.id} className="hover:bg-slate-800/40 transition-colors">
