@@ -12,19 +12,6 @@ const json = (body: Record<string, unknown>, status = 200) =>
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
 
-type DocRow = {
-  id: string;
-  entity_type: string;
-  entity_id: string;
-  doc_category: string;
-  file_path: string;
-  mime_type: string;
-  file_size_bytes: number | null;
-  status: string;
-  extraction_status: string;
-  extracted_at: string | null;
-};
-
 function base64FromBytes(bytes: Uint8Array): string {
   let binary = "";
   const chunkSize = 0x8000;
@@ -234,7 +221,6 @@ Deno.serve(async (req: Request) => {
           ],
         }],
         generationConfig: {
-          temperature: 0,
           responseMimeType: "application/json",
           responseSchema: {
             type: "OBJECT",
