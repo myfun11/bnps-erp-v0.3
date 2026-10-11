@@ -60,6 +60,14 @@ Deno.serve(async (req: Request) => {
     return json({ success: false, error: "PASSWORD_POLICY" }, 400);
   }
 
+  const { data: passwordCheck, error: passwordCheckError } = await userClient.auth.signInWithPassword({
+    email: user.email,
+    password: currentPassword,
+  });
+  if (passwordCheckError || passwordCheck.user?.id !== user.id) {
+    return json({ success: false, error: "CURRENT_PASSWORD_INVALID", message: "Current temporary password is incorrect." }, 401);
+  }
+
   const { error: updateError } = await adminClient.auth.admin.updateUserById(user.id, {
     password: newPassword,
     app_metadata: {
