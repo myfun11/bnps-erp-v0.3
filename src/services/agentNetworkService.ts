@@ -102,7 +102,10 @@ export const agentNetworkService = {
           profile_id: data.profile_id,
           agent_code: data.agent_code,
           auth_user_id: data.auth_user_id,
-          invite_sent: data.invite_sent || true,
+          login_email: data.login_email,
+          temporary_password: data.temporary_password,
+          password_display_once: data.password_display_once === true,
+          invite_sent: data.invite_sent === true,
         };
       }
       throw new Error(data?.message || 'Failed to create agent in Supabase');
@@ -130,7 +133,10 @@ export const agentNetworkService = {
       profile_id: agent.profile_id,
       agent_code: agent.agent_code,
       auth_user_id: agent.id,
-      invite_sent: true,
+      login_email: input.email,
+      temporary_password: undefined,
+      password_display_once: false,
+      invite_sent: false,
     };
   },
 };
