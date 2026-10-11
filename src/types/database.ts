@@ -351,7 +351,7 @@ export interface DocumentRecord {
   extracted_father_name?: string | null;
   extracted_dob?: string | null;
   extraction_document_type?: string | null;
-  extraction_status?: 'PENDING' | 'EXTRACTED' | 'MATCHED' | 'MISMATCH' | 'NEEDS_REVIEW' | 'ERROR';
+  extraction_status?: 'PENDING' | 'PROCESSING' | 'EXTRACTED' | 'MATCHED' | 'MISMATCH' | 'NEEDS_REVIEW' | 'ERROR';
   extraction_is_legible?: boolean | null;
   extraction_provider?: string | null;
   extraction_model?: string | null;
