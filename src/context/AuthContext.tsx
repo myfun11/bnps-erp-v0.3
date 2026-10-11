@@ -10,7 +10,7 @@ interface AuthContextType {
   currentAgent?: Agent;
   userRole: UserRoleType;
   mustChangePassword: boolean;
-  changePassword: (newPassword: string) => Promise<void>;
+  changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
   loginWithPassword?: (email: string, password: string) => Promise<void>;
   logout: () => void;
   hasPermission: (permissionCode: string) => boolean;
@@ -159,9 +159,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const changePassword = async (newPassword: string) => {
+  const changePassword = async (currentPassword: string, newPassword: string) => {
     if (!isLiveSupabase) throw new Error('Supabase live backend is not configured.');
-    await authService.updatePasswordAndClearMustChange(newPassword);
+    await authService.updatePasswordAndClearMustChange(currentPassword, newPassword);
     setMustChangePassword(false);
   };
 
