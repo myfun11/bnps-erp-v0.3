@@ -54,7 +54,7 @@ export const AgentNetwork: React.FC = () => {
 
   // Selected Agent for KYC & Documents Drawer
   const [selectedAgentForKyc, setSelectedAgentForKyc] = useState<Agent | null>(null);
-  const [drawerDocCategory, setDrawerDocCategory] = useState<string>('aadhaar');
+  const [drawerDocCategory, setDrawerDocCategory] = useState<string>('aadhaar_front');
   const [drawerDocFile, setDrawerDocFile] = useState<File | null>(null);
   const [isUploadingDrawerDoc, setIsUploadingDrawerDoc] = useState(false);
 
@@ -164,13 +164,28 @@ export const AgentNetwork: React.FC = () => {
         setNewlyCreatedCredentials({ agentId, agentCode: result.agent_code, fullName: newAgentForm.full_name, branch: newAgentForm.branch, loginEmail: result.login_email, temporaryPassword: result.temporary_password });
       }
 
-      // 2. Upload mandatory KYC documents in parallel
-      await Promise.all([
+      // 2. Upload all four private KYC documents, then run trusted server-side OCR.
+      const uploadedDocs = await Promise.all([
         documentService.uploadDocument(panFile, 'agent', agentId, 'pan', false),
         documentService.uploadDocument(aadhaarFrontFile, 'agent', agentId, 'aadhaar_front', false),
         documentService.uploadDocument(aadhaarBackFile, 'agent', agentId, 'aadhaar_back', false),
         documentService.uploadDocument(bankProofFile, 'agent', agentId, 'bank_proof', false),
       ]);
+
+      let ocrNeedsReview = 0;
+      if (documentService.isConfigured()) {
+        const ocrResults = await Promise.allSettled(
+          uploadedDocs.filter((doc): doc is DocumentRecord => Boolean(doc?.id))
+            .map((doc) => documentService.extractKycDocument(doc.id))
+        );
+        ocrNeedsReview = ocrResults.filter((result) =>
+          result.status === 'rejected' ||
+          (result.status === 'fulfilled' && (
+            result.value.extraction_status !== 'EXTRACTED' ||
+            (result.value.evaluation as { status?: string } | undefined)?.status === 'MISMATCH'
+          ))
+        ).length;
+      }
 
       await loadData();
 
@@ -184,7 +199,9 @@ export const AgentNetwork: React.FC = () => {
 
       setShowNewAgentModal(false);
       setSuccessBanner(
-        `Agent ${result.agent_code} (${newAgentForm.full_name}) created. Four KYC documents uploaded; identity verification remains pending until trusted document extraction and matching complete.`
+        ocrNeedsReview > 0
+          ? `Agent ${result.agent_code} created. All four KYC documents were uploaded; ${ocrNeedsReview} document(s) need OCR retry/manual review. Agent KYC remains unverified until identity fields match.`
+          : `Agent ${result.agent_code} created. KYC OCR ran; automatic verification is only completed when name, father name and DOB match across the required documents.`
       );
       setTimeout(() => setSuccessBanner(null), 6000);
 
@@ -222,16 +239,24 @@ export const AgentNetwork: React.FC = () => {
 
     setIsUploadingDrawerDoc(true);
     try {
-      await documentService.uploadDocument(
+      const uploaded = await documentService.uploadDocument(
         drawerDocFile,
         'agent',
         selectedAgentForKyc.id,
         drawerDocCategory,
         false
       );
+      let ocrMessage = '';
+      if (documentService.isConfigured() && ['aadhaar_front', 'aadhaar_back', 'pan', 'bank_proof'].includes(drawerDocCategory)) {
+        if (!uploaded?.id) throw new Error('Document uploaded but its Supabase record could not be reloaded for OCR.');
+        const ocr = await documentService.extractKycDocument(uploaded.id);
+        ocrMessage = ocr.extraction_status === 'EXTRACTED'
+          ? ' OCR extracted; auto-verification depends on all identity fields matching.'
+          : ' OCR needs manual review; the document remains unverified.';
+      }
       setSelectedAgentDocuments(await documentService.fetchDocumentsByEntity('agent', selectedAgentForKyc.id));
       setDrawerDocFile(null);
-      alert('Document uploaded successfully to Agent KYC Vault.');
+      alert(`Document uploaded to Agent KYC Vault.${ocrMessage}`);
     } catch (err: any) {
       console.error('Drawer document upload failed:', err);
       alert(err?.message || 'Failed to upload document.');
