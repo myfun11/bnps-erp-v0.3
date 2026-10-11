@@ -51,7 +51,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (session && session.user && mounted) {
           const profile = await authService.fetchProfileByAuthUserId(session.user.id);
           if (profile?.is_active && mounted) {
-            setMustChangePassword(session.user.user_metadata?.must_change_password === true);
+            setMustChangePassword(session.user.app_metadata?.must_change_password === true);
             setCustomProfile(profile);
             if (profile.role === 'agent') {
               const agent = await authService.fetchAgentByProfileId(profile.id);
@@ -80,7 +80,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (event === 'SIGNED_IN' && session?.user) {
         const profile = await authService.fetchProfileByAuthUserId(session.user.id);
         if (profile?.is_active && mounted) {
-          setMustChangePassword(session.user.user_metadata?.must_change_password === true);
+          setMustChangePassword(session.user.app_metadata?.must_change_password === true);
           setCustomProfile(profile);
           if (profile.role === 'agent') {
             const agent = await authService.fetchAgentByProfileId(profile.id);
@@ -146,7 +146,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           throw new Error('Your BNPS account is inactive or not authorized.');
         }
 
-        setMustChangePassword(data.user.user_metadata?.must_change_password === true);
+        setMustChangePassword(data.user.app_metadata?.must_change_password === true);
         setCustomProfile(profile);
         if (profile.role === 'agent') {
           const agent = await authService.fetchAgentByProfileId(profile.id);
