@@ -87,7 +87,7 @@ export const agentNetworkService = {
   async create(input: CreateAgentInput) {
     if (isSupabaseConfigured) {
       const { data, error } = await supabase.functions.invoke('create-agent', {
-        body: input,
+        body: { ...input, credentials_flow_version: 1 },
       });
 
       if (error) {
