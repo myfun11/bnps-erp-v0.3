@@ -87,8 +87,8 @@ const DOCUMENT_REQUIREMENTS: DocumentRequirement[] = [
   },
   {
     category: 'pan',
-    label: 'PAN Card (Optional)',
-    description: 'Optional tax identification document (never blocks conversion)',
+    label: 'PAN Card',
+    description: 'Mandatory for KYC identity matching against Aadhaar and bank passbook',
     required: true,
     isCoreKyc: true,
   },
