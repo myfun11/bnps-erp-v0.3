@@ -34,12 +34,12 @@ export const authService = {
     return data;
   },
 
-  async updatePasswordAndClearMustChange(newPassword: string) {
+  async updatePasswordAndClearMustChange(currentPassword: string, newPassword: string) {
     if (!isSupabaseConfigured) {
       throw new Error('Supabase is not configured.');
     }
     const { data, error } = await supabase.functions.invoke('change-initial-password', {
-      body: { new_password: newPassword },
+      body: { current_password: currentPassword, new_password: newPassword },
     });
     if (error) throw new Error(`Password update failed: ${error.message}`);
     if (!data?.success) throw new Error(data?.message || 'Password update failed.');
