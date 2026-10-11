@@ -186,7 +186,13 @@ export const ConvertLeadModal: React.FC<ConvertLeadModalProps> = ({
   };
 
   const isCategoryComplete = (cat: RequiredCategory) => {
-    return getCategoryDoc(cat)?.status === 'VERIFIED';
+    const latest = getCategoryDoc(cat);
+    if (!latest) return false;
+    if (['aadhaar', 'pan', 'bank_proof'].includes(cat)) {
+      return latest.status === 'VERIFIED' && latest.kyc_match_status === 'MATCHED';
+    }
+    if (cat === 'electricity_bill') return latest.status === 'VERIFIED';
+    return latest.status === 'UPLOADED' || latest.status === 'VERIFIED';
   };
 
   const isElectricityBillComplete = isCategoryComplete('electricity_bill');
