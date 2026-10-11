@@ -272,22 +272,6 @@ export const ConvertLeadModal: React.FC<ConvertLeadModalProps> = ({
     }
   };
 
-  // Update specific document KYC extracted attributes to simulate/test matching
-  const handleSaveDocKyc = (category: string, docId: string) => {
-    const edits = docKycEdits[category];
-    if (!edits) return;
-
-    erpStore.updateDocumentKyc(docId, {
-      extracted_name: edits.name.trim(),
-      extracted_father_name: edits.fatherName.trim(),
-      extracted_dob: edits.dob.trim(),
-    });
-
-    erpStore.runLeadKycAutoVerification(lead.id);
-    refreshDocuments(lead.id);
-    setExpandedDocCategory(null);
-  };
-
   const handleConvert = async () => {
     if (loading) return; // Prevent duplicate conversion on repeated clicks
 
@@ -770,15 +754,7 @@ export const ConvertLeadModal: React.FC<ConvertLeadModalProps> = ({
                               />
                             </div>
                           </div>
-                          <div className="flex justify-end pt-1">
-                            <button
-                              type="button"
-                              onClick={() => handleSaveDocKyc(req.category, doc.id)}
-                              className="px-2.5 py-1 rounded bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-[11px] font-bold"
-                            >
-                              Apply & Check Auto-Verification
-                            </button>
-                          </div>
+                          <p className="text-[10px] text-amber-300">Read-only extraction preview. Auto-verification is unavailable until trusted backend OCR data is recorded.</p>
                         </div>
                       )}
                     </div>
