@@ -130,9 +130,9 @@ export const ConvertLeadModal: React.FC<ConvertLeadModalProps> = ({
       const docs = await documentService.fetchDocumentsByEntity('lead', leadId);
       setLeadDocuments(docs);
     } catch (err: any) {
-      console.warn('[ConvertLeadModal] Failed to fetch documents:', err);
-      const localDocs = erpStore.getDocuments({ entityType: 'lead', entityId: leadId });
-      setLeadDocuments(localDocs);
+      console.error('[ConvertLeadModal] Failed to fetch authoritative documents:', err);
+      setLeadDocuments([]);
+      setUploadError(err?.message || 'Unable to load KYC documents from Supabase. Local demo data will not be used.');
     } finally {
       setLoadingDocs(false);
     }
