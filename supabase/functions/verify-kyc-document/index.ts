@@ -84,6 +84,19 @@ Deno.serve(async (req: Request) => {
     auth: { autoRefreshToken: false, persistSession: false },
   });
 
+  const activateAgentIfMatched = async (entityType: string, entityId: string, evaluation: unknown) => {
+    if (entityType !== "agent" || (evaluation as { status?: string } | null)?.status !== "MATCHED") return null;
+    const { data, error } = await adminClient.rpc("activate_agent_after_kyc", { p_agent_id: entityId });
+    if (error) {
+      console.error("Agent KYC activation failed:", error.message);
+      throw new Error("KYC matched, but Agent activation failed. Keep the Agent inactive and retry after admin review.");
+    }
+    if (!data?.success) {
+      throw new Error(data?.message || "KYC matched, but the server did not activate the Agent.");
+    }
+    return data;
+  };
+
   const { data: authData, error: authError } = await userClient.auth.getUser();
   if (authError || !authData.user) return json({ success: false, error: "AUTH_REQUIRED" }, 401);
 
@@ -119,7 +132,12 @@ Deno.serve(async (req: Request) => {
       p_entity_id: entityId,
     });
     if (evalError) return json({ success: false, error: "KYC_EVALUATION_FAILED" }, 500);
-    return json({ success: true, evaluation });
+    try {
+      const agentActivation = await activateAgentIfMatched(entityType, entityId, evaluation);
+      return json({ success: true, evaluation, agent_activation: agentActivation });
+    } catch (error) {
+      return json({ success: false, error: "AGENT_ACTIVATION_FAILED", message: error instanceof Error ? error.message : "Agent activation failed." }, 500);
+    }
   }
 
   const documentId = typeof body.document_id === "string" ? body.document_id : "";
@@ -173,13 +191,19 @@ Deno.serve(async (req: Request) => {
         extraction_status: "EXTRACTED",
       }, 500);
     }
-    return json({
-      success: true,
-      document_id: documentId,
-      extraction_status: "EXTRACTED",
-      evaluation,
-      message: "Previously extracted document re-evaluated successfully. No new OCR request was made.",
-    });
+    try {
+      const agentActivation = await activateAgentIfMatched(entityType, doc.entity_id, evaluation);
+      return json({
+        success: true,
+        document_id: documentId,
+        extraction_status: "EXTRACTED",
+        evaluation,
+        agent_activation: agentActivation,
+        message: "Previously extracted document re-evaluated successfully. No new OCR request was made.",
+      });
+    } catch (error) {
+      return json({ success: false, error: "AGENT_ACTIVATION_FAILED", message: error instanceof Error ? error.message : "Agent activation failed." }, 500);
+    }
   }
 
   if (doc.extraction_status !== "PENDING") {
@@ -306,6 +330,7 @@ Deno.serve(async (req: Request) => {
   if (updateError) return json({ success: false, error: "EXTRACTION_SAVE_FAILED" }, 500);
 
   let evaluation: unknown = { status: "PENDING" };
+  let agentActivation: unknown = null;
   if (extractionStatus === "EXTRACTED") {
     const { data, error } = await adminClient.rpc("evaluate_entity_kyc", {
       p_entity_type: entityType,
@@ -313,6 +338,11 @@ Deno.serve(async (req: Request) => {
     });
     if (error) return json({ success: false, error: "KYC_EVALUATION_FAILED" }, 500);
     evaluation = data;
+    try {
+      agentActivation = await activateAgentIfMatched(entityType, doc.entity_id, evaluation);
+    } catch (error) {
+      return json({ success: false, error: "AGENT_ACTIVATION_FAILED", message: error instanceof Error ? error.message : "Agent activation failed." }, 500);
+    }
   }
 
   return json({
@@ -320,6 +350,7 @@ Deno.serve(async (req: Request) => {
     document_id: documentId,
     extraction_status: extractionStatus,
     evaluation,
+    agent_activation: agentActivation,
     message: extractionStatus === "EXTRACTED"
       ? "Document extracted. Automatic verification depends on matching all required KYC documents."
       : "Document uploaded but not auto-verified. A reviewer must inspect it.",
