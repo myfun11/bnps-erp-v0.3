@@ -161,7 +161,7 @@ CREATE OR REPLACE FUNCTION public.create_agent_atomic(
   p_bank_ifsc character varying,
   p_tds_percentage numeric
 ) RETURNS jsonb
-LANGUAGE plpgsql SECURITY DEFINER AS $
+LANGUAGE plpgsql SECURITY DEFINER AS $fixture$
 DECLARE
   v_profile_id uuid;
   v_agent_id uuid;
@@ -191,7 +191,7 @@ BEGIN
   RETURN jsonb_build_object('success', true, 'agent_id', v_agent_id,
                             'profile_id', v_profile_id, 'auth_user_id', p_auth_user_id);
 END;
-$;
+$fixture$;
 
 CREATE OR REPLACE FUNCTION public.get_dashboard_summary()
 RETURNS jsonb LANGUAGE sql SECURITY DEFINER AS $$ SELECT '{}'::jsonb $$;
