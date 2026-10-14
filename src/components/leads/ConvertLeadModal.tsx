@@ -88,8 +88,8 @@ const DOCUMENT_REQUIREMENTS: DocumentRequirement[] = [
   {
     category: 'pan',
     label: 'PAN Card',
-    description: 'Mandatory for KYC identity matching against Aadhaar and bank passbook',
-    required: true,
+    description: 'Optional. If provided, trusted OCR must match Aadhaar and lead identity.',
+    required: false,
     isCoreKyc: true,
   },
 ];
@@ -205,7 +205,6 @@ export const ConvertLeadModal: React.FC<ConvertLeadModalProps> = ({
   const allRequiredDocsComplete =
     isElectricityBillComplete &&
     isAadhaarComplete &&
-    isPanComplete &&
     isBankProofComplete &&
     isNocB1Complete &&
     isSitePhotoComplete;
@@ -219,7 +218,7 @@ export const ConvertLeadModal: React.FC<ConvertLeadModalProps> = ({
     uploadingCategory === null;
 
   // Live duplicate check against Single Customer Master
-  const existingCustomers = erpStore.getCustomers();
+  const existingCustomers = leadService.isConfigured() ? [] : erpStore.getCustomers();
   const duplicateByMobile = existingCustomers.find((c) => c.primary_mobile === lead.mobile);
   const duplicateByConsumer = consumerNumber.trim() 
     ? existingCustomers.find((c) => c.consumer_number === consumerNumber.trim()) 
@@ -324,8 +323,22 @@ export const ConvertLeadModal: React.FC<ConvertLeadModalProps> = ({
       return;
     }
     if (!kycResult.allMatch) {
-      setErrorMsg('KYC verification is pending. Customer creation is blocked until trusted document extraction matches name and father name on Aadhaar, PAN and bank passbook, and DOB on Aadhaar and PAN.');
+      setErrorMsg('KYC verification is pending. Aadhaar and bank passbook must match the lead identity; PAN is optional, but if uploaded it must also match.');
       return;
+    }
+
+    // Open a tab synchronously from the user's click so browser popup blockers
+    // do not prevent navigation after the asynchronous server conversion succeeds.
+    let portalWindow: Window | null = null;
+    try {
+      portalWindow = window.open('about:blank', '_blank');
+      if (portalWindow) {
+        portalWindow.opener = null;
+        portalWindow.document.title = 'PM Surya Ghar Portal';
+        portalWindow.document.body.innerText = 'Customer conversion is in progress. This tab will open the PM Surya Ghar Consumer Portal after successful conversion.';
+      }
+    } catch {
+      portalWindow = null;
     }
 
     setLoading(true);
@@ -338,6 +351,9 @@ export const ConvertLeadModal: React.FC<ConvertLeadModalProps> = ({
         : await erpStore.convertLeadAtomic(lead.id, consumerNumber.trim(), currentProfile?.id || 'demo-profile');
 
       if (res.success && res.customer) {
+        if (portalWindow && !portalWindow.closed) {
+          portalWindow.location.href = 'https://consumer.pmsuryaghar.gov.in/consumer/#/login';
+        }
         onConversionSuccess(res.customer.customer_code);
         onClose();
       } else {
@@ -347,6 +363,7 @@ export const ConvertLeadModal: React.FC<ConvertLeadModalProps> = ({
         setErrorMsg(ERROR_MESSAGES[code] || res.message || 'Conversion failed.');
       }
     } catch (err: any) {
+      if (portalWindow && !portalWindow.closed) portalWindow.close();
       console.error('[ConvertLeadModal] Conversion error:', err);
       setErrorMsg(err.message || 'An unexpected error occurred during lead conversion.');
     } finally {
@@ -831,7 +848,7 @@ export const ConvertLeadModal: React.FC<ConvertLeadModalProps> = ({
             <div>
               Automated KYC & Conversion Rules:
               <ul className="list-disc pl-4 mt-1 space-y-0.5 text-slate-300">
-                <li><strong className="text-emerald-300">Automatic KYC Verification:</strong> Aadhaar और PAN पर Name, Father Name और DOB; Bank Passbook पर केवल Name और Father Name match होने पर KYC documents auto-verified होते हैं। Electricity Bill अलग से VERIFIED होना आवश्यक है।</li>
+                <li><strong className="text-emerald-300">Automatic KYC Verification:</strong> Aadhaar और Bank Passbook पर Name/Father Name match तथा Aadhaar पर DOB match होना आवश्यक है। PAN optional है; upload करने पर उसका OCR और identity match भी पास होना चाहिए। Electricity Bill अलग से VERIFIED होना आवश्यक है।</li>
                 <li>All 5 required items uploaded (Electricity Bill, Aadhaar, Bank Proof, NOC/B1, Site Photo)</li>
                 <li>Complete geographic location hierarchy verified</li>
                 <li>Customer views query lead KYC documents directly through verified relationship</li>
