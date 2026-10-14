@@ -55,6 +55,22 @@ BEGIN
     RAISE EXCEPTION 'lead identity columns missing';
   END IF;
 
-  RAISE NOTICE 'KYC migration post-conditions passed';
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_proc
+    WHERE oid = 'public.set_agent_test_mode(uuid,uuid)'::regprocedure
+  ) OR has_function_privilege('authenticated', 'public.set_agent_test_mode(uuid,uuid)', 'EXECUTE') THEN
+    RAISE EXCEPTION 'test-agent mode helper missing or exposed to authenticated';
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_trigger WHERE tgname='leads_inherit_test_agent_mode'
+      AND tgrelid='public.leads'::regclass AND NOT tgisinternal
+  ) OR NOT EXISTS (
+    SELECT 1 FROM pg_trigger WHERE tgname='documents_inherit_test_mode_before_insert'
+      AND tgrelid='public.documents'::regclass AND NOT tgisinternal
+  ) THEN
+    RAISE EXCEPTION 'test-mode propagation triggers missing';
+  END IF;
+
+  RAISE NOTICE 'KYC and test-mode migration post-conditions passed';
 END;
 $$;
