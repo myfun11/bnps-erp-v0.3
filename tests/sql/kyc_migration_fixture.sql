@@ -156,10 +156,11 @@ RETURNS uuid LANGUAGE sql STABLE SECURITY DEFINER AS $dep$
   LIMIT 1
 $dep$;
 
-CREATE OR REPLACE FUNCTION public.has_erp_permission(p_permission text)
+-- Placeholder only during fixture creation. The runtime assertion script replaces
+-- this after the migration files define current_user_role().
+CREATE OR REPLACE FUNCTION public.has_erp_permission(perm_code text)
 RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER AS $dep$
-  SELECT p_permission = 'agent.create'
-     AND public.current_user_role() IN ('super_admin','office_admin')
+  SELECT false
 $dep$;
 
 CREATE TABLE public.audit_logs (
