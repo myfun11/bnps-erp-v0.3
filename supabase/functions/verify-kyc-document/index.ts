@@ -158,6 +158,30 @@ Deno.serve(async (req: Request) => {
     return json({ success: false, error: "DOCUMENT_TOO_LARGE" }, 413);
   }
 
+  // If extraction was saved but KYC evaluation previously failed, retry only the
+  // idempotent entity evaluation. Do not spend Gemini quota or overwrite extracted fields.
+  if (doc.extraction_status === "EXTRACTED") {
+    const { data: evaluation, error: evaluationError } = await adminClient.rpc("evaluate_entity_kyc", {
+      p_entity_type: entityType,
+      p_entity_id: doc.entity_id,
+    });
+    if (evaluationError) {
+      return json({
+        success: false,
+        error: "KYC_EVALUATION_FAILED",
+        message: "OCR extraction is saved, but KYC evaluation failed. Retry this request to re-run evaluation without repeating OCR.",
+        extraction_status: "EXTRACTED",
+      }, 500);
+    }
+    return json({
+      success: true,
+      document_id: documentId,
+      extraction_status: "EXTRACTED",
+      evaluation,
+      message: "Previously extracted document re-evaluated successfully. No new OCR request was made.",
+    });
+  }
+
   if (doc.extraction_status !== "PENDING") {
     return json({
       success: false,
