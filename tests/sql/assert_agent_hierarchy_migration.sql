@@ -147,6 +147,17 @@ BEGIN
   END;
   IF NOT v_rejected THEN RAISE EXCEPTION 'Non-admin Agent creation was not denied'; END IF;
 
+  -- Test mode is not an authorization bypass: the same non-admin must be rejected.
+  v_rejected := false;
+  BEGIN
+    PERFORM public.create_agent_atomic(NULL, 'Synthetic Test Agent', 'agent-test-mode@example.com'::citext,
+      '2222222223', 'Jaijaipur', NULL, NULL, NULL, NULL, NULL, 5, true);
+  EXCEPTION WHEN insufficient_privilege THEN
+    GET STACKED DIAGNOSTICS v_error = MESSAGE_TEXT;
+    v_rejected := position('FORBIDDEN' in v_error) > 0;
+  END;
+  IF NOT v_rejected THEN RAISE EXCEPTION 'Non-admin TEST Agent creation was not denied'; END IF;
+
   PERFORM set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000003', true);
   PERFORM set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-000000000003","role":"authenticated"}', true);
   v_rejected := false;
