@@ -24,6 +24,17 @@ BEGIN
       USING ERRCODE = '23514';
   END IF;
 
+  -- Serialize all sponsor-edge changes. Without this transaction-scoped lock,
+  -- concurrent transactions can each validate against a snapshot that does not
+  -- include the other's uncommitted edge (e.g. A -> B and B -> A), then commit
+  -- a cycle. Acquire before reading parent state or walking ancestors. This lock
+  -- is cooperative: every INSERT/UPDATE path is covered by this table trigger.
+  -- The trigger function is VOLATILE by default, so its SPI queries at READ
+  -- COMMITTED obtain a fresh snapshot after waiting for a competing transaction.
+  PERFORM pg_advisory_xact_lock(
+    hashtextextended('bnps-agent-sponsor-tree-guard', 0)
+  );
+
   SELECT a.is_active INTO v_parent_active
   FROM public.agents a
   WHERE a.id = NEW.sponsor_agent_id;
