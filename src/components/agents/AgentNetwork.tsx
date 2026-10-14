@@ -5,6 +5,7 @@ import { documentService } from '../../services/documentService';
 import { erpStore } from '../../services/erpStore';
 import { useAuth } from '../../context/AuthContext';
 import { STANDARD_COMMISSION_RATES } from '../../lib/constants';
+import { supabase, isSupabaseConfigured } from '../../lib/supabaseClient';
 import { BRANCHES_LIST } from '../../services/mockData';
 import { 
   Layers, 
@@ -103,6 +104,26 @@ export const AgentNetwork: React.FC = () => {
     void loadData();
     return unsub;
   }, []);
+
+  const handleResetAgentPassword = async (agent: Agent) => {
+    if (!isSupabaseConfigured) {
+      alert('Password reset is available only in live Supabase mode.');
+      return;
+    }
+    if (!agent.profile?.email) {
+      alert('This agent has no login email. Password was not changed.');
+      return;
+    }
+    if (!window.confirm(`Reset the password for ${agent.profile.full_name || agent.agent_code}? The current password will stop working and a temporary password will be shown once.`)) return;
+    try {
+      const { data, error } = await supabase.functions.invoke('reset-agent-password', { body: { agent_id: agent.id } });
+      if (error) throw error;
+      if (!data?.success || !data?.temporary_password) throw new Error(data?.message || 'Agent password reset failed.');
+      alert(`Password reset successfully.\nAgent: ${data.agent_code}\nLogin email: ${data.login_email}\nTemporary password: ${data.temporary_password}\n\nThe agent must change this password after login. Share it securely; it will not be shown again.`);
+    } catch (error) {
+      alert(error instanceof Error ? error.message : 'Agent password reset failed.');
+    }
+  };
 
   const handleCopy = (text: string, id: string) => {
     navigator.clipboard.writeText(text);
@@ -690,6 +711,13 @@ export const AgentNetwork: React.FC = () => {
                           <span>KYC ({agentDocs.length})</span>
                         </button>
 
+                        <button
+                          onClick={() => void handleResetAgentPassword(agent)}
+                          className="p-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 transition cursor-pointer"
+                          title="Reset agent password; temporary password is shown once"
+                        >
+                          <Lock className="w-3.5 h-3.5" />
+                        </button>
                         <button
                           onClick={() => handleCopy(
                             `Agent: ${agent.agent_code} (${agent.profile?.full_name})\nPhone: ${agent.profile?.phone}\nBranch: ${agent.branch}\nTier: ${agent.hierarchy_level}`,
