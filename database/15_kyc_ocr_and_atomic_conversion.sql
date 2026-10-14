@@ -266,6 +266,7 @@ BEGIN
     SELECT d.* INTO v_bank FROM public.documents d
      WHERE d.entity_type='lead' AND d.entity_id=p_entity_id AND d.doc_category='bank_proof'
      ORDER BY d.created_at DESC LIMIT 1;
+    IF v_pan.status='REJECTED' THEN v_pan := NULL; END IF;
 
     -- Lead conversion requires Aadhaar + bank passbook. PAN is optional;
     -- if uploaded, it must pass trusted OCR and all identity checks.
@@ -317,9 +318,8 @@ BEGIN
   v_name_ok :=
     public.kyc_normalize_identity(v_aadhaar.extracted_name)=public.kyc_normalize_identity(v_full_name)
     AND public.kyc_normalize_identity(v_bank.extracted_name)=public.kyc_normalize_identity(v_full_name)
-    AND (v_entity_type='agent' OR v_pan.id IS NULL OR
-      public.kyc_normalize_identity(v_pan.extracted_name)=public.kyc_normalize_identity(v_full_name))
-    AND (v_entity_type='lead' OR public.kyc_normalize_identity(v_pan.extracted_name)=public.kyc_normalize_identity(v_full_name));
+    AND (v_pan.id IS NULL OR
+      public.kyc_normalize_identity(v_pan.extracted_name)=public.kyc_normalize_identity(v_full_name));
 
   IF v_entity_type='lead' THEN
     v_father_ok := public.kyc_normalize_identity(v_father_name)<>''
@@ -423,7 +423,9 @@ BEGIN
           AND d.status='VERIFIED' AND d.extraction_status='MATCHED' AND d.kyc_match_status='MATCHED'
           AND d.id=(SELECT d2.id FROM public.documents d2 WHERE d2.entity_type='lead' AND d2.entity_id=p_lead_id AND d2.doc_category='bank_proof' ORDER BY d2.created_at DESC LIMIT 1)
     ) OR (
-        EXISTS (SELECT 1 FROM public.documents p WHERE p.entity_type='lead' AND p.entity_id=p_lead_id AND p.doc_category='pan')
+        EXISTS (SELECT 1 FROM public.documents p WHERE p.entity_type='lead' AND p.entity_id=p_lead_id AND p.doc_category='pan'
+          AND p.id=(SELECT p2.id FROM public.documents p2 WHERE p2.entity_type='lead' AND p2.entity_id=p_lead_id AND p2.doc_category='pan' ORDER BY p2.created_at DESC LIMIT 1)
+          AND p.status<>'REJECTED')
         AND NOT EXISTS (
           SELECT 1 FROM public.documents d
           WHERE d.entity_type='lead' AND d.entity_id=p_lead_id AND d.doc_category='pan'
