@@ -93,7 +93,18 @@ export const AgentTreeView: React.FC = () => {
     return { bg: 'from-blue-950/70 to-slate-900', border: 'border-blue-500/50', badge: 'bg-blue-500 text-slate-950', text: 'text-blue-400' };
   };
 
-  const renderAgentNode = (agent: Agent, depth = 0) => {
+  const renderAgentNode = (agent: Agent, depth = 0, ancestors = new Set<string>()) => {
+    // Defensive rendering guard for legacy/corrupt cycles; the database trigger
+    // prevents new circular sponsor assignments.
+    if (ancestors.has(agent.id)) {
+      return (
+        <div key={agent.id} className="w-full rounded-lg border border-red-500/50 bg-red-950/30 p-3 text-xs text-red-300">
+          Circular hierarchy detected at {agent.agent_code}. Please ask an Admin to correct the sponsor chain.
+        </div>
+      );
+    }
+    const nextAncestors = new Set(ancestors);
+    nextAncestors.add(agent.id);
     const downlines = downlineMap.get(agent.id) || [];
     const colors = getTierColor(agent.hierarchy_level);
     const isExpanded = expandedAgentIds.has(agent.id) || depth === 0;
@@ -171,7 +182,7 @@ export const AgentTreeView: React.FC = () => {
           <div className="w-full flex flex-col items-center">
             <div className="w-0.5 h-6 bg-gradient-to-b from-amber-500 to-slate-700 my-1" />
             <div className="w-full space-y-4 pl-4 sm:pl-8 border-l-2 border-slate-800/60 my-2">
-              {downlines.map(downline => renderAgentNode(downline, depth + 1))}
+              {downlines.map(downline => renderAgentNode(downline, depth + 1, nextAncestors))}
             </div>
           </div>
         )}
@@ -186,13 +197,13 @@ export const AgentTreeView: React.FC = () => {
         <div>
           <h2 className="text-lg font-bold text-slate-100 flex items-center gap-2">
             <GitFork className="w-5 h-5 text-amber-400" />
-            <span>Agent Tree View (10-Tier Network Hierarchy)</span>
+            <span>Unlimited-Depth Agent Tree</span>
             <span className="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-amber-400 font-mono font-bold border border-slate-700">
               {agents.length} Total Authoritative Operational Agents
             </span>
           </h2>
           <p className="text-xs text-slate-400 mt-0.5">
-            Deterministic Sponsor Tree • Position 10 (7% Direct Sourcing) to Position 1 (0.5% Super Upline) • Direct sync with Agent Master & Sidebar
+            Unlimited sponsor depth • Commission calculation still follows the existing 10-position rules • Direct sync with Agent Master
           </p>
         </div>
 
@@ -222,7 +233,7 @@ export const AgentTreeView: React.FC = () => {
         <div className="flex items-center justify-between mb-6">
           <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
             <Layers className="w-4 h-4 text-amber-400" />
-            <span>Active Hierarchy Tree Structure (Chhattisgarh Operational Network)</span>
+            <span>Sponsor Hierarchy (Chhattisgarh Operational Network)</span>
           </h3>
           <span className="text-xs text-slate-400 font-mono">
             Showing {filteredAgents.length} Agents ({rootAgents.length} Hierarchy Roots)
