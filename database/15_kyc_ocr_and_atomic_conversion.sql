@@ -782,3 +782,129 @@ REVOKE ALL ON FUNCTION public.generate_project_commission_atomic(uuid, public.pa
   FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.generate_project_commission_atomic(uuid, public.payment_stage_type, uuid)
   TO authenticated;
+
+
+-- Agent network RPC: enforce caller branch scope and limit raw KYC/bank fields to
+-- super-admin/office-admin or the agent's own record.
+CREATE OR REPLACE FUNCTION public.get_agent_network(
+  p_search text DEFAULT ''::text,
+  p_branch text DEFAULT NULL::text,
+  p_hierarchy_level integer DEFAULT NULL::integer
+)
+RETURNS TABLE(
+  id uuid,
+  profile_id uuid,
+  agent_code character varying,
+  branch character varying,
+  sponsor_agent_id uuid,
+  hierarchy_level integer,
+  pan_number text,
+  aadhaar_masked text,
+  bank_account_no text,
+  bank_name text,
+  bank_ifsc text,
+  tds_percentage numeric,
+  total_commission_earned numeric,
+  total_commission_paid numeric,
+  outstanding_advance numeric,
+  is_active boolean,
+  is_test boolean,
+  created_at timestamptz,
+  updated_at timestamptz,
+  full_name text,
+  phone text,
+  email text,
+  sponsor_name text,
+  sponsor_code character varying
+)
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+  v_profile_id uuid := public.current_auth_profile_id();
+  v_role public.user_role_type := public.current_user_role();
+  v_actor_branch text;
+  v_q text := lower(btrim(coalesce(p_search, '')));
+  v_can_all boolean := false;
+BEGIN
+  IF v_profile_id IS NULL OR v_role IS NULL THEN
+    RAISE EXCEPTION 'INSUFFICIENT_PERMISSION: Authenticated ERP profile required' USING ERRCODE = '42501';
+  END IF;
+
+  SELECT p.branch INTO v_actor_branch
+  FROM public.profiles p
+  WHERE p.id = v_profile_id;
+
+  v_can_all := v_role IN ('super_admin', 'office_admin');
+
+  RETURN QUERY
+  SELECT
+    a.id,
+    a.profile_id,
+    a.agent_code,
+    p.branch,
+    a.sponsor_agent_id,
+    a.hierarchy_level,
+    CASE WHEN v_can_all OR a.profile_id = v_profile_id THEN a.pan_number::text ELSE NULL END,
+    CASE WHEN v_can_all OR a.profile_id = v_profile_id THEN a.aadhaar_masked::text ELSE NULL END,
+    CASE WHEN v_can_all OR a.profile_id = v_profile_id THEN a.bank_account_no::text ELSE NULL END,
+    CASE WHEN v_can_all OR a.profile_id = v_profile_id THEN a.bank_name::text ELSE NULL END,
+    CASE WHEN v_can_all OR a.profile_id = v_profile_id THEN a.bank_ifsc::text ELSE NULL END,
+    a.tds_percentage,
+    a.total_commission_earned,
+    a.total_commission_paid,
+    a.outstanding_advance,
+    a.is_active,
+    a.is_test,
+    a.created_at,
+    a.updated_at,
+    p.full_name::text,
+    p.phone::text,
+    p.email::text,
+    sp.full_name::text,
+    sa.agent_code::character varying
+  FROM public.agents a
+  JOIN public.profiles p ON p.id = a.profile_id
+  LEFT JOIN public.agents sa ON sa.id = a.sponsor_agent_id
+  LEFT JOIN public.profiles sp ON sp.id = sa.profile_id
+  WHERE
+    (
+      v_can_all
+      OR a.profile_id = v_profile_id
+      OR (
+        v_role IN ('branch_manager', 'accountant')
+        AND v_actor_branch IS NOT NULL
+        AND p.branch = v_actor_branch
+      )
+    )
+    AND (v_can_all OR p_branch IS NULL OR p.branch = p_branch)
+    AND (p_hierarchy_level IS NULL OR a.hierarchy_level = p_hierarchy_level)
+    AND (
+      v_q = ''
+      OR lower(a.agent_code) LIKE '%' || v_q || '%'
+      OR lower(p.full_name) LIKE '%' || v_q || '%'
+      OR p.phone LIKE '%' || v_q || '%'
+      OR lower(coalesce(p.email::text, '')) LIKE '%' || v_q || '%'
+      OR lower(coalesce(p.branch, '')) LIKE '%' || v_q || '%'
+      OR lower(coalesce(sp.full_name, '')) LIKE '%' || v_q || '%'
+      OR lower(coalesce(sa.agent_code, '')) LIKE '%' || v_q || '%'
+    )
+  ORDER BY a.created_at DESC;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.get_agent_network(text, text, integer) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.get_agent_network(text, text, integer) TO authenticated;
+
+-- This RPC already checks agent.create and active-profile helpers internally;
+-- remove anonymous execution as an additional least-privilege boundary.
+REVOKE ALL ON FUNCTION public.create_agent_atomic(
+  uuid, text, citext, character varying, character varying, uuid,
+  character varying, text, text, character varying, numeric
+) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.create_agent_atomic(
+  uuid, text, citext, character varying, character varying, uuid,
+  character varying, text, text, character varying, numeric
+) TO authenticated;
