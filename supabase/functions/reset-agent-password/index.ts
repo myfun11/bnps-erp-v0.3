@@ -47,9 +47,13 @@ Deno.serve(async (req: Request) => {
     const { data: { user }, error: authError } = await userClient.auth.getUser();
     if (authError || !user) return json({ success: false, error: "AUTH_REQUIRED" }, 401);
 
-    // Only users already authorized to onboard agents may issue a reset.
+    // Password resets are limited to global administrators to prevent cross-branch account takeover.
+    const { data: callerRole, error: roleError } = await userClient.rpc("current_user_role");
     const { data: allowed, error: permissionError } = await userClient.rpc("has_erp_permission", { perm_code: "agent.create" });
-    if (permissionError || allowed !== true) return json({ success: false, error: "FORBIDDEN", message: "You do not have permission to reset agent credentials." }, 403);
+    if (roleError || permissionError || allowed !== true ||
+        !["super_admin", "office_admin"].includes(String(callerRole))) {
+      return json({ success: false, error: "FORBIDDEN", message: "Only Super Admin or Office Admin may reset agent credentials." }, 403);
+    }
 
     let body: Record<string, unknown>;
     try { body = await req.json(); } catch { return json({ success: false, error: "INVALID_JSON" }, 400); }
