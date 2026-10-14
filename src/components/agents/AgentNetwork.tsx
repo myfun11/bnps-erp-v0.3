@@ -847,7 +847,7 @@ export const AgentNetwork: React.FC = () => {
                     ))}
                   </select>
                 </div>
-                {(userRole === 'super_admin' || userRole === 'office_admin') && (
+                {isSupabaseConfigured && (userRole === 'super_admin' || userRole === 'office_admin') && (
                   <label className="flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 text-xs text-amber-200">
                     <input
                       type="checkbox"
