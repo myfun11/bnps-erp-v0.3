@@ -610,3 +610,175 @@ GRANT EXECUTE ON FUNCTION public.create_lead_atomic(uuid,uuid,text,character var
 -- The original overload remains for compatibility with older clients, but cannot bypass conversion KYC.
 REVOKE ALL ON FUNCTION public.create_lead_atomic(uuid,uuid,text,character varying,character varying,citext,text,character varying,numeric,numeric,text,text,text,text,text,text,character varying,text,boolean) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.create_lead_atomic(uuid,uuid,text,character varying,character varying,citext,text,character varying,numeric,numeric,text,text,text,text,text,text,character varying,text,boolean) TO authenticated;
+
+
+-- ---------------------------------------------------------------------------
+-- SECURITY PATCH: protect existing SECURITY DEFINER RPC access paths.
+-- This migration is source-only until separately approved for live application.
+-- ---------------------------------------------------------------------------
+
+-- Global search must execute as the caller so table RLS enforces row/branch scope.
+-- It also refuses anonymous calls and sessions still required to change password.
+CREATE OR REPLACE FUNCTION public.global_erp_search(
+  p_query text,
+  p_max_limit integer DEFAULT 20
+)
+RETURNS TABLE(
+  entity_type text,
+  entity_id uuid,
+  primary_label text,
+  secondary_label text,
+  status_label text,
+  created_date timestamptz
+)
+LANGUAGE plpgsql
+STABLE
+SECURITY INVOKER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+  v_clean_q text := btrim(coalesce(p_query, ''));
+  v_limit integer := greatest(1, least(coalesce(p_max_limit, 20), 50));
+BEGIN
+  IF auth.uid() IS NULL
+     OR coalesce(auth.jwt()->'app_metadata'->>'must_change_password', 'false') = 'true' THEN
+    RAISE EXCEPTION 'ACCESS_DENIED: authenticated session required' USING ERRCODE = '42501';
+  END IF;
+
+  IF v_clean_q = '' THEN
+    RETURN;
+  END IF;
+
+  RETURN QUERY
+  SELECT 'customer'::text, c.id,
+         (c.customer_code || ' • ' || c.full_name)::text,
+         ('Mob: ' || c.primary_mobile || ' | Consumer: ' || c.consumer_number)::text,
+         c.lifecycle_status::text, c.created_at
+  FROM public.customers c
+  WHERE c.customer_code ILIKE '%' || v_clean_q || '%'
+     OR c.full_name ILIKE '%' || v_clean_q || '%'
+     OR c.primary_mobile ILIKE '%' || v_clean_q || '%'
+     OR c.consumer_number ILIKE '%' || v_clean_q || '%'
+
+  UNION ALL
+
+  SELECT 'lead'::text, l.id,
+         (l.lead_code || ' • ' || l.full_name)::text,
+         ('Mob: ' || l.mobile || ' | Stage: ' || l.stage::text)::text,
+         l.stage::text, l.created_at
+  FROM public.leads l
+  WHERE l.lead_code ILIKE '%' || v_clean_q || '%'
+     OR l.full_name ILIKE '%' || v_clean_q || '%'
+     OR l.mobile ILIKE '%' || v_clean_q || '%'
+
+  UNION ALL
+
+  SELECT 'project'::text, p.id,
+         (p.project_code || ' • ' || p.capacity_kw::text || ' kW')::text,
+         ('Total: ₹' || p.total_contract_amount::text)::text,
+         p.status::text, p.created_at
+  FROM public.projects p
+  WHERE p.project_code ILIKE '%' || v_clean_q || '%'
+
+  UNION ALL
+
+  SELECT 'pmsg_application'::text, pm.id,
+         ('PMSG: ' || pm.portal_application_no)::text,
+         ('Capacity: ' || coalesce(pm.registered_capacity_kw::text, '0') || ' kW')::text,
+         pm.stage::text, pm.created_at
+  FROM public.pmsg_tracking pm
+  WHERE pm.portal_application_no ILIKE '%' || v_clean_q || '%'
+  LIMIT v_limit;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.global_erp_search(text, integer) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.global_erp_search(text, integer) TO authenticated;
+
+-- Keep the existing dashboard calculations intact, but make the old SECURITY
+-- DEFINER implementation private and put a first-login/auth gate in front of it.
+DO $$
+BEGIN
+  IF to_regprocedure('public.get_dashboard_summary_unchecked()') IS NULL
+     AND to_regprocedure('public.get_dashboard_summary()') IS NOT NULL THEN
+    ALTER FUNCTION public.get_dashboard_summary() RENAME TO get_dashboard_summary_unchecked;
+  END IF;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.get_dashboard_summary_unchecked() FROM PUBLIC, anon, authenticated;
+
+CREATE OR REPLACE FUNCTION public.get_dashboard_summary()
+RETURNS jsonb
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+BEGIN
+  IF auth.uid() IS NULL
+     OR coalesce(auth.jwt()->'app_metadata'->>'must_change_password', 'false') = 'true'
+     OR public.current_auth_profile_id() IS NULL THEN
+    RAISE EXCEPTION 'ACCESS_DENIED: authenticated ERP profile required' USING ERRCODE = '42501';
+  END IF;
+  RETURN public.get_dashboard_summary_unchecked();
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.get_dashboard_summary() FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.get_dashboard_summary() TO authenticated;
+
+-- Commission generation is a privileged financial action. Preserve the existing
+-- atomic calculation internally, but expose only a role-checked wrapper and never
+-- trust the caller-supplied actor id for the audit trail.
+DO $$
+BEGIN
+  IF to_regprocedure('public.generate_project_commission_atomic_unchecked(uuid,payment_stage_type,uuid)') IS NULL
+     AND to_regprocedure('public.generate_project_commission_atomic(uuid,payment_stage_type,uuid)') IS NOT NULL THEN
+    ALTER FUNCTION public.generate_project_commission_atomic(uuid, payment_stage_type, uuid)
+      RENAME TO generate_project_commission_atomic_unchecked;
+  END IF;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.generate_project_commission_atomic_unchecked(uuid, payment_stage_type, uuid)
+  FROM PUBLIC, anon, authenticated;
+
+CREATE OR REPLACE FUNCTION public.generate_project_commission_atomic(
+  p_project_id uuid,
+  p_payment_stage payment_stage_type,
+  p_actor_id uuid
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+  v_role public.user_role_type;
+  v_actor_profile_id uuid;
+BEGIN
+  IF auth.uid() IS NULL
+     OR coalesce(auth.jwt()->'app_metadata'->>'must_change_password', 'false') = 'true' THEN
+    RAISE EXCEPTION 'ACCESS_DENIED: authenticated session required' USING ERRCODE = '42501';
+  END IF;
+
+  v_actor_profile_id := public.current_auth_profile_id();
+  v_role := public.current_user_role();
+
+  IF v_actor_profile_id IS NULL
+     OR v_role IS NULL
+     OR v_role NOT IN ('super_admin', 'office_admin', 'accountant') THEN
+    RAISE EXCEPTION 'ACCESS_DENIED: role cannot generate commissions' USING ERRCODE = '42501';
+  END IF;
+
+  RETURN public.generate_project_commission_atomic_unchecked(
+    p_project_id, p_payment_stage, v_actor_profile_id
+  );
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.generate_project_commission_atomic(uuid, payment_stage_type, uuid)
+  FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.generate_project_commission_atomic(uuid, payment_stage_type, uuid)
+  TO authenticated;
