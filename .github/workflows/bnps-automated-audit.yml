@@ -1,0 +1,66 @@
+name: BNPS ERP Automated Audit
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bnps-audit-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  frontend-validation:
+    name: TypeScript and production build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout current source
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: TypeScript validation
+        run: npm run lint
+
+      - name: Production build
+        run: npm run build
+
+  supabase-readonly-audit:
+    name: Supabase metadata security audit (read-only)
+    runs-on: ubuntu-latest
+    env:
+      HAS_SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL != '' }}
+    steps:
+      - name: Checkout current source
+        uses: actions/checkout@v4
+
+      - name: Explain optional database connection
+        if: env.HAS_SUPABASE_DB_URL != 'true'
+        run: |
+          echo "::notice::Live Supabase audit skipped: repository secret SUPABASE_DB_URL is not configured."
+          echo "Frontend validation still runs. Configure a dedicated read-only database connection secret to enable live metadata checks."
+
+      - name: Install PostgreSQL client
+        if: env.HAS_SUPABASE_DB_URL == 'true'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+
+      - name: Run read-only Supabase audit
+        if: env.HAS_SUPABASE_DB_URL == 'true'
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          PGOPTIONS: "-c default_transaction_read_only=on"
+        run: |
+          psql "$SUPABASE_DB_URL" -X -v ON_ERROR_STOP=1 -f database/audit_readonly.sql
