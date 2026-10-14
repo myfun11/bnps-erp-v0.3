@@ -29,6 +29,16 @@ BEGIN
   IF has_function_privilege('anon', 'public.create_agent_atomic(uuid,text,citext,character varying,character varying,uuid,character varying,text,text,character varying,numeric)', 'EXECUTE') THEN
     RAISE EXCEPTION 'anon must not execute create_agent_atomic';
   END IF;
+
+  IF to_regprocedure('public.create_agent_atomic(uuid,text,citext,character varying,character varying,uuid,character varying,text,text,character varying,numeric,boolean)') IS NULL THEN
+    RAISE EXCEPTION 'atomic test-mode create_agent_atomic overload missing';
+  END IF;
+  IF has_function_privilege('anon', 'public.create_agent_atomic(uuid,text,citext,character varying,character varying,uuid,character varying,text,text,character varying,numeric,boolean)', 'EXECUTE') THEN
+    RAISE EXCEPTION 'anon must not execute atomic test-mode create_agent_atomic';
+  END IF;
+  IF NOT has_function_privilege('authenticated', 'public.create_agent_atomic(uuid,text,citext,character varying,character varying,uuid,character varying,text,text,character varying,numeric,boolean)', 'EXECUTE') THEN
+    RAISE EXCEPTION 'authenticated must execute atomic test-mode create_agent_atomic';
+  END IF;
   IF has_function_privilege('anon', 'public.get_agent_network(text,text,integer)', 'EXECUTE') THEN
     RAISE EXCEPTION 'anon must not execute get_agent_network';
   END IF;
