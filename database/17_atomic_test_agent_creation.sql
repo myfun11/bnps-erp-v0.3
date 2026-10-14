@@ -81,3 +81,6 @@ GRANT EXECUTE ON FUNCTION public.create_agent_atomic(
   uuid, text, citext, character varying, character varying, uuid,
   character varying, text, text, character varying, numeric, boolean
 ) TO authenticated;
+
+-- Refresh PostgREST's RPC schema cache so the new overload is discoverable.
+NOTIFY pgrst, 'reload schema';
