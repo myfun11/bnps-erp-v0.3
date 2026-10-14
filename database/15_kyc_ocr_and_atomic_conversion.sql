@@ -51,9 +51,9 @@ RETURNS boolean
 LANGUAGE sql
 STABLE
 SET search_path = public, pg_temp
-AS $
+AS $$
   SELECT coalesce(auth.jwt()->'app_metadata'->>'must_change_password', 'false') = 'true';
-$;
+$$;
 
 REVOKE ALL ON FUNCTION public.current_session_requires_password_change() FROM PUBLIC, anon, authenticated;
 
@@ -63,14 +63,14 @@ LANGUAGE sql
 STABLE
 SECURITY DEFINER
 SET search_path = public, pg_temp
-AS $
+AS $$
   SELECT p.id
   FROM public.profiles p
   WHERE p.auth_user_id = auth.uid()
     AND p.is_active = true
     AND NOT public.current_session_requires_password_change()
   LIMIT 1;
-$;
+$$;
 
 CREATE OR REPLACE FUNCTION public.current_user_role()
 RETURNS public.user_role_type
@@ -78,14 +78,14 @@ LANGUAGE sql
 STABLE
 SECURITY DEFINER
 SET search_path = public, pg_temp
-AS $
+AS $$
   SELECT p.role
   FROM public.profiles p
   WHERE p.auth_user_id = auth.uid()
     AND p.is_active = true
     AND NOT public.current_session_requires_password_change()
   LIMIT 1;
-$;
+$$;
 
 CREATE OR REPLACE FUNCTION public.has_erp_permission(perm_code text)
 RETURNS boolean
@@ -93,7 +93,7 @@ LANGUAGE plpgsql
 STABLE
 SECURITY DEFINER
 SET search_path = public, pg_temp
-AS $
+AS $$
 DECLARE
   v_profile_id uuid;
   v_permission_id uuid;
@@ -157,7 +157,7 @@ BEGIN
 
   RETURN false;
 END;
-$;
+$$;
 
 -- A SECURITY DEFINER insert RPC must not let an agent attach KYC documents to another entity.
 CREATE OR REPLACE FUNCTION public.enforce_document_entity_scope()
