@@ -200,7 +200,6 @@ export const ConvertLeadModal: React.FC<ConvertLeadModalProps> = ({
   const isBankProofComplete = isCategoryComplete('bank_proof');
   const isNocB1Complete = isCategoryComplete('noc_b1');
   const isSitePhotoComplete = isCategoryComplete('site_photo');
-  const isPanComplete = isCategoryComplete('pan');
 
   const allRequiredDocsComplete =
     isElectricityBillComplete &&
