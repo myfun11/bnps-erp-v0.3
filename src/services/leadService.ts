@@ -69,7 +69,7 @@ export const leadService = {
     leadId: string,
     consumerNumber: string,
     actorProfileId: string
-  ): Promise<{ success: boolean; customer?: { id: string; customer_code: string } }> {
+  ): Promise<{ success: boolean; customer?: { id: string; customer_code: string }; error?: string; message?: string }> {
     if (!isSupabaseConfigured) throw new Error('Supabase is not configured.');
     const { data, error } = await supabase.rpc('convert_lead_atomic', {
       p_lead_id: leadId,
