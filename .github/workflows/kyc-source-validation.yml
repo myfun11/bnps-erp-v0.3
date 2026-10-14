@@ -98,6 +98,77 @@ jobs:
         env:
           PGPASSWORD: postgres
         run: psql -h 127.0.0.1 -U postgres -d bnps_test -v ON_ERROR_STOP=1 -f tests/sql/assert_agent_hierarchy_migration.sql
+      - name: Race two PostgreSQL sessions against sponsor-cycle guard
+        env:
+          PGPASSWORD: postgres
+        shell: bash
+        run: |
+          set -euo pipefail
+          DB="psql -h 127.0.0.1 -U postgres -d bnps_test -v ON_ERROR_STOP=1"
+          A="20000000-0000-0000-0000-000000000001"
+          B="20000000-0000-0000-0000-000000000002"
+
+          # Seed two active synthetic Agents. The AFTER trigger delays transaction A
+          # only after its BEFORE sponsor guard has accepted A -> B and acquired the lock.
+          psql -h 127.0.0.1 -U postgres -d bnps_test -v ON_ERROR_STOP=1 <<SQL
+          INSERT INTO public.agents(id, agent_code, sponsor_agent_id, is_active)
+          VALUES ('$A', 'RACE-AGENT-A', NULL, true), ('$B', 'RACE-AGENT-B', NULL, true);
+          CREATE OR REPLACE FUNCTION public.test_pause_after_sponsor_guard()
+          RETURNS trigger LANGUAGE plpgsql AS \$pause\$
+          BEGIN
+            IF NEW.id = '$A'::uuid AND NEW.sponsor_agent_id = '$B'::uuid THEN
+              PERFORM pg_sleep(3);
+            END IF;
+            RETURN NEW;
+          END;
+          \$pause\$;
+          DROP TRIGGER IF EXISTS zz_test_pause_after_sponsor_guard ON public.agents;
+          CREATE TRIGGER zz_test_pause_after_sponsor_guard
+          AFTER UPDATE OF sponsor_agent_id ON public.agents
+          FOR EACH ROW EXECUTE FUNCTION public.test_pause_after_sponsor_guard();
+          SQL
+
+          # Start A first; it validates A -> B and then sleeps while holding the
+          # transaction-scoped advisory lock. B begins while A is still uncommitted.
+          psql -h 127.0.0.1 -U postgres -d bnps_test -v ON_ERROR_STOP=1 \
+            -c "BEGIN; UPDATE public.agents SET sponsor_agent_id='$B' WHERE id='$A'; COMMIT;" \
+            > /tmp/race-a.log 2>&1 &
+          PID_A=$!
+          sleep 0.5
+
+          set +e
+          psql -h 127.0.0.1 -U postgres -d bnps_test -v ON_ERROR_STOP=1 \
+            -c "BEGIN; UPDATE public.agents SET sponsor_agent_id='$A' WHERE id='$B'; COMMIT;" \
+            > /tmp/race-b.log 2>&1
+          RC_B=$?
+          set -e
+          wait "$PID_A"
+
+          if [ "$RC_B" -eq 0 ]; then
+            echo "FAIL: concurrent reverse sponsor assignment committed; cycle guard is race-unsafe"
+            cat /tmp/race-a.log /tmp/race-b.log
+            exit 1
+          fi
+          if ! grep -q "AGENT_HIERARCHY_CYCLE" /tmp/race-b.log; then
+            echo "FAIL: second transaction failed for an unexpected reason"
+            cat /tmp/race-a.log /tmp/race-b.log
+            exit 1
+          fi
+
+          psql -h 127.0.0.1 -U postgres -d bnps_test -v ON_ERROR_STOP=1 <<SQL
+          DO \$assert\$
+          BEGIN
+            IF (SELECT sponsor_agent_id FROM public.agents WHERE id='$A') IS DISTINCT FROM '$B'::uuid
+               OR (SELECT sponsor_agent_id FROM public.agents WHERE id='$B') IS NOT NULL THEN
+              RAISE EXCEPTION 'FAIL: final sponsor edges differ from expected acyclic result';
+            END IF;
+          END;
+          \$assert\$;
+          DROP TRIGGER IF EXISTS zz_test_pause_after_sponsor_guard ON public.agents;
+          DROP FUNCTION IF EXISTS public.test_pause_after_sponsor_guard();
+          DELETE FROM public.agents WHERE id IN ('$A'::uuid, '$B'::uuid);
+          SQL
+          echo "PASS: two overlapping PostgreSQL sessions; reverse edge rejected with AGENT_HIERARCHY_CYCLE"
       - name: Assert post-migration grants and schema
         env:
           PGPASSWORD: postgres
