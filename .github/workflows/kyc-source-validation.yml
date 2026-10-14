@@ -6,6 +6,7 @@ on:
     paths:
       - "database/15_kyc_ocr_and_atomic_conversion.sql"
       - "database/16_test_agent_mode_guardrails.sql"
+      - "database/17_atomic_test_agent_creation.sql"
       - "supabase/functions/**"
       - "src/**"
       - "tests/sql/**"
@@ -53,7 +54,7 @@ jobs:
           python-version: "3.12"
       - run: python -m pip install --disable-pip-version-check pglast
       - name: Parse migration SQL
-        run: python -c "from pathlib import Path; from pglast import parse_sql; files=[Path('database/15_kyc_ocr_and_atomic_conversion.sql'),Path('database/16_test_agent_mode_guardrails.sql')]; [parse_sql(p.read_text()) for p in files]; print('Parsed '+', '.join(str(p) for p in files)+' successfully')"
+        run: python -c "from pathlib import Path; from pglast import parse_sql; files=[Path('database/15_kyc_ocr_and_atomic_conversion.sql'),Path('database/16_test_agent_mode_guardrails.sql'),Path('database/17_atomic_test_agent_creation.sql')]; [parse_sql(p.read_text()) for p in files]; print('Parsed '+', '.join(str(p) for p in files)+' successfully')"
 
   sql-runtime:
     name: Disposable PostgreSQL migration execution
@@ -86,6 +87,7 @@ jobs:
         run: |
           psql -h 127.0.0.1 -U postgres -d bnps_test -v ON_ERROR_STOP=1 -f database/15_kyc_ocr_and_atomic_conversion.sql
           psql -h 127.0.0.1 -U postgres -d bnps_test -v ON_ERROR_STOP=1 -f database/16_test_agent_mode_guardrails.sql
+          psql -h 127.0.0.1 -U postgres -d bnps_test -v ON_ERROR_STOP=1 -f database/17_atomic_test_agent_creation.sql
       - name: Assert post-migration grants and schema
         env:
           PGPASSWORD: postgres
