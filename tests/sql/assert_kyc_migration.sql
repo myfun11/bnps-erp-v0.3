@@ -81,6 +81,23 @@ BEGIN
     RAISE EXCEPTION 'test-mode propagation triggers missing';
   END IF;
 
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema='public' AND table_name='agents' AND column_name='kyc_activation_pending'
+  ) THEN
+    RAISE EXCEPTION 'agent KYC activation-pending guard column missing';
+  END IF;
+  IF to_regprocedure('public.activate_agent_after_kyc(uuid)') IS NULL THEN
+    RAISE EXCEPTION 'agent KYC activation function missing';
+  END IF;
+  IF has_function_privilege('authenticated', 'public.activate_agent_after_kyc(uuid)', 'EXECUTE')
+     OR has_function_privilege('anon', 'public.activate_agent_after_kyc(uuid)', 'EXECUTE') THEN
+    RAISE EXCEPTION 'agent activation function must not be callable by browser roles';
+  END IF;
+  IF position('kyc_activation_pending' in pg_get_functiondef('public.evaluate_entity_kyc(text,uuid)'::regprocedure)) = 0 THEN
+    RAISE EXCEPTION 'KYC evaluator does not support inactive Agents pending verification';
+  END IF;
+
   RAISE NOTICE 'KYC and test-mode migration post-conditions passed';
 END;
 $$;
