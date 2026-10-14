@@ -717,13 +717,15 @@ export const AgentNetwork: React.FC = () => {
                           <span>KYC ({agentDocs.length})</span>
                         </button>
 
-                        <button
-                          onClick={() => void handleResetAgentPassword(agent)}
-                          className="p-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 transition cursor-pointer"
-                          title="Reset agent password; temporary password is shown once"
-                        >
-                          <Lock className="w-3.5 h-3.5" />
-                        </button>
+                        {(userRole === 'super_admin' || userRole === 'office_admin') && (
+                          <button
+                            onClick={() => void handleResetAgentPassword(agent)}
+                            className="p-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 transition cursor-pointer"
+                            title="Reset agent password; temporary password is shown once"
+                          >
+                            <Lock className="w-3.5 h-3.5" />
+                          </button>
+                        )}
                         <button
                           onClick={() => handleCopy(
                             `Agent: ${agent.agent_code} (${agent.profile?.full_name})\nPhone: ${agent.profile?.phone}\nBranch: ${agent.branch}\nTier: ${agent.hierarchy_level}`,
