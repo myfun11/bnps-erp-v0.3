@@ -149,21 +149,35 @@ export const AgentNetwork: React.FC = () => {
       return;
     }
 
-    // Mandatory document checks per business rule (Sections 7-11)
-    if (!panFile) {
-      alert('PAN Card document upload is mandatory for agent onboarding.');
-      return;
+    // Normal Agent onboarding always requires all four KYC documents.
+    // TEST ONLY workflow mode may create an unverified test Agent without files,
+    // but partial document sets are rejected to avoid ambiguous KYC state.
+    const kycFiles = [panFile, aadhaarFrontFile, aadhaarBackFile, bankProofFile];
+    const hasAnyKycFile = kycFiles.some(Boolean);
+    const hasAllKycFiles = kycFiles.every(Boolean);
+    const testWorkflowOnly = newAgentForm.is_test && !hasAnyKycFile;
+
+    if (!newAgentForm.is_test || hasAnyKycFile) {
+      if (!panFile) {
+        alert('PAN Card document upload is mandatory for agent onboarding.');
+        return;
+      }
+      if (!aadhaarFrontFile) {
+        alert('Aadhaar Card Front document upload is mandatory.');
+        return;
+      }
+      if (!aadhaarBackFile) {
+        alert('Aadhaar Card Back document upload is mandatory.');
+        return;
+      }
+      if (!bankProofFile) {
+        alert('Bank Passbook document upload is mandatory. The account-holder name and father name must be readable.');
+        return;
+      }
     }
-    if (!aadhaarFrontFile) {
-      alert('Aadhaar Card Front document upload is mandatory.');
-      return;
-    }
-    if (!aadhaarBackFile) {
-      alert('Aadhaar Card Back document upload is mandatory.');
-      return;
-    }
-    if (!bankProofFile) {
-      alert('Bank Passbook document upload is mandatory. The account-holder name and father name must be readable.');
+
+    if (newAgentForm.is_test && hasAnyKycFile && !hasAllKycFiles) {
+      alert('For TEST ONLY accounts, upload all four KYC files or clear all four file selections for workflow-only testing.');
       return;
     }
 
@@ -190,13 +204,16 @@ export const AgentNetwork: React.FC = () => {
         setNewlyCreatedCredentials({ agentId, agentCode: result.agent_code, fullName: newAgentForm.full_name, branch: newAgentForm.branch, loginEmail: result.login_email, temporaryPassword: result.temporary_password });
       }
 
-      // 2. Upload all four private KYC documents, then run trusted server-side OCR.
-      const uploadedDocs = await Promise.all([
-        documentService.uploadDocument(panFile, 'agent', agentId, 'pan', newAgentForm.is_test),
-        documentService.uploadDocument(aadhaarFrontFile, 'agent', agentId, 'aadhaar_front', newAgentForm.is_test),
-        documentService.uploadDocument(aadhaarBackFile, 'agent', agentId, 'aadhaar_back', newAgentForm.is_test),
-        documentService.uploadDocument(bankProofFile, 'agent', agentId, 'bank_proof', newAgentForm.is_test),
-      ]);
+      // 2. Workflow-only test Agents intentionally have no document rows.
+      // They remain KYC-pending; the backend lead-conversion document gate is unchanged.
+      const uploadedDocs: (DocumentRecord | null | undefined)[] = testWorkflowOnly
+        ? []
+        : await Promise.all([
+            documentService.uploadDocument(panFile!, 'agent', agentId, 'pan', newAgentForm.is_test),
+            documentService.uploadDocument(aadhaarFrontFile!, 'agent', agentId, 'aadhaar_front', newAgentForm.is_test),
+            documentService.uploadDocument(aadhaarBackFile!, 'agent', agentId, 'aadhaar_back', newAgentForm.is_test),
+            documentService.uploadDocument(bankProofFile!, 'agent', agentId, 'bank_proof', newAgentForm.is_test),
+          ]);
 
       let ocrNeedsReview = 0;
       if (documentService.isConfigured()) {
@@ -225,9 +242,11 @@ export const AgentNetwork: React.FC = () => {
 
       setShowNewAgentModal(false);
       setSuccessBanner(
-        ocrNeedsReview > 0
-          ? `Agent ${result.agent_code} created. All four KYC documents were uploaded; ${ocrNeedsReview} document(s) need OCR retry/manual review. Agent KYC remains unverified until identity fields match.`
-          : `Agent ${result.agent_code} created. KYC OCR ran; automatic verification is only completed when name, father name and DOB match across the required documents.`
+        testWorkflowOnly
+          ? `TEST ONLY Agent ${result.agent_code} created for workflow testing WITHOUT KYC documents. KYC remains PENDING; document upload, verification and lead-to-customer conversion requirements are not bypassed.`
+          : ocrNeedsReview > 0
+            ? `Agent ${result.agent_code} created. All four KYC documents were uploaded; ${ocrNeedsReview} document(s) need OCR retry/manual review. Agent KYC remains unverified until identity fields match.`
+            : `Agent ${result.agent_code} created. KYC OCR ran; automatic verification is only completed when name, father name and DOB match across the required documents.`
       );
       setTimeout(() => setSuccessBanner(null), 6000);
 
@@ -855,7 +874,7 @@ export const AgentNetwork: React.FC = () => {
                       onChange={(e) => setNewAgentForm({ ...newAgentForm, is_test: e.target.checked })}
                       className="mt-0.5 accent-amber-500"
                     />
-                    <span><strong>TEST ONLY account</strong><br />Marks this Agent, its documents, downstream Leads and converted Customers as test data. Only use non-production test documents.</span>
+                    <span><strong>TEST ONLY account</strong><br />Workflow-only test: leave all four document fields empty to skip uploads. KYC stays PENDING; document verification and Lead-to-Customer conversion rules are not bypassed. If testing uploads, select all four synthetic test files.</span>
                   </label>
                 )}
               </div>
