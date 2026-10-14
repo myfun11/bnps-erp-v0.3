@@ -18,6 +18,7 @@ CREATE TYPE public.lead_stage_type AS ENUM (
   'NEW','CONTACTED','INTERESTED','DOCUMENT_PENDING','CONVERTED','LOST'
 );
 CREATE TYPE public.payment_stage_type AS ENUM ('ADVANCE','INSTALLATION','COMPLETION');
+CREATE TYPE public.pmsg_stage_type AS ENUM ('INITIATED','REGISTERED','FEASIBILITY','INSTALLED','COMPLETED');
 
 CREATE TABLE public.profiles (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -153,3 +154,38 @@ CREATE OR REPLACE FUNCTION public.create_lead_atomic(
   character varying, numeric, numeric, text, text, text, text, text, text,
   character varying, text, boolean
 ) RETURNS jsonb LANGUAGE sql SECURITY DEFINER AS $$ SELECT '{}'::jsonb $$;
+
+
+-- Minimal fixture for validating access controls on sensitive views.
+CREATE TABLE public.acquisitions (
+  customer_id uuid,
+  sourcing_agent_id uuid
+);
+CREATE TABLE public.pmsg_tracking (
+  customer_id uuid,
+  portal_application_no text,
+  application_submission_date date,
+  registered_capacity_kw numeric,
+  stage public.pmsg_stage_type,
+  feasibility_status text,
+  subsidy_amount_eligible numeric
+);
+CREATE VIEW public.agents_public_profile AS
+SELECT a.id, a.agent_code, p.full_name AS agent_name, a.sponsor_agent_id,
+       a.hierarchy_level, a.is_active, a.created_at
+FROM public.agents a JOIN public.profiles p ON p.id=a.profile_id;
+CREATE VIEW public.view_pmsg_registered_customers AS
+SELECT c.id AS customer_id, c.customer_code, c.full_name AS customer_name,
+       c.primary_mobile, c.consumer_number, c.discom_name, c.district,
+       p.portal_application_no, p.application_submission_date, p.registered_capacity_kw,
+       p.stage AS pmsg_stage, p.feasibility_status, p.subsidy_amount_eligible,
+       a.sourcing_agent_id, ag.agent_code, ag_prof.full_name AS agent_name,
+       c.lifecycle_status, c.created_at AS customer_since
+FROM public.customers c
+JOIN public.pmsg_tracking p ON p.customer_id=c.id
+LEFT JOIN public.acquisitions a ON a.customer_id=c.id
+LEFT JOIN public.agents ag ON a.sourcing_agent_id=ag.id
+LEFT JOIN public.profiles ag_prof ON ag.profile_id=ag_prof.id
+WHERE ((p.portal_application_no IS NOT NULL) OR (p.stage <> 'INITIATED'::public.pmsg_stage_type))
+  AND c.is_test=false;
+GRANT SELECT ON public.agents_public_profile, public.view_pmsg_registered_customers TO PUBLIC;
