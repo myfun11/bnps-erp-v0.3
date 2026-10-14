@@ -81,3 +81,7 @@ jobs:
         env:
           PGPASSWORD: postgres
         run: psql -h 127.0.0.1 -U postgres -d bnps_test -v ON_ERROR_STOP=1 -f database/15_kyc_ocr_and_atomic_conversion.sql
+      - name: Assert post-migration grants and schema
+        env:
+          PGPASSWORD: postgres
+        run: psql -h 127.0.0.1 -U postgres -d bnps_test -v ON_ERROR_STOP=1 -f tests/sql/assert_kyc_migration.sql
