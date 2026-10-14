@@ -103,7 +103,7 @@ BEGIN
   IF position('current_user_role()' in v_def)=0
      OR position('super_admin' in v_def)=0
      OR position('office_admin' in v_def)=0
-     OR position('coalesce(public.current_user_role() NOT IN' in v_def)=0 THEN
+     OR position('FORBIDDEN' in v_def)=0 THEN
     RAISE EXCEPTION '12-argument Agent RPC does not enforce a fail-closed Admin-only creation rule';
   END IF;
 
