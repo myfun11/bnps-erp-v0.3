@@ -20,6 +20,7 @@ export interface CreateAgentInput {
   bank_name?: string;
   bank_ifsc?: string;
   tds_percentage: number;
+  is_test?: boolean;
 }
 
 const mapAgent = (row: any): Agent => ({
