@@ -39,6 +39,7 @@ jobs:
       - run: deno check supabase/functions/verify-kyc-document/index.ts
       - run: deno check supabase/functions/change-initial-password/index.ts
       - run: deno check supabase/functions/create-agent/index.ts
+      - run: deno check supabase/functions/reset-agent-password/index.ts
 
   sql-parse:
     name: PostgreSQL migration parse
