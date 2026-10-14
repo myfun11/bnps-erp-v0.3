@@ -102,13 +102,13 @@ BEGIN
     RAISE EXCEPTION 'AUTH_REQUIRED: Active ERP profile required' USING ERRCODE = '42501';
   END IF;
 
-  IF public.current_user_role() NOT IN ('super_admin', 'office_admin') THEN
+  IF coalesce(public.current_user_role() NOT IN ('super_admin', 'office_admin'), true) THEN
     RAISE EXCEPTION 'FORBIDDEN: Only Super Admin or Office Admin may create Agents'
       USING ERRCODE = '42501';
   END IF;
 
   IF coalesce(p_is_test, false)
-     AND public.current_user_role() NOT IN ('super_admin', 'office_admin') THEN
+     AND coalesce(public.current_user_role() NOT IN ('super_admin', 'office_admin'), true) THEN
     RAISE EXCEPTION 'FORBIDDEN: Only Super Admin or Office Admin may create test agents'
       USING ERRCODE = '42501';
   END IF;
