@@ -151,6 +151,8 @@ Deno.serve(async (req) => {
       }, 500);
     }
 
+    // The versioned RPC applies is_test atomically with Agent/Profile creation.
+    // This prevents a test-mode tagging failure from leaving an active real Agent.
     const { data: agentResult, error: agentError } = await userClient.rpc("create_agent_atomic", {
       p_auth_user_id: authUserId,
       p_full_name: full_name,
@@ -163,31 +165,18 @@ Deno.serve(async (req) => {
       p_bank_name: bank_name,
       p_bank_ifsc: bank_ifsc,
       p_tds_percentage: tds_percentage,
+      p_is_test: is_test,
     });
 
     if (agentError || !agentResult?.success) {
-      // Keep the orphaned Auth identity for audited manual cleanup; never delete accounts from this recovery path.
+      // The DB transaction rolls back both Agent/Profile creation if atomic test tagging fails.
+      // The Auth identity may remain unlinked and must not be issued to the caller.
       console.error("create-agent atomic RPC failed:", agentError?.message || "RPC returned unsuccessful result");
       return jsonResponse({
         success: false,
         error: "AGENT_CREATION_FAILED",
         message: agentError?.message || "Agent profile could not be created. No agent credentials were issued.",
       }, 400);
-    }
-
-    if (is_test) {
-      const { data: testModeResult, error: testModeError } = await adminClient.rpc("set_agent_test_mode", {
-        p_agent_id: agentResult.agent_id,
-        p_profile_id: agentResult.profile_id,
-      });
-      if (testModeError || testModeResult?.success !== true) {
-        console.error("create-agent test-mode tagging failed:", testModeError?.message || "RPC returned unsuccessful result");
-        return jsonResponse({
-          success: false,
-          error: "TEST_MODE_TAG_FAILED",
-          message: "Agent account was created but test-mode tagging failed. Do not use it until an administrator resolves the test flag.",
-        }, 500);
-      }
     }
 
     return jsonResponse({
