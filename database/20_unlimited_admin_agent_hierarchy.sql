@@ -1,6 +1,9 @@
 -- BNPS ERP v0.3 — unlimited-depth sponsor hierarchy with Admin-only Agent creation.
 -- SOURCE PATCH ONLY: review and validate before applying to any Supabase project.
--- "Unlimited" means no application-defined depth cap; commission payout positions remain capped by existing business rules.
+-- Sponsor depth is derived by traversing sponsor_agent_id; it is NOT stored in hierarchy_level.
+-- Keep the live hierarchy_level 1..10 constraint intact: it is a legacy commission-tier field,
+-- not a depth counter. Commission payout position/rate remains controlled by the commission engine.
+-- Do not drop or widen the live hierarchy_level constraint as part of this hierarchy migration.
 
 CREATE OR REPLACE FUNCTION public.enforce_agent_sponsor_tree()
 RETURNS trigger
@@ -107,13 +110,10 @@ BEGIN
       USING ERRCODE = '42501';
   END IF;
 
-  IF coalesce(p_is_test, false)
-     AND coalesce(public.current_user_role() NOT IN ('super_admin', 'office_admin'), true) THEN
-    RAISE EXCEPTION 'FORBIDDEN: Only Super Admin or Office Admin may create test agents'
-      USING ERRCODE = '42501';
-  END IF;
-
-  -- Preserve the established validation, permission and business logic.
+  -- The guard above applies to BOTH real and test Agent creation. NULL/missing role is denied.
+  -- Keep the legacy 11-argument implementation as the business-logic delegate; migration 19
+  -- must continue to restrict direct client EXECUTE on that overload to trusted service_role.
+  -- SECURITY DEFINER owner-context permits this wrapper call without widening client grants.
   v_result := public.create_agent_atomic(
     p_auth_user_id, p_full_name, p_email, p_phone, p_branch,
     p_sponsor_agent_id, p_pan_number, p_bank_account_no, p_bank_name,
