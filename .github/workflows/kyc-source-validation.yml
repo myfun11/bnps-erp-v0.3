@@ -94,7 +94,7 @@ jobs:
           psql -h 127.0.0.1 -U postgres -d bnps_test -v ON_ERROR_STOP=1 -f database/18_harden_sensitive_views.sql
           psql -h 127.0.0.1 -U postgres -d bnps_test -v ON_ERROR_STOP=1 -f database/19_restrict_legacy_create_agent_rpc.sql
           psql -h 127.0.0.1 -U postgres -d bnps_test -v ON_ERROR_STOP=1 -f database/20_unlimited_admin_agent_hierarchy.sql
-      - name: Assert >10-level hierarchy and actual RPC authorization on disposable PostgreSQL
+      - name: Assert >10-level hierarchy, wrapper authorization, and delegate contract on disposable PostgreSQL
         env:
           PGPASSWORD: postgres
         run: psql -h 127.0.0.1 -U postgres -d bnps_test -v ON_ERROR_STOP=1 -f tests/sql/assert_agent_hierarchy_migration.sql
