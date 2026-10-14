@@ -7,8 +7,15 @@ CREATE ROLE authenticated NOLOGIN;
 CREATE ROLE service_role NOLOGIN;
 
 CREATE SCHEMA IF NOT EXISTS auth;
-CREATE OR REPLACE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql STABLE AS $$ SELECT NULL::uuid $$;
-CREATE OR REPLACE FUNCTION auth.jwt() RETURNS jsonb LANGUAGE sql STABLE AS $$ SELECT '{}'::jsonb $$;
+CREATE OR REPLACE FUNCTION auth.jwt() RETURNS jsonb LANGUAGE sql STABLE AS $
+  SELECT coalesce(nullif(current_setting('request.jwt.claims', true), ''), '{}')::jsonb
+$;
+CREATE OR REPLACE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql STABLE AS $
+  SELECT coalesce(
+    nullif(current_setting('request.jwt.claim.sub', true), '')::uuid,
+    nullif(auth.jwt()->>'sub', '')::uuid
+  )
+$;
 
 CREATE TYPE public.user_role_type AS ENUM (
   'super_admin','office_admin','branch_manager','operational_manager','accountant',
@@ -109,7 +116,7 @@ CREATE TABLE public.agents (
   agent_code varchar,
   branch varchar,
   sponsor_agent_id uuid,
-  hierarchy_level integer,
+  hierarchy_level integer DEFAULT 10 CHECK (hierarchy_level BETWEEN 1 AND 10),
   pan_number varchar,
   aadhaar_masked varchar,
   bank_account_no text,
