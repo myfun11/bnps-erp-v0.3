@@ -1,5 +1,16 @@
 -- Disposable PostgreSQL runtime assertions for migration 20.
 -- Uses only synthetic rows and rolls them back before the CI job ends.
+-- Override only the legacy permission dependency AFTER the migration files have run:
+-- the actual live legacy RPC body is exercised, while the test explicitly models
+-- its external agent.create authorization dependency for synthetic Admin profiles.
+CREATE OR REPLACE FUNCTION public.has_erp_permission(p_permission text)
+RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $testdep$
+  SELECT p_permission = 'agent.create'
+     AND public.current_user_role() IN ('super_admin','office_admin')
+$testdep$;
+
 BEGIN;
 
 DO $$
