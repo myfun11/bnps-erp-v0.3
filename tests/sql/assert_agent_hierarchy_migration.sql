@@ -15,6 +15,7 @@ DECLARE
   v_rejected boolean;
   v_error text;
   v_def text;
+  v_result jsonb;
 BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM pg_trigger
@@ -132,14 +133,32 @@ BEGIN
 
   PERFORM set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000001', true);
   PERFORM set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-000000000001","role":"authenticated"}', true);
-  PERFORM public.create_agent_atomic(NULL, 'Synthetic Admin', 'admin-test@example.com'::citext,
+  v_result := public.create_agent_atomic('10000000-0000-0000-0000-000000000011',
+    'Synthetic Admin', 'admin-test@example.com'::citext,
     '1111111111', 'Jaijaipur', NULL, NULL, NULL, NULL, NULL, 5, false);
+  IF coalesce((v_result->>'success')::boolean, false) IS NOT TRUE
+     OR (v_result->>'agent_id') IS NULL OR (v_result->>'profile_id') IS NULL THEN
+    RAISE EXCEPTION 'Admin RPC did not complete the legacy delegate path: %', v_result;
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM public.agents
+     WHERE id=(v_result->>'agent_id')::uuid
+       AND profile_id=(v_result->>'profile_id')::uuid
+       AND is_active=false
+       AND coalesce(kyc_activation_pending, false)=true
+  ) OR NOT EXISTS (
+    SELECT 1 FROM public.profiles
+     WHERE id=(v_result->>'profile_id')::uuid
+       AND role='agent' AND is_active=false
+  ) THEN
+    RAISE EXCEPTION 'Admin-created real Agent was not held inactive pending KYC';
+  END IF;
 
   PERFORM set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000002', true);
   PERFORM set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-000000000002","role":"authenticated"}', true);
   v_rejected := false;
   BEGIN
-    PERFORM public.create_agent_atomic(NULL, 'Synthetic Agent', 'agent-test@example.com'::citext,
+    PERFORM public.create_agent_atomic('10000000-0000-0000-0000-000000000012', 'Synthetic Agent', 'agent-test@example.com'::citext,
       '2222222222', 'Jaijaipur', NULL, NULL, NULL, NULL, NULL, 5, false);
   EXCEPTION WHEN insufficient_privilege THEN
     GET STACKED DIAGNOSTICS v_error = MESSAGE_TEXT;
@@ -150,7 +169,7 @@ BEGIN
   -- Test mode is not an authorization bypass: the same non-admin must be rejected.
   v_rejected := false;
   BEGIN
-    PERFORM public.create_agent_atomic(NULL, 'Synthetic Test Agent', 'agent-test-mode@example.com'::citext,
+    PERFORM public.create_agent_atomic('10000000-0000-0000-0000-000000000013', 'Synthetic Test Agent', 'agent-test-mode@example.com'::citext,
       '2222222223', 'Jaijaipur', NULL, NULL, NULL, NULL, NULL, 5, true);
   EXCEPTION WHEN insufficient_privilege THEN
     GET STACKED DIAGNOSTICS v_error = MESSAGE_TEXT;
@@ -162,7 +181,7 @@ BEGIN
   PERFORM set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-000000000003","role":"authenticated"}', true);
   v_rejected := false;
   BEGIN
-    PERFORM public.create_agent_atomic(NULL, 'Synthetic Null Role', 'null-role@example.com'::citext,
+    PERFORM public.create_agent_atomic('10000000-0000-0000-0000-000000000014', 'Synthetic Null Role', 'null-role@example.com'::citext,
       '3333333333', 'Jaijaipur', NULL, NULL, NULL, NULL, NULL, 5, false);
   EXCEPTION WHEN insufficient_privilege THEN
     GET STACKED DIAGNOSTICS v_error = MESSAGE_TEXT;
@@ -174,7 +193,7 @@ BEGIN
   PERFORM set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-000000000004","role":"authenticated"}', true);
   v_rejected := false;
   BEGIN
-    PERFORM public.create_agent_atomic(NULL, 'Synthetic Missing Profile', 'missing-profile@example.com'::citext,
+    PERFORM public.create_agent_atomic('10000000-0000-0000-0000-000000000015', 'Synthetic Missing Profile', 'missing-profile@example.com'::citext,
       '4444444444', 'Jaijaipur', NULL, NULL, NULL, NULL, NULL, 5, false);
   EXCEPTION WHEN insufficient_privilege THEN
     GET STACKED DIAGNOSTICS v_error = MESSAGE_TEXT;
