@@ -908,3 +908,116 @@ GRANT EXECUTE ON FUNCTION public.create_agent_atomic(
   uuid, text, citext, character varying, character varying, uuid,
   character varying, text, text, character varying, numeric
 ) TO authenticated;
+
+
+-- Wrap the legacy 19-argument lead RPC with explicit role and branch checks.
+-- The 21-argument KYC-aware overload calls this wrapper, so both paths share policy.
+DO $$
+BEGIN
+  IF to_regprocedure('public.create_lead_atomic_unchecked(uuid,uuid,text,character varying,character varying,citext,text,character varying,numeric,numeric,text,text,text,text,text,text,character varying,text,boolean)') IS NULL
+     AND to_regprocedure('public.create_lead_atomic(uuid,uuid,text,character varying,character varying,citext,text,character varying,numeric,numeric,text,text,text,text,text,text,character varying,text,boolean)') IS NOT NULL THEN
+    ALTER FUNCTION public.create_lead_atomic(
+      uuid, uuid, text, character varying, character varying, citext, text,
+      character varying, numeric, numeric, text, text, text, text, text, text,
+      character varying, text, boolean
+    ) RENAME TO create_lead_atomic_unchecked;
+  END IF;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.create_lead_atomic_unchecked(
+  uuid, uuid, text, character varying, character varying, citext, text,
+  character varying, numeric, numeric, text, text, text, text, text, text,
+  character varying, text, boolean
+) FROM PUBLIC, anon, authenticated;
+
+CREATE OR REPLACE FUNCTION public.create_lead_atomic(
+  p_source_agent_id uuid DEFAULT NULL,
+  p_assigned_officer_id uuid DEFAULT NULL,
+  p_full_name text DEFAULT NULL,
+  p_mobile character varying DEFAULT NULL,
+  p_alternate_phone character varying DEFAULT NULL,
+  p_email citext DEFAULT NULL,
+  p_discom_name text DEFAULT 'CSPDCL',
+  p_consumer_number character varying DEFAULT NULL,
+  p_sanctioned_load_kw numeric DEFAULT NULL,
+  p_proposed_capacity_kw numeric DEFAULT NULL,
+  p_address_line text DEFAULT NULL,
+  p_state text DEFAULT 'Chhattisgarh',
+  p_district text DEFAULT NULL,
+  p_tehsil text DEFAULT NULL,
+  p_block text DEFAULT NULL,
+  p_panchayat_village text DEFAULT NULL,
+  p_pincode character varying DEFAULT NULL,
+  p_notes text DEFAULT NULL,
+  p_is_test boolean DEFAULT false
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+  v_actor_profile_id uuid := public.current_auth_profile_id();
+  v_role public.user_role_type := public.current_user_role();
+  v_actor_branch text;
+BEGIN
+  IF auth.uid() IS NULL OR v_actor_profile_id IS NULL OR v_role IS NULL THEN
+    RAISE EXCEPTION 'AUTH_REQUIRED: Active ERP profile required' USING ERRCODE = '42501';
+  END IF;
+
+  IF v_role NOT IN (
+    'super_admin', 'office_admin', 'branch_manager', 'field_officer',
+    'operational_manager', 'backoffice', 'receptionist', 'agent'
+  ) THEN
+    RAISE EXCEPTION 'FORBIDDEN: Role cannot create leads' USING ERRCODE = '42501';
+  END IF;
+
+  SELECT p.branch INTO v_actor_branch
+  FROM public.profiles p
+  WHERE p.id = v_actor_profile_id;
+
+  IF v_role NOT IN ('super_admin', 'office_admin') THEN
+    IF v_actor_branch IS NULL THEN
+      RAISE EXCEPTION 'FORBIDDEN: Caller has no branch scope' USING ERRCODE = '42501';
+    END IF;
+
+    IF p_source_agent_id IS NOT NULL AND NOT EXISTS (
+      SELECT 1 FROM public.agents a
+      WHERE a.id = p_source_agent_id
+        AND a.is_active = true
+        AND a.branch = v_actor_branch
+    ) THEN
+      RAISE EXCEPTION 'FORBIDDEN: Source agent is outside caller branch' USING ERRCODE = '42501';
+    END IF;
+
+    IF p_assigned_officer_id IS NOT NULL AND NOT EXISTS (
+      SELECT 1 FROM public.profiles p
+      WHERE p.id = p_assigned_officer_id
+        AND p.is_active = true
+        AND p.branch = v_actor_branch
+    ) THEN
+      RAISE EXCEPTION 'FORBIDDEN: Assigned officer is outside caller branch' USING ERRCODE = '42501';
+    END IF;
+  END IF;
+
+  RETURN public.create_lead_atomic_unchecked(
+    p_source_agent_id, p_assigned_officer_id, p_full_name, p_mobile,
+    p_alternate_phone, p_email, p_discom_name, p_consumer_number,
+    p_sanctioned_load_kw, p_proposed_capacity_kw, p_address_line, p_state,
+    p_district, p_tehsil, p_block, p_panchayat_village, p_pincode, p_notes,
+    p_is_test
+  );
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.create_lead_atomic(
+  uuid, uuid, text, character varying, character varying, citext, text,
+  character varying, numeric, numeric, text, text, text, text, text, text,
+  character varying, text, boolean
+) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.create_lead_atomic(
+  uuid, uuid, text, character varying, character varying, citext, text,
+  character varying, numeric, numeric, text, text, text, text, text, text,
+  character varying, text, boolean
+) TO authenticated;
