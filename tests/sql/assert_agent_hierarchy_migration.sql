@@ -7,6 +7,10 @@ DECLARE
   v_root uuid := gen_random_uuid();
   v_child uuid := gen_random_uuid();
   v_grandchild uuid := gen_random_uuid();
+  v_chain uuid[] := ARRAY[]::uuid[];
+  v_parent uuid;
+  v_node uuid;
+  v_i integer;
   v_depth integer;
   v_rejected boolean;
   v_error text;
@@ -30,6 +34,17 @@ BEGIN
   INSERT INTO public.agents(id, agent_code, sponsor_agent_id, is_active)
   VALUES (v_grandchild, 'HIER-GRANDCHILD', v_child, true);
 
+  -- Prove unlimited sponsor depth while retaining the live 1..10 hierarchy_level
+  -- constraint. hierarchy_level is not a sponsor-depth counter.
+  v_parent := v_grandchild;
+  FOR v_i IN 4..12 LOOP
+    v_node := gen_random_uuid();
+    INSERT INTO public.agents(id, agent_code, sponsor_agent_id, hierarchy_level, is_active)
+    VALUES (v_node, 'HIER-DEEP-' || v_i::text, v_parent, 10, true);
+    v_chain := array_append(v_chain, v_node);
+    v_parent := v_node;
+  END LOOP;
+
   WITH RECURSIVE descendants(id, depth, path) AS (
     SELECT a.id, 1, ARRAY[a.id]
       FROM public.agents a
@@ -42,10 +57,21 @@ BEGIN
   )
   SELECT max(depth) INTO v_depth
     FROM descendants
-   WHERE id IN (v_root, v_child, v_grandchild);
+   WHERE id = v_parent;
 
-  IF v_depth IS DISTINCT FROM 3 THEN
-    RAISE EXCEPTION 'Three-level hierarchy failed; observed depth %', v_depth;
+  IF v_depth IS DISTINCT FROM 12 THEN
+    RAISE EXCEPTION 'Hierarchy deeper than 10 levels failed; expected 12, observed depth %', v_depth;
+  END IF;
+
+  -- Existing check constraint must still reject an invalid commission-tier value.
+  v_rejected := false;
+  BEGIN
+    UPDATE public.agents SET hierarchy_level=11 WHERE id=v_root;
+  EXCEPTION WHEN check_violation THEN
+    v_rejected := true;
+  END;
+  IF NOT v_rejected THEN
+    RAISE EXCEPTION 'Legacy hierarchy_level 1..10 constraint was not preserved';
   END IF;
 
   v_rejected := false;
@@ -76,11 +102,76 @@ BEGIN
 
   IF position('current_user_role()' in v_def)=0
      OR position('super_admin' in v_def)=0
-     OR position('office_admin' in v_def)=0 THEN
-    RAISE EXCEPTION '12-argument Agent RPC does not enforce the Admin-only creation rule';
+     OR position('office_admin' in v_def)=0
+     OR position('coalesce(public.current_user_role() NOT IN' in v_def)=0 THEN
+    RAISE EXCEPTION '12-argument Agent RPC does not enforce a fail-closed Admin-only creation rule';
   END IF;
 
-  RAISE NOTICE 'PASS: three-level hierarchy, self-parent rejection, circular-parent rejection, Admin-only RPC guard';
+  IF has_function_privilege('authenticated',
+       'public.create_agent_atomic(uuid,text,citext,character varying,character varying,uuid,character varying,text,text,character varying,numeric)'::regprocedure,
+       'EXECUTE') THEN
+    RAISE EXCEPTION 'Legacy 11-argument RPC is directly executable by authenticated';
+  END IF;
+  IF NOT has_function_privilege('service_role',
+       'public.create_agent_atomic(uuid,text,citext,character varying,character varying,uuid,character varying,text,text,character varying,numeric)'::regprocedure,
+       'EXECUTE') THEN
+    RAISE EXCEPTION 'Legacy 11-argument RPC lost trusted service_role compatibility';
+  END IF;
+  IF NOT has_function_privilege('authenticated',
+       'public.create_agent_atomic(uuid,text,citext,character varying,character varying,uuid,character varying,text,text,character varying,numeric,boolean)'::regprocedure,
+       'EXECUTE') THEN
+    RAISE EXCEPTION '12-argument wrapper is not executable by authenticated';
+  END IF;
+
+  -- Exercise the RPC guard using synthetic JWT identities, not just function text.
+  INSERT INTO public.profiles(id, auth_user_id, role, is_active)
+  VALUES
+    (gen_random_uuid(), '00000000-0000-0000-0000-000000000001', 'super_admin', true),
+    (gen_random_uuid(), '00000000-0000-0000-0000-000000000002', 'agent', true),
+    (gen_random_uuid(), '00000000-0000-0000-0000-000000000003', NULL, true);
+
+  PERFORM set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000001', true);
+  PERFORM set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-000000000001","role":"authenticated"}', true);
+  PERFORM public.create_agent_atomic(NULL, 'Synthetic Admin', 'admin-test@example.com'::citext,
+    '1111111111', 'Jaijaipur', NULL, NULL, NULL, NULL, NULL, 5, false);
+
+  PERFORM set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000002', true);
+  PERFORM set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-000000000002","role":"authenticated"}', true);
+  v_rejected := false;
+  BEGIN
+    PERFORM public.create_agent_atomic(NULL, 'Synthetic Agent', 'agent-test@example.com'::citext,
+      '2222222222', 'Jaijaipur', NULL, NULL, NULL, NULL, NULL, 5, false);
+  EXCEPTION WHEN insufficient_privilege THEN
+    GET STACKED DIAGNOSTICS v_error = MESSAGE_TEXT;
+    v_rejected := position('FORBIDDEN' in v_error) > 0;
+  END;
+  IF NOT v_rejected THEN RAISE EXCEPTION 'Non-admin Agent creation was not denied'; END IF;
+
+  PERFORM set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000003', true);
+  PERFORM set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-000000000003","role":"authenticated"}', true);
+  v_rejected := false;
+  BEGIN
+    PERFORM public.create_agent_atomic(NULL, 'Synthetic Null Role', 'null-role@example.com'::citext,
+      '3333333333', 'Jaijaipur', NULL, NULL, NULL, NULL, NULL, 5, false);
+  EXCEPTION WHEN insufficient_privilege THEN
+    GET STACKED DIAGNOSTICS v_error = MESSAGE_TEXT;
+    v_rejected := position('FORBIDDEN' in v_error) > 0;
+  END;
+  IF NOT v_rejected THEN RAISE EXCEPTION 'NULL role was not denied by fail-closed guard'; END IF;
+
+  PERFORM set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000004', true);
+  PERFORM set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-000000000004","role":"authenticated"}', true);
+  v_rejected := false;
+  BEGIN
+    PERFORM public.create_agent_atomic(NULL, 'Synthetic Missing Profile', 'missing-profile@example.com'::citext,
+      '4444444444', 'Jaijaipur', NULL, NULL, NULL, NULL, NULL, 5, false);
+  EXCEPTION WHEN insufficient_privilege THEN
+    GET STACKED DIAGNOSTICS v_error = MESSAGE_TEXT;
+    v_rejected := position('AUTH_REQUIRED' in v_error) > 0;
+  END;
+  IF NOT v_rejected THEN RAISE EXCEPTION 'Missing profile was not denied'; END IF;
+
+  RAISE NOTICE 'PASS: 12-level sponsor chain, legacy 1..10 constraint, self/cycle guards, real RPC role checks, null/missing role fail-closed, legacy ACL compatibility';
 END;
 $$;
 
