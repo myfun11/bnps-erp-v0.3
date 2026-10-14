@@ -98,6 +98,26 @@ BEGIN
     RAISE EXCEPTION 'KYC evaluator does not support inactive Agents pending verification';
   END IF;
 
+  IF has_table_privilege('anon', 'public.agents_public_profile', 'SELECT')
+     OR has_table_privilege('anon', 'public.view_pmsg_registered_customers', 'SELECT') THEN
+    RAISE EXCEPTION 'anonymous access to sensitive views must be revoked';
+  END IF;
+  IF NOT has_table_privilege('authenticated', 'public.agents_public_profile', 'SELECT')
+     OR NOT has_table_privilege('authenticated', 'public.view_pmsg_registered_customers', 'SELECT') THEN
+    RAISE EXCEPTION 'authenticated access to RLS-protected views must be retained';
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
+    WHERE n.nspname='public' AND c.relname='agents_public_profile'
+      AND coalesce(c.reloptions, ARRAY[]::text[]) @> ARRAY['security_invoker=true']
+  ) OR NOT EXISTS (
+    SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
+    WHERE n.nspname='public' AND c.relname='view_pmsg_registered_customers'
+      AND coalesce(c.reloptions, ARRAY[]::text[]) @> ARRAY['security_invoker=true']
+  ) THEN
+    RAISE EXCEPTION 'sensitive views must use SECURITY INVOKER';
+  END IF;
+
   RAISE NOTICE 'KYC and test-mode migration post-conditions passed';
 END;
 $$;
