@@ -101,20 +101,12 @@ Deno.serve(async (req: Request) => {
     if (!permissions.some((p) => p.data === true && !p.error)) {
       return json({ success: false, error: "FORBIDDEN" }, 403);
     }
-    const { data: sampleDoc, error: sampleError } = await adminClient
+    // Query through the caller's JWT: documents SELECT RLS enforces entity/branch scope.
+    // document_entity_access_allowed is intentionally service-role-only and must not be called by the browser JWT.
+    const { data: sampleDoc, error: sampleError } = await userClient
       .from("documents").select("id,entity_type,entity_id,doc_category")
       .eq("entity_type", entityType).eq("entity_id", entityId).limit(1).maybeSingle();
     if (sampleError || !sampleDoc) return json({ success: false, error: "ENTITY_DOCUMENTS_NOT_FOUND" }, 404);
-
-    const checks = await Promise.all(["document.upload", "document.verify"].map((permission) =>
-      userClient.rpc("document_entity_access_allowed", {
-        p_entity_type: sampleDoc.entity_type,
-        p_entity_id: sampleDoc.entity_id,
-        p_doc_category: sampleDoc.doc_category,
-        p_required_permission: permission,
-      })
-    ));
-    if (!checks.some((p) => p.data === true && !p.error)) return json({ success: false, error: "FORBIDDEN" }, 403);
 
     const { data: evaluation, error: evalError } = await adminClient.rpc("evaluate_entity_kyc", {
       p_entity_type: entityType,
@@ -127,28 +119,24 @@ Deno.serve(async (req: Request) => {
   const documentId = typeof body.document_id === "string" ? body.document_id : "";
   if (!documentId) return json({ success: false, error: "DOCUMENT_ID_REQUIRED" }, 400);
 
-  const { data: doc, error: docError } = await adminClient
+  // Fetch through the caller's JWT first. The documents SELECT RLS policy invokes
+  // the entity-scope helper and prevents service-role metadata reads for out-of-scope ids.
+  const { data: doc, error: docError } = await userClient
     .from("documents")
     .select("id,entity_type,entity_id,doc_category,file_path,mime_type,file_size_bytes,status,extraction_status,extracted_at")
     .eq("id", documentId)
     .maybeSingle();
   if (docError || !doc) return json({ success: false, error: "DOCUMENT_NOT_FOUND" }, 404);
 
-  const entityType = String(doc.entity_type).toLowerCase();
-  const category = String(doc.doc_category).toLowerCase();
-
-  // Authorize access to the entity before disclosing document state or metadata.
-  const accessChecks = await Promise.all(["document.upload", "document.verify"].map((permission) =>
-    userClient.rpc("document_entity_access_allowed", {
-      p_entity_type: entityType,
-      p_entity_id: doc.entity_id,
-      p_doc_category: category,
-      p_required_permission: permission,
-    })
+  const permissions = await Promise.all(["document.upload", "document.verify"].map((permission) =>
+    userClient.rpc("has_erp_permission", { perm_code: permission })
   ));
-  if (!accessChecks.some((p) => p.data === true && !p.error)) {
+  if (!permissions.some((p) => p.data === true && !p.error)) {
     return json({ success: false, error: "FORBIDDEN" }, 403);
   }
+
+  const entityType = String(doc.entity_type).toLowerCase();
+  const category = String(doc.doc_category).toLowerCase();
 
   const allowedCategory = entityType === "agent"
     ? ["aadhaar_front", "aadhaar_back", "pan", "bank_proof"].includes(category)
