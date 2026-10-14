@@ -267,13 +267,20 @@ BEGIN
      WHERE d.entity_type='lead' AND d.entity_id=p_entity_id AND d.doc_category='bank_proof'
      ORDER BY d.created_at DESC LIMIT 1;
 
-    v_complete := v_aadhaar.id IS NOT NULL AND v_pan.id IS NOT NULL AND v_bank.id IS NOT NULL
-      AND v_aadhaar.extraction_status IN ('EXTRACTED','MATCHED','MISMATCH') AND v_pan.extraction_status IN ('EXTRACTED','MATCHED','MISMATCH') AND v_bank.extraction_status IN ('EXTRACTED','MATCHED','MISMATCH')
-      AND v_aadhaar.extraction_is_legible IS TRUE AND v_pan.extraction_is_legible IS TRUE AND v_bank.extraction_is_legible IS TRUE
+    -- Lead conversion requires Aadhaar + bank passbook. PAN is optional;
+    -- if uploaded, it must pass trusted OCR and all identity checks.
+    v_complete := v_aadhaar.id IS NOT NULL AND v_bank.id IS NOT NULL
+      AND v_aadhaar.extraction_status IN ('EXTRACTED','MATCHED','MISMATCH')
+      AND v_bank.extraction_status IN ('EXTRACTED','MATCHED','MISMATCH')
+      AND v_aadhaar.extraction_is_legible IS TRUE AND v_bank.extraction_is_legible IS TRUE
       AND coalesce(v_aadhaar.extraction_confidence,0)>=0.85
-      AND coalesce(v_pan.extraction_confidence,0)>=0.85
-      AND coalesce(v_bank.extraction_confidence,0)>=0.85;
-    v_docs := ARRAY[v_aadhaar.id,v_pan.id,v_bank.id];
+      AND coalesce(v_bank.extraction_confidence,0)>=0.85
+      AND (v_pan.id IS NULL OR (
+        v_pan.extraction_status IN ('EXTRACTED','MATCHED','MISMATCH')
+        AND v_pan.extraction_is_legible IS TRUE
+        AND coalesce(v_pan.extraction_confidence,0)>=0.85
+      ));
+    v_docs := array_remove(ARRAY[v_aadhaar.id,v_pan.id,v_bank.id], NULL);
   ELSE
     SELECT p.full_name INTO v_full_name
       FROM public.agents a JOIN public.profiles p ON p.id=a.profile_id
@@ -309,16 +316,18 @@ BEGIN
 
   v_name_ok :=
     public.kyc_normalize_identity(v_aadhaar.extracted_name)=public.kyc_normalize_identity(v_full_name)
-    AND public.kyc_normalize_identity(v_pan.extracted_name)=public.kyc_normalize_identity(v_full_name)
-    AND public.kyc_normalize_identity(v_bank.extracted_name)=public.kyc_normalize_identity(v_full_name);
+    AND public.kyc_normalize_identity(v_bank.extracted_name)=public.kyc_normalize_identity(v_full_name)
+    AND (v_entity_type='agent' OR v_pan.id IS NULL OR
+      public.kyc_normalize_identity(v_pan.extracted_name)=public.kyc_normalize_identity(v_full_name))
+    AND (v_entity_type='lead' OR public.kyc_normalize_identity(v_pan.extracted_name)=public.kyc_normalize_identity(v_full_name));
 
   IF v_entity_type='lead' THEN
     v_father_ok := public.kyc_normalize_identity(v_father_name)<>''
       AND public.kyc_normalize_identity(v_aadhaar.extracted_father_name)=public.kyc_normalize_identity(v_father_name)
-      AND public.kyc_normalize_identity(v_pan.extracted_father_name)=public.kyc_normalize_identity(v_father_name)
-      AND public.kyc_normalize_identity(v_bank.extracted_father_name)=public.kyc_normalize_identity(v_father_name);
+      AND public.kyc_normalize_identity(v_bank.extracted_father_name)=public.kyc_normalize_identity(v_father_name)
+      AND (v_pan.id IS NULL OR public.kyc_normalize_identity(v_pan.extracted_father_name)=public.kyc_normalize_identity(v_father_name));
     v_dob_ok := public.kyc_normalize_dob(v_aadhaar.extracted_dob)=public.kyc_normalize_dob(v_dob)
-      AND public.kyc_normalize_dob(v_pan.extracted_dob)=public.kyc_normalize_dob(v_dob)
+      AND (v_pan.id IS NULL OR public.kyc_normalize_dob(v_pan.extracted_dob)=public.kyc_normalize_dob(v_dob))
       AND public.kyc_normalize_dob(v_dob) IS NOT NULL;
   ELSE
     v_father_ok := public.kyc_normalize_identity(v_aadhaar.extracted_father_name)<>''
@@ -410,16 +419,19 @@ BEGIN
           AND d.id=(SELECT d2.id FROM public.documents d2 WHERE d2.entity_type='lead' AND d2.entity_id=p_lead_id AND d2.doc_category IN ('aadhaar','aadhaar_front') ORDER BY d2.created_at DESC LIMIT 1)
     ) OR NOT EXISTS (
         SELECT 1 FROM public.documents d
-        WHERE d.entity_type='lead' AND d.entity_id=p_lead_id AND d.doc_category='pan'
-          AND d.status='VERIFIED' AND d.extraction_status='MATCHED' AND d.kyc_match_status='MATCHED'
-          AND d.id=(SELECT d2.id FROM public.documents d2 WHERE d2.entity_type='lead' AND d2.entity_id=p_lead_id AND d2.doc_category='pan' ORDER BY d2.created_at DESC LIMIT 1)
-    ) OR NOT EXISTS (
-        SELECT 1 FROM public.documents d
         WHERE d.entity_type='lead' AND d.entity_id=p_lead_id AND d.doc_category='bank_proof'
           AND d.status='VERIFIED' AND d.extraction_status='MATCHED' AND d.kyc_match_status='MATCHED'
           AND d.id=(SELECT d2.id FROM public.documents d2 WHERE d2.entity_type='lead' AND d2.entity_id=p_lead_id AND d2.doc_category='bank_proof' ORDER BY d2.created_at DESC LIMIT 1)
+    ) OR (
+        EXISTS (SELECT 1 FROM public.documents p WHERE p.entity_type='lead' AND p.entity_id=p_lead_id AND p.doc_category='pan')
+        AND NOT EXISTS (
+          SELECT 1 FROM public.documents d
+          WHERE d.entity_type='lead' AND d.entity_id=p_lead_id AND d.doc_category='pan'
+            AND d.status='VERIFIED' AND d.extraction_status='MATCHED' AND d.kyc_match_status='MATCHED'
+            AND d.id=(SELECT d2.id FROM public.documents d2 WHERE d2.entity_type='lead' AND d2.entity_id=p_lead_id AND d2.doc_category='pan' ORDER BY d2.created_at DESC LIMIT 1)
+        )
     ) THEN
-        RAISE EXCEPTION 'KYC_PENDING: Aadhaar, PAN and bank passbook OCR must match before customer conversion' USING ERRCODE = 'P0003';
+        RAISE EXCEPTION 'KYC_PENDING: Aadhaar and bank passbook OCR must match; if PAN is uploaded it must also match' USING ERRCODE = 'P0003';
     END IF;
 
     -- Preserve the existing operational document requirements as a server-side gate.
@@ -486,7 +498,7 @@ BEGIN
             v_lead.panchayat_village,
             COALESCE(v_lead.state, 'Chhattisgarh'),
             v_lead.pincode,
-            'REGISTERED',
+            'UNREGISTERED',
             v_lead.is_test
         ) RETURNING id INTO v_customer_id;
     END IF;
