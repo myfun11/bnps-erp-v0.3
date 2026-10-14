@@ -28,7 +28,8 @@ CREATE TABLE public.profiles (
   role public.user_role_type,
   branch varchar,
   is_active boolean DEFAULT true,
-  is_test boolean DEFAULT false
+  is_test boolean DEFAULT false,
+  updated_at timestamptz DEFAULT now()
 );
 
 CREATE TABLE public.documents (
