@@ -8,6 +8,7 @@ on:
       - "database/16_test_agent_mode_guardrails.sql"
       - "supabase/functions/**"
       - "src/**"
+      - "tests/sql/**"
       - "package.json"
       - "vite.config.*"
       - ".github/workflows/kyc-source-validation.yml"
