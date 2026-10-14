@@ -119,6 +119,16 @@ BEGIN
     RAISE EXCEPTION '12-argument Agent RPC does not enforce a fail-closed Admin-only creation rule';
   END IF;
 
+  -- The trigger must serialize sponsor-edge changes before reading ancestors;
+  -- the ordinary single-session cycle assertions alone do not prove race safety.
+  SELECT pg_get_functiondef(
+    'public.enforce_agent_sponsor_tree()'::regprocedure
+  ) INTO v_def;
+  IF position('pg_advisory_xact_lock' in v_def)=0
+     OR position('bnps-agent-sponsor-tree-guard' in v_def)=0 THEN
+    RAISE EXCEPTION 'Sponsor-tree trigger is missing the transaction-scoped concurrency lock';
+  END IF;
+
   IF has_function_privilege('authenticated',
        'public.create_agent_atomic(uuid,text,citext,character varying,character varying,uuid,character varying,text,text,character varying,numeric)'::regprocedure,
        'EXECUTE') THEN
