@@ -78,7 +78,6 @@ export interface KycMatchResult {
 
 export const CORE_KYC_CATEGORIES = [
   { category: 'aadhaar', label: 'Aadhaar Card' },
-  { category: 'pan', label: 'PAN Card' },
   { category: 'bank_proof', label: 'Bank Passbook / Proof' },
 ] as const;
 
@@ -181,16 +180,48 @@ export const evaluateLeadKycMatching = (
     });
   }
 
-  // All 3 core documents must be present to achieve overall match
+  // PAN is optional for lead conversion. If supplied, it must still pass trusted
+  // OCR and match the lead identity; a rejected optional PAN is ignored.
+  const optionalPan = documents.find((d) => d.doc_category === 'pan');
+  let optionalPanPending = false;
+  if (optionalPan && optionalPan.status !== 'REJECTED') {
+    const backendMatched = optionalPan.status === 'VERIFIED'
+      && optionalPan.extraction_status === 'MATCHED'
+      && optionalPan.kyc_match_status === 'MATCHED';
+    optionalPanPending = !backendMatched;
+    if (optionalPan.extraction_status === 'MISMATCH' || optionalPan.kyc_match_status === 'MISMATCH') {
+      backendMismatch = true;
+    }
+    const extractedName = optionalPan.extracted_name || '';
+    const extractedFather = optionalPan.extracted_father_name || '';
+    const extractedDob = optionalPan.extracted_dob || '';
+    const panNameMatches = normalizeIdentityString(extractedName) === normLeadName && normLeadName.length > 0;
+    const panFatherMatches = normalizeIdentityString(extractedFather) === normLeadFather && normLeadFather.length > 0;
+    const panDobMatches = normalizeDobString(extractedDob) === normLeadDob && normLeadDob.length > 0;
+    if (!panNameMatches) { nameMatch = false; mismatches.push('Optional PAN name does not match lead name.'); }
+    if (!panFatherMatches) { fatherNameMatch = false; mismatches.push('Optional PAN father name does not match lead father name.'); }
+    if (!panDobMatches) { dobMatch = false; mismatches.push('Optional PAN DOB does not match lead DOB.'); }
+    if (optionalPanPending) missingDocs.push('Optional PAN (uploaded; trusted verification pending)');
+    docExtractions.push({
+      categoryId: 'pan',
+      categoryLabel: 'PAN Card (optional)',
+      docRecord: optionalPan,
+      name: { value: extractedName, expected: lead.full_name, matches: panNameMatches },
+      fatherName: { value: extractedFather, expected: lead.father_name || '', matches: panFatherMatches },
+      dob: { value: extractedDob, expected: lead.dob || '', matches: panDobMatches },
+      isFullyMatched: backendMatched && panNameMatches && panFatherMatches && panDobMatches,
+    });
+  }
+
   const coreDocsPresent = coreDocsCount === CORE_KYC_CATEGORIES.length;
   const allMatch = coreDocsPresent && backendMatchedCount === CORE_KYC_CATEGORIES.length
-    && nameMatch && fatherNameMatch && dobMatch && mismatches.length === 0;
+    && !optionalPanPending && nameMatch && fatherNameMatch && dobMatch && mismatches.length === 0;
 
   let summaryMessage = '';
   let badgeType: 'success' | 'warning' | 'pending' = 'pending';
 
   if (!coreDocsPresent) {
-    summaryMessage = `Upload all 3 key KYC documents (Aadhaar, PAN, Bank Passbook). (Pending: ${missingDocs.join(', ')})`;
+    summaryMessage = `Upload both required KYC documents (Aadhaar and Bank Passbook). PAN is optional, but if uploaded it must verify. (Pending: ${missingDocs.join(', ')})`;
     badgeType = 'pending';
   } else if (backendMismatch) {
     summaryMessage = `Backend KYC mismatch detected. Review/re-upload the mismatching document(s). ${mismatches.join('; ')}`;
@@ -199,7 +230,7 @@ export const evaluateLeadKycMatching = (
     summaryMessage = `Documents are uploaded, but trusted OCR matching is still pending. ${missingDocs.join(', ')}`;
     badgeType = 'pending';
   } else if (allMatch) {
-    summaryMessage = `Backend auto-verification confirmed: name and father's name across Aadhaar, PAN and bank passbook; DOB on Aadhaar and PAN.`;
+    summaryMessage = `Backend auto-verification confirmed: name and father's name on Aadhaar and bank passbook, and DOB on Aadhaar. Any uploaded PAN must also match.`;
     badgeType = 'success';
   } else {
     summaryMessage = `Identity mismatch detected: ${mismatches.join('; ')}`;
