@@ -278,22 +278,21 @@ export const documentService = {
     expiresIn = 300
   ): Promise<string> {
     if (!isSupabaseConfigured) {
-      return '#preview-document';
+      throw new Error('Private document preview requires the live Supabase backend.');
     }
 
-    try {
-      const { data, error } = await supabase.storage
-        .from(STORAGE_BUCKET)
-        .createSignedUrl(filePath, expiresIn);
+    const { data, error } = await supabase.storage
+      .from(STORAGE_BUCKET)
+      .createSignedUrl(filePath, expiresIn);
 
-      if (error || !data?.signedUrl) {
-        return '#preview-document';
-      }
-
-      return data.signedUrl;
-    } catch {
-      return '#preview-document';
+    if (error) {
+      throw new Error(`Unable to create secure document preview: ${error.message}`);
     }
+    if (!data?.signedUrl) {
+      throw new Error('Supabase did not return a secure document preview URL.');
+    }
+
+    return data.signedUrl;
   },
 
   async removeUploadedFile(filePath: string): Promise<void> {
