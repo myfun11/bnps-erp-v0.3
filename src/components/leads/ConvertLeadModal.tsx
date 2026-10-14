@@ -341,7 +341,9 @@ export const ConvertLeadModal: React.FC<ConvertLeadModalProps> = ({
         onConversionSuccess(res.customer.customer_code);
         onClose();
       } else {
-        const code = res.error || 'INVALID_TRANSITION';
+        const code = typeof res.error === 'string' && res.error in ERROR_MESSAGES
+          ? res.error as keyof typeof ERROR_MESSAGES
+          : 'INVALID_TRANSITION';
         setErrorMsg(ERROR_MESSAGES[code] || res.message || 'Conversion failed.');
       }
     } catch (err: any) {
