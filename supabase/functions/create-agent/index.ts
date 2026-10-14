@@ -80,6 +80,14 @@ Deno.serve(async (req) => {
       return jsonResponse({ success: false, error: "VALIDATION_ERROR", message: "A valid JSON request body is required." }, 400);
     }
 
+    const is_test = body.is_test === true;
+    if (is_test) {
+      const { data: callerRole, error: roleError } = await userClient.rpc("current_user_role");
+      if (roleError || !["super_admin", "office_admin"].includes(String(callerRole))) {
+        return jsonResponse({ success: false, error: "FORBIDDEN", message: "Only Super Admin or Office Admin may create test agents." }, 403);
+      }
+    }
+
     const full_name = typeof body.full_name === "string" ? body.full_name.trim() : "";
     const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
     const phone = typeof body.phone === "string" ? body.phone.trim() : "";
@@ -158,7 +166,6 @@ Deno.serve(async (req) => {
     });
 
     if (agentError || !agentResult?.success) {
-      // Compensate Auth creation if the business transaction fails.
       // Keep the orphaned Auth identity for audited manual cleanup; never delete accounts from this recovery path.
       console.error("create-agent atomic RPC failed:", agentError?.message || "RPC returned unsuccessful result");
       return jsonResponse({
@@ -168,11 +175,27 @@ Deno.serve(async (req) => {
       }, 400);
     }
 
+    if (is_test) {
+      const { data: testModeResult, error: testModeError } = await adminClient.rpc("set_agent_test_mode", {
+        p_agent_id: agentResult.agent_id,
+        p_profile_id: agentResult.profile_id,
+      });
+      if (testModeError || testModeResult?.success !== true) {
+        console.error("create-agent test-mode tagging failed:", testModeError?.message || "RPC returned unsuccessful result");
+        return jsonResponse({
+          success: false,
+          error: "TEST_MODE_TAG_FAILED",
+          message: "Agent account was created but test-mode tagging failed. Do not use it until an administrator resolves the test flag.",
+        }, 500);
+      }
+    }
+
     return jsonResponse({
       success: true,
       agent_id: agentResult.agent_id,
       profile_id: agentResult.profile_id,
       agent_code: agentResult.agent_code,
+      is_test,
       auth_user_id: authUserId,
       login_email: email,
       temporary_password: temporaryPassword,
