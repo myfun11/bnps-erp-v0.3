@@ -38,7 +38,7 @@ import {
 
 export const AgentNetwork: React.FC = () => {
   const { userRole, canViewSensitiveAgentPii } = useAuth();
-  const [agents, setAgents] = useState<Agent[]>(erpStore.getAgents());
+  const [agents, setAgents] = useState<Agent[]>(isSupabaseConfigured ? [] : erpStore.getAgents());
   const [showNewAgentModal, setShowNewAgentModal] = useState(false);
   const [successBanner, setSuccessBanner] = useState<string | null>(null);
   const [errorBanner, setErrorBanner] = useState<string | null>(null);
@@ -75,6 +75,7 @@ export const AgentNetwork: React.FC = () => {
     bank_name: '',
     bank_ifsc: '',
     tds_percentage: 5.0,
+    is_test: false,
   });
 
   // Required KYC Documents for Agent Onboarding
@@ -96,11 +97,14 @@ export const AgentNetwork: React.FC = () => {
   };
 
   useEffect(() => {
-    // Authoritative single-store sync
+    if (isSupabaseConfigured) {
+      // Production must render only authoritative Supabase data; no mock-store flash/fallback.
+      void loadData();
+      return;
+    }
+    // Disconnected verification mode only.
     setAgents(erpStore.getAgents());
-    const unsub = erpStore.subscribe(() => {
-      setAgents(erpStore.getAgents());
-    });
+    const unsub = erpStore.subscribe(() => setAgents(erpStore.getAgents()));
     void loadData();
     return unsub;
   }, []);
@@ -178,6 +182,7 @@ export const AgentNetwork: React.FC = () => {
         bank_name: newAgentForm.bank_name || undefined,
         bank_ifsc: newAgentForm.bank_ifsc || undefined,
         tds_percentage: Number(newAgentForm.tds_percentage),
+        is_test: newAgentForm.is_test,
       });
 
       const agentId = result.agent_id;
@@ -187,10 +192,10 @@ export const AgentNetwork: React.FC = () => {
 
       // 2. Upload all four private KYC documents, then run trusted server-side OCR.
       const uploadedDocs = await Promise.all([
-        documentService.uploadDocument(panFile, 'agent', agentId, 'pan', false),
-        documentService.uploadDocument(aadhaarFrontFile, 'agent', agentId, 'aadhaar_front', false),
-        documentService.uploadDocument(aadhaarBackFile, 'agent', agentId, 'aadhaar_back', false),
-        documentService.uploadDocument(bankProofFile, 'agent', agentId, 'bank_proof', false),
+        documentService.uploadDocument(panFile, 'agent', agentId, 'pan', newAgentForm.is_test),
+        documentService.uploadDocument(aadhaarFrontFile, 'agent', agentId, 'aadhaar_front', newAgentForm.is_test),
+        documentService.uploadDocument(aadhaarBackFile, 'agent', agentId, 'aadhaar_back', newAgentForm.is_test),
+        documentService.uploadDocument(bankProofFile, 'agent', agentId, 'bank_proof', newAgentForm.is_test),
       ]);
 
       let ocrNeedsReview = 0;
@@ -238,6 +243,7 @@ export const AgentNetwork: React.FC = () => {
         bank_name: '',
         bank_ifsc: '',
         tds_percentage: 5.0,
+        is_test: false,
       });
       setPanFile(null);
       setAadhaarFrontFile(null);
@@ -839,6 +845,17 @@ export const AgentNetwork: React.FC = () => {
                     ))}
                   </select>
                 </div>
+                {(userRole === 'super_admin' || userRole === 'office_admin') && (
+                  <label className="flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 text-xs text-amber-200">
+                    <input
+                      type="checkbox"
+                      checked={newAgentForm.is_test}
+                      onChange={(e) => setNewAgentForm({ ...newAgentForm, is_test: e.target.checked })}
+                      className="mt-0.5 accent-amber-500"
+                    />
+                    <span><strong>TEST ONLY account</strong><br />Marks this Agent, its documents, downstream Leads and converted Customers as test data. Only use non-production test documents.</span>
+                  </label>
+                )}
               </div>
 
               {/* Banking & Statutory Details */}
