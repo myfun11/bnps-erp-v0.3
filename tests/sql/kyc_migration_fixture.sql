@@ -436,7 +436,7 @@ BEGIN
     );
 
 END;
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION public.get_dashboard_summary()
