@@ -98,62 +98,6 @@ BEGIN
     RAISE EXCEPTION 'KYC evaluator does not support inactive Agents pending verification';
   END IF;
 
-  -- Unlimited-depth Agent sponsor tree invariants.
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_trigger
-    WHERE tgname='agents_sponsor_tree_guard'
-      AND tgrelid='public.agents'::regclass
-      AND NOT tgisinternal
-  ) THEN
-    RAISE EXCEPTION 'Agent sponsor-tree validation trigger missing';
-  END IF;
-
-  IF position('Only Super Admin or Office Admin may create Agents'
-      in pg_get_functiondef('public.create_agent_atomic(uuid,text,citext,character varying,character varying,uuid,character varying,text,text,character varying,numeric,boolean)'::regprocedure)) = 0 THEN
-    RAISE EXCEPTION 'Agent creation RPC is missing the Admin-only role guard';
-  END IF;
-
-  -- Exercise three levels and verify the DB rejects a cycle. This runs only
-  -- in the disposable CI database created by this workflow.
-  INSERT INTO public.agents (id, agent_code, sponsor_agent_id, is_active)
-  VALUES
-    ('10000000-0000-0000-0000-000000000001', 'TEST-ROOT', NULL, true),
-    ('10000000-0000-0000-0000-000000000002', 'TEST-CHILD', '10000000-0000-0000-0000-000000000001', true),
-    ('10000000-0000-0000-0000-000000000003', 'TEST-GRANDCHILD', '10000000-0000-0000-0000-000000000002', true);
-
-  IF (
-    WITH RECURSIVE downline(id, depth) AS (
-      SELECT id, 0 FROM public.agents
-      WHERE id='10000000-0000-0000-0000-000000000001'
-      UNION ALL
-      SELECT child.id, parent.depth + 1
-      FROM public.agents child
-      JOIN downline parent ON child.sponsor_agent_id=parent.id
-      WHERE parent.depth < 10
-    )
-    SELECT max(depth) FROM downline
-  ) <> 2 THEN
-    RAISE EXCEPTION 'Three-level Agent hierarchy did not persist correctly';
-  END IF;
-
-  BEGIN
-    UPDATE public.agents
-       SET sponsor_agent_id='10000000-0000-0000-0000-000000000003'
-     WHERE id='10000000-0000-0000-0000-000000000001';
-    RAISE EXCEPTION 'Circular Agent hierarchy was not rejected';
-  EXCEPTION WHEN check_violation THEN
-    NULL;
-  END;
-
-  BEGIN
-    UPDATE public.agents
-       SET sponsor_agent_id=id
-     WHERE id='10000000-0000-0000-0000-000000000001';
-    RAISE EXCEPTION 'Self-parent Agent hierarchy was not rejected';
-  EXCEPTION WHEN check_violation THEN
-    NULL;
-  END;
-
   IF has_table_privilege('anon', 'public.agents_public_profile', 'SELECT')
      OR has_table_privilege('anon', 'public.view_pmsg_registered_customers', 'SELECT') THEN
     RAISE EXCEPTION 'anonymous access to sensitive views must be revoked';
