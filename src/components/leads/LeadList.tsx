@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Lead, LeadStageType } from '../../types/database';
+import { Agent, Lead, LeadStageType } from '../../types/database';
+import { agentNetworkService } from '../../services/agentNetworkService';
 import { erpStore } from '../../services/erpStore';
 import { leadService } from '../../services/leadService';
 import { useAuth } from '../../context/AuthContext';
@@ -37,6 +38,8 @@ export const LeadList: React.FC<LeadListProps> = ({
 }) => {
   const { currentProfile, currentAgent, userRole, canConvertLeads } = useAuth();
   const [leads, setLeads] = useState<Lead[]>([]);
+  const [availableAgents, setAvailableAgents] = useState<Agent[]>([]);
+  const [showPortalAction, setShowPortalAction] = useState(false);
   const [selectedStage, setSelectedStage] = useState<string>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
   const [convertTargetLead, setConvertTargetLead] = useState<Lead | null>(null);
@@ -52,6 +55,7 @@ export const LeadList: React.FC<LeadListProps> = ({
 
   // Form state for new lead with Chhattisgarh Address Hierarchy
   const [newLeadForm, setNewLeadForm] = useState({
+    source_agent_id: '',
     full_name: '',
     father_name: '',
     dob: '',
@@ -100,6 +104,11 @@ export const LeadList: React.FC<LeadListProps> = ({
 
   useEffect(() => {
     void loadData();
+    if (userRole !== 'agent') {
+      agentNetworkService.list()
+        .then((rows) => setAvailableAgents(rows))
+        .catch((err) => console.error('Failed to load agent options:', err));
+    }
     if (!leadService.isConfigured()) {
       const unsubscribe = erpStore.subscribe(loadData);
       return () => unsubscribe();
@@ -139,7 +148,7 @@ export const LeadList: React.FC<LeadListProps> = ({
     }
 
     const leadInput = {
-      source_agent_id: userRole === 'agent' ? currentAgent?.id : undefined,
+      source_agent_id: userRole === 'agent' ? currentAgent?.id : (newLeadForm.source_agent_id || undefined),
       assigned_officer_id: userRole === 'agent' ? undefined : (currentProfile.id || undefined),
       full_name: newLeadForm.full_name.trim(),
       father_name: newLeadForm.father_name.trim(),
@@ -174,6 +183,7 @@ export const LeadList: React.FC<LeadListProps> = ({
       setSuccessBanner(`New lead ${lead.lead_code} (District: ${newLeadForm.district}) registered successfully!`);
       setTimeout(() => setSuccessBanner(null), 4000);
       setNewLeadForm({
+        source_agent_id: '',
         full_name: '',
         father_name: '',
         dob: '',
@@ -209,9 +219,12 @@ export const LeadList: React.FC<LeadListProps> = ({
             <CheckCircle className="w-5 h-5 text-emerald-400" />
             <span className="font-semibold">{successBanner}</span>
           </div>
-          <button onClick={() => setSuccessBanner(null)} className="text-emerald-400 hover:text-emerald-200">
-            Dismiss
-          </button>
+          <div className="flex items-center gap-3">
+            {showPortalAction && (
+              <a href="https://consumer.pmsuryaghar.gov.in/consumer/#/login" target="_blank" rel="noopener noreferrer" onClick={() => setShowPortalAction(false)} className="px-3 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-bold whitespace-nowrap">Open PM Surya Ghar Portal</a>
+            )}
+            <button onClick={() => { setSuccessBanner(null); setShowPortalAction(false); }} className="text-emerald-400 hover:text-emerald-200">Dismiss</button>
+          </div>
         </div>
       )}
 
@@ -449,8 +462,9 @@ export const LeadList: React.FC<LeadListProps> = ({
         isOpen={!!convertTargetLead}
         onClose={() => setConvertTargetLead(null)}
         onConversionSuccess={(customerCode) => {
-          setSuccessBanner(`Successfully converted! Customer Code: ${customerCode}`);
-          setTimeout(() => setSuccessBanner(null), 5000);
+          setSuccessBanner(`Successfully converted! Customer Code: ${customerCode}. Open the PM Surya Ghar Consumer Portal to continue the customer’s registration.`);
+          setShowPortalAction(true);
+          setTimeout(() => setSuccessBanner(null), 15000);
         }}
       />
 
@@ -485,6 +499,21 @@ export const LeadList: React.FC<LeadListProps> = ({
             </div>
 
             <form onSubmit={handleCreateLead} className="p-6 space-y-4 max-h-[75vh] overflow-y-auto custom-scrollbar">
+              {userRole !== 'agent' && (
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">Register Lead Under Agent</label>
+                  <select
+                    value={newLeadForm.source_agent_id}
+                    onChange={(e) => setNewLeadForm({ ...newLeadForm, source_agent_id: e.target.value })}
+                    className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-xs text-slate-100 focus:outline-none"
+                  >
+                    <option value="">Company / Office Lead (no agent)</option>
+                    {availableAgents.map((agent) => (
+                      <option key={agent.id} value={agent.id}>{agent.agent_code} — {agent.profile?.full_name || 'Agent'} ({agent.branch})</option>
+                    ))}
+                  </select>
+                </div>
+              )}
               {/* Personal Details */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                 <div>
