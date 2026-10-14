@@ -1,8 +1,8 @@
 -- BNPS ERP v0.3 — unlimited-depth sponsor hierarchy with Admin-only Agent creation.
 -- SOURCE PATCH ONLY: review and validate before applying to any Supabase project.
 -- Sponsor depth is derived by traversing sponsor_agent_id; it is NOT stored in hierarchy_level.
--- Keep the live hierarchy_level 1..10 constraint intact: it is a legacy commission-tier field,
--- not a depth counter. Commission payout position/rate remains controlled by the commission engine.
+-- Keep the live hierarchy_level 1..10 constraint intact: hierarchy_level is a legacy bounded metadata field,
+-- not sponsor depth and not the commission payout position. Payout position/rate remains controlled by the commission engine.
 -- Do not drop or widen the live hierarchy_level constraint as part of this hierarchy migration.
 
 CREATE OR REPLACE FUNCTION public.enforce_agent_sponsor_tree()
