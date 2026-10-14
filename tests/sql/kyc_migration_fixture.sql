@@ -144,10 +144,54 @@ RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER AS $$ SELECT false $$;
 CREATE OR REPLACE FUNCTION public.has_erp_permission(text)
 RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER AS $$ SELECT false $$;
 
+-- Test double for the legacy 11-argument RPC. This intentionally models its
+-- required Auth user ID and row-creation contract, but is NOT the production
+-- implementation. It lets the disposable test exercise wrapper delegation and
+-- post-delegation tagging without connecting to Supabase Auth.
 CREATE OR REPLACE FUNCTION public.create_agent_atomic(
-  uuid, text, citext, character varying, character varying, uuid,
-  character varying, text, text, character varying, numeric
-) RETURNS jsonb LANGUAGE sql SECURITY DEFINER AS $$ SELECT '{}'::jsonb $$;
+  p_auth_user_id uuid,
+  p_full_name text,
+  p_email citext,
+  p_phone character varying,
+  p_branch character varying,
+  p_sponsor_agent_id uuid,
+  p_pan_number character varying,
+  p_bank_account_no text,
+  p_bank_name text,
+  p_bank_ifsc character varying,
+  p_tds_percentage numeric
+) RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER AS $
+DECLARE
+  v_profile_id uuid;
+  v_agent_id uuid;
+BEGIN
+  IF p_auth_user_id IS NULL THEN
+    RAISE EXCEPTION 'VALIDATION_ERROR: Auth user ID is required' USING ERRCODE = 'P0004';
+  END IF;
+  IF NULLIF(TRIM(p_full_name), '') IS NULL
+     OR NULLIF(TRIM(p_phone), '') IS NULL
+     OR p_email IS NULL
+     OR NULLIF(TRIM(p_branch), '') IS NULL THEN
+    RAISE EXCEPTION 'VALIDATION_ERROR: Required Agent fields are missing' USING ERRCODE = 'P0004';
+  END IF;
+
+  INSERT INTO public.profiles(auth_user_id, full_name, email, phone, role, branch, is_active, is_test)
+  VALUES (p_auth_user_id, trim(p_full_name), p_email, p_phone, 'agent', p_branch, true, false)
+  RETURNING id INTO v_profile_id;
+
+  INSERT INTO public.agents(profile_id, agent_code, branch, sponsor_agent_id, hierarchy_level,
+                            pan_number, bank_account_no, bank_name, bank_ifsc, tds_percentage,
+                            is_active, is_test)
+  VALUES (v_profile_id, 'FIXTURE-' || substr(gen_random_uuid()::text, 1, 8), p_branch,
+          p_sponsor_agent_id, 10, p_pan_number, p_bank_account_no, p_bank_name, p_bank_ifsc,
+          coalesce(p_tds_percentage, 5.00), true, false)
+  RETURNING id INTO v_agent_id;
+
+  RETURN jsonb_build_object('success', true, 'agent_id', v_agent_id,
+                            'profile_id', v_profile_id, 'auth_user_id', p_auth_user_id);
+END;
+$;
 
 CREATE OR REPLACE FUNCTION public.get_dashboard_summary()
 RETURNS jsonb LANGUAGE sql SECURITY DEFINER AS $$ SELECT '{}'::jsonb $$;
