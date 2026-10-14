@@ -63,10 +63,13 @@ Deno.serve(async (req: Request) => {
     const { data: profile, error: profileError } = await admin.from("profiles").select("auth_user_id,email").eq("id", agent.profile_id).maybeSingle();
     if (profileError || !profile?.auth_user_id || !profile.email) return json({ success: false, error: "AUTH_MAPPING_NOT_FOUND", message: "Agent login mapping is missing; password was not changed." }, 409);
 
+    const { data: authLookup, error: authLookupError } = await admin.auth.admin.getUserById(profile.auth_user_id);
+    if (authLookupError || !authLookup.user) return json({ success: false, error: "AUTH_MAPPING_NOT_FOUND", message: "Agent Auth account was not found; password was not changed." }, 409);
+
     const temporaryPassword = generateTemporaryPassword();
     const { data: authResult, error: updateError } = await admin.auth.admin.updateUserById(profile.auth_user_id, {
       password: temporaryPassword,
-      app_metadata: { must_change_password: true },
+      app_metadata: { ...(authLookup.user.app_metadata || {}), must_change_password: true },
     });
     if (updateError || !authResult.user) return json({ success: false, error: "PASSWORD_RESET_FAILED", message: "Could not reset agent password." }, 400);
 
