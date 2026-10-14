@@ -733,20 +733,20 @@ GRANT EXECUTE ON FUNCTION public.get_dashboard_summary() TO authenticated;
 -- trust the caller-supplied actor id for the audit trail.
 DO $$
 BEGIN
-  IF to_regprocedure('public.generate_project_commission_atomic_unchecked(uuid,payment_stage_type,uuid)') IS NULL
-     AND to_regprocedure('public.generate_project_commission_atomic(uuid,payment_stage_type,uuid)') IS NOT NULL THEN
-    ALTER FUNCTION public.generate_project_commission_atomic(uuid, payment_stage_type, uuid)
+  IF to_regprocedure('public.generate_project_commission_atomic_unchecked(uuid,public.payment_stage_type,uuid)') IS NULL
+     AND to_regprocedure('public.generate_project_commission_atomic(uuid,public.payment_stage_type,uuid)') IS NOT NULL THEN
+    ALTER FUNCTION public.generate_project_commission_atomic(uuid, public.payment_stage_type, uuid)
       RENAME TO generate_project_commission_atomic_unchecked;
   END IF;
 END;
 $$;
 
-REVOKE ALL ON FUNCTION public.generate_project_commission_atomic_unchecked(uuid, payment_stage_type, uuid)
+REVOKE ALL ON FUNCTION public.generate_project_commission_atomic_unchecked(uuid, public.payment_stage_type, uuid)
   FROM PUBLIC, anon, authenticated;
 
 CREATE OR REPLACE FUNCTION public.generate_project_commission_atomic(
   p_project_id uuid,
-  p_payment_stage payment_stage_type,
+  p_payment_stage public.payment_stage_type,
   p_actor_id uuid
 )
 RETURNS jsonb
@@ -778,7 +778,7 @@ BEGIN
 END;
 $$;
 
-REVOKE ALL ON FUNCTION public.generate_project_commission_atomic(uuid, payment_stage_type, uuid)
+REVOKE ALL ON FUNCTION public.generate_project_commission_atomic(uuid, public.payment_stage_type, uuid)
   FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.generate_project_commission_atomic(uuid, payment_stage_type, uuid)
+GRANT EXECUTE ON FUNCTION public.generate_project_commission_atomic(uuid, public.payment_stage_type, uuid)
   TO authenticated;
