@@ -61,6 +61,17 @@ Deno.serve(async (req) => {
       return jsonResponse({ success: false, error: "AUTH_REQUIRED", message: "Authenticated BNPS user is required." }, 401);
     }
 
+    // Admin-only Agent creation must be checked BEFORE any service-role Auth write.
+    // Do not rely on agent.create permission overrides: the business policy is stricter.
+    const { data: callerRole, error: callerRoleError } = await userClient.rpc("current_user_role");
+    if (callerRoleError) {
+      console.error("create-agent role check failed:", callerRoleError.message);
+      return jsonResponse({ success: false, error: "ROLE_CHECK_FAILED", message: "Could not verify your BNPS administrator role." }, 403);
+    }
+    if (!["super_admin", "office_admin"].includes(String(callerRole))) {
+      return jsonResponse({ success: false, error: "FORBIDDEN", message: "Only Super Admin or Office Admin may create Agents." }, 403);
+    }
+
     // Exact PostgreSQL argument name is perm_code.
     const { data: permission, error: permissionError } = await userClient.rpc("has_erp_permission", {
       perm_code: "agent.create",
@@ -81,12 +92,6 @@ Deno.serve(async (req) => {
     }
 
     const is_test = body.is_test === true;
-    if (is_test) {
-      const { data: callerRole, error: roleError } = await userClient.rpc("current_user_role");
-      if (roleError || !["super_admin", "office_admin"].includes(String(callerRole))) {
-        return jsonResponse({ success: false, error: "FORBIDDEN", message: "Only Super Admin or Office Admin may create test agents." }, 403);
-      }
-    }
 
     const full_name = typeof body.full_name === "string" ? body.full_name.trim() : "";
     const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
