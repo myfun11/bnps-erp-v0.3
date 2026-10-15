@@ -51,6 +51,7 @@ export const AgentNetwork: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [branchFilter, setBranchFilter] = useState<string>('ALL');
   const [levelFilter, setLevelFilter] = useState<string>('ALL');
+  const [showTestAgents, setShowTestAgents] = useState(false);
   const [showCommissionRules, setShowCommissionRules] = useState(false);
 
   // Selected Agent for KYC & Documents Drawer
@@ -350,10 +351,12 @@ export const AgentNetwork: React.FC = () => {
       (agent.branch || '').toLowerCase().includes(q) ||
       (sponsor?.profile?.full_name || '').toLowerCase().includes(q);
 
+    const canInspectTestAgents = userRole === 'super_admin' || userRole === 'office_admin';
+    const matchesTestMode = !agent.is_test || (canInspectTestAgents && showTestAgents);
     const matchesBranch = branchFilter === 'ALL' || agent.branch === branchFilter;
     const matchesLevel = levelFilter === 'ALL' || String(agent.hierarchy_level) === levelFilter;
 
-    return matchesSearch && matchesBranch && matchesLevel;
+    return matchesTestMode && matchesSearch && matchesBranch && matchesLevel;
   });
 
   // Agent documents are read from the authoritative backend, not the local demo store.
@@ -461,7 +464,7 @@ export const AgentNetwork: React.FC = () => {
             <Layers className="w-5 h-5 text-amber-400" />
             <span>Agent Network Roster (Authoritative Operational Master)</span>
             <span className="text-xs px-2 py-0.5 rounded-full bg-slate-800 text-amber-400 font-mono font-bold border border-slate-700">
-              {filteredAgents.length} Active Operational Agents
+              {filteredAgents.length} Agents Shown
             </span>
           </h2>
           <p className="text-xs text-slate-400 mt-0.5">
@@ -470,6 +473,12 @@ export const AgentNetwork: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2">
+          {isSupabaseConfigured && (userRole === 'super_admin' || userRole === 'office_admin') && (
+            <label className="flex items-center gap-2 rounded-lg border border-amber-500/30 px-2.5 py-2 text-xs text-amber-200">
+              <input type="checkbox" checked={showTestAgents} onChange={(e) => setShowTestAgents(e.target.checked)} className="accent-amber-500" />
+              <span>Show TEST ONLY Agents</span>
+            </label>
+          )}
           <button
             onClick={() => setShowCommissionRules(!showCommissionRules)}
             className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold border border-slate-700 transition-all cursor-pointer"
