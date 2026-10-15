@@ -71,4 +71,27 @@ BEGIN
 END;
 $$;
 
+
+-- Guard the server-side conversion contract against accidental regression.
+DO $
+DECLARE
+  v_conversion_definition text;
+BEGIN
+  SELECT pg_get_functiondef('public.convert_lead_atomic(uuid,character varying,uuid)'::regprocedure)
+    INTO v_conversion_definition;
+  IF position('has_erp_permission' IN v_conversion_definition) = 0
+     OR position('lead.convert' IN v_conversion_definition) = 0 THEN
+    RAISE EXCEPTION 'TEST_FAIL: conversion permission gate is missing';
+  END IF;
+  IF position('ADDRESS_INCOMPLETE' IN v_conversion_definition) = 0
+     OR position('panchayat_village' IN v_conversion_definition) = 0 THEN
+    RAISE EXCEPTION 'TEST_FAIL: required address completeness gate is missing';
+  END IF;
+  IF position('BRANCH_MISMATCH' IN v_conversion_definition) = 0
+     OR position('DUPLICATE_CUSTOMER_CONFLICT' IN v_conversion_definition) = 0 THEN
+    RAISE EXCEPTION 'TEST_FAIL: duplicate customer branch/conflict checks are missing';
+  END IF;
+END;
+$;
+
 ROLLBACK;
