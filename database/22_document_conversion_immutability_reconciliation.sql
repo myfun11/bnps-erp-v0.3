@@ -112,6 +112,7 @@ DECLARE
     v_actor_profile_id UUID;
     v_actor_role user_role_type;
     v_actor_branch TEXT;
+    v_matching_customer_count INTEGER := 0;
 BEGIN
     v_actor_profile_id := public.current_auth_profile_id();
     v_actor_role := public.current_user_role();
@@ -120,6 +121,9 @@ BEGIN
     END IF;
     IF v_actor_role NOT IN ('super_admin', 'office_admin', 'branch_manager', 'field_officer', 'backoffice') THEN
         RAISE EXCEPTION 'FORBIDDEN: User cannot convert leads' USING ERRCODE = '42501';
+    END IF;
+    IF NOT public.has_erp_permission('lead.convert') THEN
+        RAISE EXCEPTION 'FORBIDDEN: Missing lead.convert permission' USING ERRCODE = '42501';
     END IF;
 
     -- 1. Lock Lead Record
@@ -144,6 +148,15 @@ BEGIN
 
     IF NULLIF(btrim(v_lead.father_name), '') IS NULL OR v_lead.dob IS NULL THEN
         RAISE EXCEPTION 'KYC_PENDING: Lead father name and DOB must be saved before verification' USING ERRCODE = 'P0003';
+    END IF;
+
+    IF NULLIF(btrim(COALESCE(v_lead.address_line, '')), '') IS NULL
+       OR NULLIF(btrim(COALESCE(v_lead.district, '')), '') IS NULL
+       OR NULLIF(btrim(COALESCE(v_lead.pincode, '')), '') IS NULL
+       OR NULLIF(btrim(COALESCE(v_lead.tehsil, '')), '') IS NULL
+       OR NULLIF(btrim(COALESCE(v_lead.block, '')), '') IS NULL
+       OR NULLIF(btrim(COALESCE(v_lead.panchayat_village, '')), '') IS NULL THEN
+        RAISE EXCEPTION 'ADDRESS_INCOMPLETE: Required address fields are missing' USING ERRCODE = 'P0003';
     END IF;
 
     -- Latest KYC documents must be trusted-OCR matched and auto-verified.
@@ -184,9 +197,27 @@ BEGIN
     v_agent_id := v_lead.source_agent_id;
 
     -- 2. Check for Duplicate Customer by Mobile or Consumer Number
-    SELECT id INTO v_existing_cust_id FROM customers 
-    WHERE primary_mobile = v_lead.mobile 
-       OR consumer_number = COALESCE(p_consumer_number, v_lead.consumer_number)
+    IF EXISTS (
+        SELECT 1 FROM public.customers c
+        WHERE (c.primary_mobile = v_lead.mobile
+           OR c.consumer_number = COALESCE(p_consumer_number, v_lead.consumer_number))
+          AND lower(btrim(COALESCE(c.branch, ''))) <> lower(btrim(COALESCE(v_lead.branch, '')))
+    ) THEN
+        RAISE EXCEPTION 'BRANCH_MISMATCH: Matching customer exists in another branch' USING ERRCODE = '23514';
+    END IF;
+
+    SELECT count(DISTINCT c.id) INTO v_matching_customer_count
+    FROM public.customers c
+    WHERE c.primary_mobile = v_lead.mobile
+       OR c.consumer_number = COALESCE(p_consumer_number, v_lead.consumer_number);
+
+    IF v_matching_customer_count > 1 THEN
+        RAISE EXCEPTION 'DUPLICATE_CUSTOMER_CONFLICT: Mobile and consumer number match different customers' USING ERRCODE = '23505';
+    END IF;
+
+    SELECT c.id INTO v_existing_cust_id FROM public.customers c
+    WHERE c.primary_mobile = v_lead.mobile
+       OR c.consumer_number = COALESCE(p_consumer_number, v_lead.consumer_number)
     LIMIT 1;
 
     IF v_existing_cust_id IS NOT NULL THEN
@@ -228,7 +259,7 @@ BEGIN
             COALESCE(v_lead.discom_name, 'CSPDCL'),
             COALESCE(p_consumer_number, v_lead.consumer_number, 'PENDING-' || v_customer_code),
             v_lead.sanctioned_load_kw,
-            COALESCE(v_lead.address_line, 'Address Pending Site Survey'),
+            v_lead.address_line,
             v_lead.district,
             v_lead.tehsil,
             v_lead.block,
