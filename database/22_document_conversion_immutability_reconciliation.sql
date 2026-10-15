@@ -77,6 +77,23 @@ BEGIN
 END;
 $$;
 
+DO $
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_trigger t
+    WHERE t.tgname = 'trg_enforce_document_entity_access'
+      AND t.tgrelid = 'public.documents'::regclass
+      AND NOT t.tgisinternal
+  ) THEN
+    CREATE TRIGGER trg_enforce_document_entity_access
+      BEFORE INSERT OR UPDATE ON public.documents
+      FOR EACH ROW
+      EXECUTE FUNCTION public.enforce_document_entity_access();
+  END IF;
+END;
+$;
+
 REVOKE ALL ON FUNCTION public.enforce_document_entity_access() FROM PUBLIC, anon, authenticated;
 
 CREATE OR REPLACE FUNCTION public.convert_lead_atomic(
