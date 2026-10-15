@@ -1,4 +1,4 @@
-name: KYC Source Validation
+name: KYC Source Validation # Includes storage-object and immutable-document reassignment regression checks
 
 on:
   pull_request:
