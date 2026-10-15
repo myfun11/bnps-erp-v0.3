@@ -3,6 +3,21 @@
 -- This narrowly permits a lead's documents to be reassigned to that exact converted customer;
 -- the original lead/<lead UUID>/ storage path and document category remain immutable.
 
+-- Register the conversion permission before the RPC enforces it. Keep this additive/idempotent.
+INSERT INTO public.permissions (code, name, module, description)
+SELECT 'lead.convert', 'Convert Leads', 'leads', 'Authorize atomic Lead to Customer conversion'
+WHERE NOT EXISTS (SELECT 1 FROM public.permissions WHERE code = 'lead.convert');
+
+INSERT INTO public.role_permissions (role, permission_id)
+SELECT roles.role_name::user_role_type, p.id
+FROM public.permissions p
+CROSS JOIN (VALUES ('super_admin'), ('office_admin'), ('branch_manager'), ('field_officer'), ('backoffice')) AS roles(role_name)
+WHERE p.code = 'lead.convert'
+  AND NOT EXISTS (
+    SELECT 1 FROM public.role_permissions rp
+    WHERE rp.role = roles.role_name::user_role_type AND rp.permission_id = p.id
+  );
+
 CREATE OR REPLACE FUNCTION public.enforce_document_entity_access()
 RETURNS trigger
 LANGUAGE plpgsql
