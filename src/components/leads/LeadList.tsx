@@ -135,10 +135,22 @@ export const LeadList: React.FC<LeadListProps> = ({
     return matchesStage && matchesQuery;
   });
 
-  const handleStageChange = (leadId: string, stage: LeadStageType) => {
-    const res = erpStore.updateLeadStage(leadId, stage, undefined, currentProfile.id);
-    if (!res.success) {
-      alert(res.message);
+  const handleStageChange = async (leadId: string, stage: LeadStageType) => {
+    try {
+      if (leadService.isConfigured()) {
+        await leadService.updateLeadStage(leadId, stage);
+        await loadData();
+        return;
+      }
+
+      // Disconnected verification mode only; never use the local store after a live failure.
+      const res = erpStore.updateLeadStage(leadId, stage, undefined, currentProfile.id);
+      if (!res.success) {
+        alert(res.message);
+      }
+    } catch (err) {
+      console.error('[LeadList.handleStageChange] Stage update failed:', err);
+      alert(err instanceof Error ? err.message : 'Lead stage could not be updated in the authoritative backend.');
     }
   };
 
