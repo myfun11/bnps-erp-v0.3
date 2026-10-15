@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Customer, CustomerLifecycleType } from '../../types/database';
 import { erpStore } from '../../services/erpStore';
 import { customerService } from '../../services/customerService';
+import { useAuth } from '../../context/AuthContext';
+import { isSupabaseConfigured } from '../../lib/supabaseClient';
 import { CustomerDetailDrawer } from './CustomerDetailDrawer';
 import { 
   Users, 
@@ -28,21 +30,35 @@ export const CustomerList: React.FC<CustomerListProps> = ({ initialSelectedCusto
   const [searchQuery, setSearchQuery] = useState('');
   const [districtFilter, setDistrictFilter] = useState<string>('ALL');
   const [discomFilter, setDiscomFilter] = useState<string>('ALL');
+  const { userRole } = useAuth();
+  const canInspectTestRecords = userRole === 'super_admin' || userRole === 'office_admin';
+  const [showTestCustomers, setShowTestCustomers] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const loadData = async () => {
     try {
       const data = await customerService.fetchCustomers();
       setCustomers(data);
+      setLoadError(null);
     } catch (err) {
       console.error('Failed to fetch customers:', err);
+      if (isSupabaseConfigured) {
+        setCustomers([]);
+        setLoadError('Customer records could not be loaded from Supabase. Check the connection/permissions and retry; local demo data was not used.');
+        return;
+      }
       setCustomers(erpStore.getCustomers());
+      setLoadError(null);
     }
   };
 
   useEffect(() => {
-    loadData();
-    const unsub = erpStore.subscribe(loadData);
-    return () => unsub();
+    void loadData();
+    if (!isSupabaseConfigured) {
+      const unsub = erpStore.subscribe(() => { void loadData(); });
+      return () => unsub();
+    }
+    return undefined;
   }, []);
 
   useEffect(() => {
@@ -58,14 +74,15 @@ export const CustomerList: React.FC<CustomerListProps> = ({ initialSelectedCusto
       .map((p) => p.customer_id)
   );
 
-  const activeCount = customers.filter(
+  const visibleCustomers = customers.filter((customer) => !customer.is_test || (canInspectTestRecords && showTestCustomers));
+  const activeCount = visibleCustomers.filter(
     (c) => c.lifecycle_status !== 'INSTALLED' && c.lifecycle_status !== 'COMMISSIONED'
   ).length;
-  const completedCount = customers.filter(
+  const completedCount = visibleCustomers.filter(
     (c) => c.lifecycle_status === 'INSTALLED' || c.lifecycle_status === 'COMMISSIONED'
   ).length;
 
-  const filteredCustomers = customers.filter((cust) => {
+  const filteredCustomers = visibleCustomers.filter((cust) => {
     // Lifecycle Mode Filter: Active vs Completed vs All vs PMSG
     if (viewMode === 'ACTIVE') {
       if (cust.lifecycle_status === 'INSTALLED' || cust.lifecycle_status === 'COMMISSIONED') {
@@ -107,6 +124,12 @@ export const CustomerList: React.FC<CustomerListProps> = ({ initialSelectedCusto
 
   return (
     <div className="space-y-6 animate-fade-in">
+      {loadError && (
+        <div role="alert" className="p-3 rounded-lg border border-rose-500/40 bg-rose-500/10 text-rose-200 text-xs flex items-center justify-between gap-3">
+          <span>{loadError}</span>
+          <button type="button" onClick={() => { void loadData(); }} className="rounded bg-slate-800 px-3 py-1.5 font-semibold hover:bg-slate-700">Retry</button>
+        </div>
+      )}
       {/* Header & Mode Switcher */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-slate-900/80 p-4 rounded-xl border border-slate-800">
         <div>
@@ -114,7 +137,7 @@ export const CustomerList: React.FC<CustomerListProps> = ({ initialSelectedCusto
             <Users className="w-5 h-5 text-amber-400" />
             <span>Customer Master & Installation Lifecycle</span>
             <span className="text-xs px-2 py-0.5 rounded-full bg-slate-800 text-amber-400 font-mono font-bold border border-slate-700">
-              {filteredCustomers.length} Displayed ({customers.length} Total Masters)
+              {filteredCustomers.length} Displayed ({visibleCustomers.length} Operational Masters)
             </span>
           </h2>
           <p className="text-xs text-slate-400 mt-0.5">
@@ -124,6 +147,12 @@ export const CustomerList: React.FC<CustomerListProps> = ({ initialSelectedCusto
 
         {/* Operational View Switcher (Active vs Completed vs All vs PMSG) */}
         <div className="flex flex-wrap items-center gap-1.5 bg-slate-800/90 p-1.5 rounded-xl border border-slate-700">
+          {isSupabaseConfigured && canInspectTestRecords && (
+            <label className="flex items-center gap-2 px-2 py-1.5 text-xs text-amber-200 whitespace-nowrap">
+              <input type="checkbox" checked={showTestCustomers} onChange={(e) => setShowTestCustomers(e.target.checked)} className="accent-amber-500" />
+              <span>Show TEST ONLY</span>
+            </label>
+          )}
           <button
             onClick={() => setViewMode('ACTIVE')}
             className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
@@ -152,7 +181,7 @@ export const CustomerList: React.FC<CustomerListProps> = ({ initialSelectedCusto
                 : 'text-slate-400 hover:text-white'
             }`}
           >
-            All Masters ({customers.length})
+            All Masters ({visibleCustomers.length})
           </button>
           <button
             onClick={() => setViewMode('PMSG_REGISTERED')}

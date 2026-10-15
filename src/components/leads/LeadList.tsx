@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Lead, LeadStageType } from '../../types/database';
+import { Agent, Lead, LeadStageType } from '../../types/database';
+import { agentNetworkService } from '../../services/agentNetworkService';
 import { erpStore } from '../../services/erpStore';
 import { leadService } from '../../services/leadService';
 import { useAuth } from '../../context/AuthContext';
 import { LEAD_STAGES } from '../../lib/constants';
+import { isSupabaseConfigured } from '../../lib/supabaseClient';
 import { ConvertLeadModal } from './ConvertLeadModal';
 import { CHHATTISGARH_DISTRICTS } from '../../services/mockData';
 import { 
@@ -37,8 +39,11 @@ export const LeadList: React.FC<LeadListProps> = ({
 }) => {
   const { currentProfile, currentAgent, userRole, canConvertLeads } = useAuth();
   const [leads, setLeads] = useState<Lead[]>([]);
+  const [availableAgents, setAvailableAgents] = useState<Agent[]>([]);
+  const [showPortalAction, setShowPortalAction] = useState(false);
   const [selectedStage, setSelectedStage] = useState<string>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
+  const [showTestLeads, setShowTestLeads] = useState(false);
   const [convertTargetLead, setConvertTargetLead] = useState<Lead | null>(null);
   const [showNewLeadModal, setShowNewLeadModal] = useState(openNewLeadDirectly);
   const [successBanner, setSuccessBanner] = useState<string | null>(null);
@@ -52,6 +57,7 @@ export const LeadList: React.FC<LeadListProps> = ({
 
   // Form state for new lead with Chhattisgarh Address Hierarchy
   const [newLeadForm, setNewLeadForm] = useState({
+    source_agent_id: '',
     full_name: '',
     father_name: '',
     dob: '',
@@ -81,7 +87,11 @@ export const LeadList: React.FC<LeadListProps> = ({
         setLeads(data);
       }
     } catch (err) {
-      console.error('Failed to fetch leads from leadService:', err);
+      console.error('Failed to fetch leads from authoritative backend:', err);
+      if (leadService.isConfigured()) {
+        setLeads([]);
+        return;
+      }
       if (userRole === 'agent') {
         if (!currentAgent?.id) {
           setLeads([]);
@@ -95,13 +105,25 @@ export const LeadList: React.FC<LeadListProps> = ({
   };
 
   useEffect(() => {
-    loadData();
-    const unsubscribe = erpStore.subscribe(loadData);
-    return () => unsubscribe();
+    void loadData();
+    if (userRole !== 'agent') {
+      agentNetworkService.list()
+        .then((rows) => setAvailableAgents(rows))
+        .catch((err) => console.error('Failed to load agent options:', err));
+    }
+    if (!leadService.isConfigured()) {
+      const unsubscribe = erpStore.subscribe(loadData);
+      return () => unsubscribe();
+    }
+    return undefined;
   }, [userRole, currentAgent?.id]);
 
+  // Test records are excluded from operational views unless an admin explicitly opts in.
+  const canInspectTestRecords = userRole === 'super_admin' || userRole === 'office_admin';
+  const visibleLeads = leads.filter((lead) => !lead.is_test || (canInspectTestRecords && showTestLeads));
+
   // Filter leads
-  const filteredLeads = leads.filter((lead) => {
+  const filteredLeads = visibleLeads.filter((lead) => {
     const matchesStage = selectedStage === 'ALL' || lead.stage === selectedStage;
     const q = searchQuery.toLowerCase();
     const matchesQuery = 
@@ -113,56 +135,73 @@ export const LeadList: React.FC<LeadListProps> = ({
     return matchesStage && matchesQuery;
   });
 
-  const handleStageChange = (leadId: string, stage: LeadStageType) => {
-    const res = erpStore.updateLeadStage(leadId, stage, undefined, currentProfile.id);
-    if (!res.success) {
-      alert(res.message);
+  const handleStageChange = async (leadId: string, stage: LeadStageType) => {
+    try {
+      if (leadService.isConfigured()) {
+        await leadService.updateLeadStage(leadId, stage);
+        await loadData();
+        return;
+      }
+
+      // Disconnected verification mode only; never use the local store after a live failure.
+      const res = erpStore.updateLeadStage(leadId, stage, undefined, currentProfile.id);
+      if (!res.success) {
+        alert(res.message);
+      }
+    } catch (err) {
+      console.error('[LeadList.handleStageChange] Stage update failed:', err);
+      alert(err instanceof Error ? err.message : 'Lead stage could not be updated in the authoritative backend.');
     }
   };
 
   const handleCreateLead = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newLeadForm.full_name || !newLeadForm.mobile) {
+    if (!newLeadForm.full_name.trim() || !newLeadForm.mobile.trim()) {
       alert('Please enter applicant name and mobile number');
       return;
     }
+    if (!newLeadForm.father_name.trim() || !newLeadForm.dob) {
+      alert('Please enter the customer father name and date of birth for KYC matching.');
+      return;
+    }
 
- const res = await erpStore.createLead(
-      {
-      source_agent_id: userRole === 'agent'
-  ? currentAgent?.id
-  : undefined,
-        assigned_officer_id: currentProfile.id,
-        full_name: newLeadForm.full_name,
-        father_name: newLeadForm.father_name || undefined,
-        dob: newLeadForm.dob || undefined,
-        mobile: newLeadForm.mobile,
-        alternate_phone: newLeadForm.alternate_phone || undefined,
-        email: newLeadForm.email || undefined,
-        discom_name: newLeadForm.discom_name,
-        consumer_number: newLeadForm.consumer_number || undefined,
-        sanctioned_load_kw: Number(newLeadForm.sanctioned_load_kw),
-        proposed_capacity_kw: Number(newLeadForm.proposed_capacity_kw),
-        address_line: newLeadForm.address_line,
-        state: newLeadForm.state,
-        district: newLeadForm.district,
-        tehsil: newLeadForm.tehsil,
-        block: newLeadForm.block,
-        panchayat_village: newLeadForm.panchayat_village,
-        pincode: newLeadForm.pincode,
-        stage: 'NEW',
-        notes: newLeadForm.notes,
-        is_test: false,
-      },
-      currentProfile.id
-    );
+    const leadInput = {
+      source_agent_id: userRole === 'agent' ? currentAgent?.id : (newLeadForm.source_agent_id || undefined),
+      assigned_officer_id: userRole === 'agent' ? undefined : (currentProfile.id || undefined),
+      full_name: newLeadForm.full_name.trim(),
+      father_name: newLeadForm.father_name.trim(),
+      dob: newLeadForm.dob,
+      mobile: newLeadForm.mobile.trim(),
+      alternate_phone: newLeadForm.alternate_phone || undefined,
+      email: newLeadForm.email || undefined,
+      discom_name: newLeadForm.discom_name,
+      consumer_number: newLeadForm.consumer_number || undefined,
+      sanctioned_load_kw: Number(newLeadForm.sanctioned_load_kw),
+      proposed_capacity_kw: Number(newLeadForm.proposed_capacity_kw),
+      address_line: newLeadForm.address_line,
+      state: newLeadForm.state,
+      district: newLeadForm.district,
+      tehsil: newLeadForm.tehsil,
+      block: newLeadForm.block,
+      panchayat_village: newLeadForm.panchayat_village,
+      pincode: newLeadForm.pincode,
+      stage: 'NEW' as const,
+      notes: newLeadForm.notes,
+      is_test: false,
+    };
 
-    if (res.success && res.lead) {
+    try {
+      const lead = leadService.isConfigured()
+        ? await leadService.createLead(leadInput)
+        : (await erpStore.createLead(leadInput, currentProfile.id)).lead;
+      if (!lead) throw new Error('Lead was not returned by the selected backend.');
+
       setShowNewLeadModal(false);
       if (onCloseNewLeadDirectly) onCloseNewLeadDirectly();
-      setSuccessBanner(`New lead ${res.lead.lead_code} (District: ${newLeadForm.district}) registered successfully!`);
+      setSuccessBanner(`New lead ${lead.lead_code} (District: ${newLeadForm.district}) registered successfully!`);
       setTimeout(() => setSuccessBanner(null), 4000);
       setNewLeadForm({
+        source_agent_id: '',
         full_name: '',
         father_name: '',
         dob: '',
@@ -175,13 +214,17 @@ export const LeadList: React.FC<LeadListProps> = ({
         sanctioned_load_kw: 5.0,
         address_line: '',
         state: 'Chhattisgarh',
-        district: 'Raipur',
-        tehsil: 'Raipur',
-        block: 'Dharsiwa',
+        district: 'Janjgir-Champa',
+        tehsil: 'Jaijaipur',
+        block: 'Jaijaipur',
         panchayat_village: '',
-        pincode: '492001',
+        pincode: '495690',
         notes: '',
       });
+      await loadData();
+    } catch (err) {
+      console.error('[LeadList.handleCreateLead] Lead creation failed:', err);
+      alert(err instanceof Error ? err.message : 'Lead could not be created in the authoritative backend.');
     }
   };
 
@@ -194,9 +237,12 @@ export const LeadList: React.FC<LeadListProps> = ({
             <CheckCircle className="w-5 h-5 text-emerald-400" />
             <span className="font-semibold">{successBanner}</span>
           </div>
-          <button onClick={() => setSuccessBanner(null)} className="text-emerald-400 hover:text-emerald-200">
-            Dismiss
-          </button>
+          <div className="flex items-center gap-3">
+            {showPortalAction && (
+              <a href="https://consumer.pmsuryaghar.gov.in/consumer/#/login" target="_blank" rel="noopener noreferrer" onClick={() => setShowPortalAction(false)} className="px-3 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-bold whitespace-nowrap">Open PM Surya Ghar Portal</a>
+            )}
+            <button onClick={() => { setSuccessBanner(null); setShowPortalAction(false); }} className="text-emerald-400 hover:text-emerald-200">Dismiss</button>
+          </div>
         </div>
       )}
 
@@ -207,7 +253,7 @@ export const LeadList: React.FC<LeadListProps> = ({
             <UserPlus className="w-5 h-5 text-amber-400" />
             <span>PM Surya Ghar Lead Pipeline (Chhattisgarh)</span>
             <span className="text-xs px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 border border-slate-700">
-              {leads.length} Total
+              {visibleLeads.length} Operational Leads
             </span>
           </h2>
           <p className="text-xs text-slate-400 mt-0.5">
@@ -216,6 +262,12 @@ export const LeadList: React.FC<LeadListProps> = ({
         </div>
 
         <div className="flex items-center gap-3 w-full sm:w-auto">
+          {isSupabaseConfigured && canInspectTestRecords && (
+            <label className="flex items-center gap-2 rounded-lg border border-amber-500/30 px-2.5 py-2 text-xs text-amber-200 whitespace-nowrap">
+              <input type="checkbox" checked={showTestLeads} onChange={(e) => setShowTestLeads(e.target.checked)} className="accent-amber-500" />
+              <span>Show TEST ONLY</span>
+            </label>
+          )}
           <div className="relative flex-1 sm:w-64">
             <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
             <input
@@ -247,10 +299,10 @@ export const LeadList: React.FC<LeadListProps> = ({
               : 'bg-slate-800/80 text-slate-400 hover:text-slate-200 hover:bg-slate-800'
           }`}
         >
-          All Stages ({leads.length})
+          All Stages ({visibleLeads.length})
         </button>
         {(Object.keys(LEAD_STAGES) as LeadStageType[]).map((st) => {
-          const count = leads.filter((l) => l.stage === st).length;
+          const count = visibleLeads.filter((l) => l.stage === st).length;
           const isSelected = selectedStage === st;
           return (
             <button
@@ -434,8 +486,9 @@ export const LeadList: React.FC<LeadListProps> = ({
         isOpen={!!convertTargetLead}
         onClose={() => setConvertTargetLead(null)}
         onConversionSuccess={(customerCode) => {
-          setSuccessBanner(`Successfully converted! Customer Code: ${customerCode}`);
-          setTimeout(() => setSuccessBanner(null), 5000);
+          setSuccessBanner(`Successfully converted! Customer Code: ${customerCode}. Open the PM Surya Ghar Consumer Portal to continue the customer’s registration.`);
+          setShowPortalAction(true);
+          setTimeout(() => setSuccessBanner(null), 15000);
         }}
       />
 
@@ -470,6 +523,21 @@ export const LeadList: React.FC<LeadListProps> = ({
             </div>
 
             <form onSubmit={handleCreateLead} className="p-6 space-y-4 max-h-[75vh] overflow-y-auto custom-scrollbar">
+              {userRole !== 'agent' && (
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">Register Lead Under Agent</label>
+                  <select
+                    value={newLeadForm.source_agent_id}
+                    onChange={(e) => setNewLeadForm({ ...newLeadForm, source_agent_id: e.target.value })}
+                    className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-xs text-slate-100 focus:outline-none"
+                  >
+                    <option value="">Company / Office Lead (no agent)</option>
+                    {availableAgents.map((agent) => (
+                      <option key={agent.id} value={agent.id}>{agent.agent_code} — {agent.profile?.full_name || 'Agent'} ({agent.branch})</option>
+                    ))}
+                  </select>
+                </div>
+              )}
               {/* Personal Details */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                 <div>

@@ -43,16 +43,10 @@ export const documentService = {
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (error) {
-        console.warn('[documentService.fetchDocuments] Falling back to local store:', error.message);
-        return erpStore.getDocuments();
-      }
+      if (error) throw new Error(`Unable to load authoritative documents from Supabase: ${error.message}`);
 
       return (data || []) as DocumentRecord[];
-    } catch (err) {
-      console.warn('[documentService.fetchDocuments] Network error, falling back to local store:', err);
-      return erpStore.getDocuments();
-    }
+    } catch (err) { throw err instanceof Error ? err : new Error('Unable to load authoritative documents from Supabase.'); }
   },
 
   async fetchDocumentsByEntity(entityType: string, entityId: string): Promise<DocumentRecord[]> {
@@ -68,16 +62,10 @@ export const documentService = {
         .eq('entity_id', entityId)
         .order('created_at', { ascending: false });
 
-      if (error) {
-        console.warn('[documentService.fetchDocumentsByEntity] Falling back to local store:', error.message);
-        return erpStore.getDocuments({ entityType, entityId });
-      }
+      if (error) throw new Error(`Unable to load authoritative documents from Supabase: ${error.message}`);
 
       return (data || []) as DocumentRecord[];
-    } catch (err) {
-      console.warn('[documentService.fetchDocumentsByEntity] Network error, falling back to local store:', err);
-      return erpStore.getDocuments({ entityType, entityId });
-    }
+    } catch (err) { throw err instanceof Error ? err : new Error('Unable to load authoritative documents from Supabase.'); }
   },
 
   async uploadDocument(
@@ -151,8 +139,9 @@ export const documentService = {
       throw uploadError;
     }
 
+    let createdDocument: DocumentRecord | null = null;
     try {
-      const { error: rpcError } = await supabase.rpc(
+      const { data: rpcData, error: rpcError } = await supabase.rpc(
         'create_document_atomic',
         {
           p_entity_type: entityType,
@@ -168,6 +157,10 @@ export const documentService = {
 
       if (rpcError) {
         throw rpcError;
+      }
+      const rpcResult = rpcData as { success?: boolean; document?: DocumentRecord } | null;
+      if (rpcResult?.success && rpcResult.document) {
+        createdDocument = rpcResult.document;
       }
     } catch (error) {
       console.error('[documentService.uploadDocument] RPC error:', getErrorMessage(error));
@@ -186,6 +179,8 @@ export const documentService = {
       throw error;
     }
 
+    if (createdDocument) return createdDocument;
+
     const { data, error: fetchError } = await supabase
       .from('documents')
       .select('*')
@@ -201,6 +196,30 @@ export const documentService = {
     }
 
     return data as DocumentRecord | null;
+  },
+
+  async extractKycDocument(documentId: string): Promise<{ success: boolean; extraction_status: string; evaluation?: unknown; message?: string }> {
+    if (!isSupabaseConfigured) {
+      throw new Error('Trusted KYC OCR requires the live Supabase backend.');
+    }
+    const { data, error } = await supabase.functions.invoke('verify-kyc-document', {
+      body: { document_id: documentId },
+    });
+    if (error) throw new Error(`KYC OCR request failed: ${error.message}`);
+    if (!data?.success) throw new Error(data?.message || 'KYC OCR did not complete; the document remains unverified.');
+    return data as { success: boolean; extraction_status: string; evaluation?: unknown; message?: string };
+  },
+
+  async evaluateKycEntity(entityType: 'lead' | 'agent', entityId: string): Promise<{ success: boolean; evaluation?: { status?: string; auto_verified?: boolean }; message?: string }> {
+    if (!isSupabaseConfigured) {
+      throw new Error('Trusted KYC evaluation requires the live Supabase backend.');
+    }
+    const { data, error } = await supabase.functions.invoke('verify-kyc-document', {
+      body: { action: 'evaluate', entity_type: entityType, entity_id: entityId },
+    });
+    if (error) throw new Error(`KYC re-check failed: ${error.message}`);
+    if (!data?.success) throw new Error(data?.message || 'KYC re-check failed.');
+    return data as { success: boolean; evaluation?: { status?: string; auto_verified?: boolean }; message?: string };
   },
 
   async verifyDocument(documentId: string): Promise<void> {
@@ -221,11 +240,7 @@ export const documentService = {
         console.error('[documentService.verifyDocument]', error.message);
         throw error;
       }
-    } catch (err) {
-      console.warn('[documentService.verifyDocument] RPC error, updating local store:', err);
-    }
-
-    erpStore.verifyDocument(documentId);
+    } catch (err) { throw err instanceof Error ? err : new Error('Supabase document verification failed.'); }
   },
 
   async rejectDocument(
@@ -255,11 +270,7 @@ export const documentService = {
         console.error('[documentService.rejectDocument]', error.message);
         throw error;
       }
-    } catch (err) {
-      console.warn('[documentService.rejectDocument] RPC error, updating local store:', err);
-    }
-
-    erpStore.rejectDocument(documentId, reason);
+    } catch (err) { throw err instanceof Error ? err : new Error('Supabase document rejection failed.'); }
   },
 
   async createSignedUrl(
@@ -267,22 +278,21 @@ export const documentService = {
     expiresIn = 300
   ): Promise<string> {
     if (!isSupabaseConfigured) {
-      return '#preview-document';
+      throw new Error('Private document preview requires the live Supabase backend.');
     }
 
-    try {
-      const { data, error } = await supabase.storage
-        .from(STORAGE_BUCKET)
-        .createSignedUrl(filePath, expiresIn);
+    const { data, error } = await supabase.storage
+      .from(STORAGE_BUCKET)
+      .createSignedUrl(filePath, expiresIn);
 
-      if (error || !data?.signedUrl) {
-        return '#preview-document';
-      }
-
-      return data.signedUrl;
-    } catch {
-      return '#preview-document';
+    if (error) {
+      throw new Error(`Unable to create secure document preview: ${error.message}`);
     }
+    if (!data?.signedUrl) {
+      throw new Error('Supabase did not return a secure document preview URL.');
+    }
+
+    return data.signedUrl;
   },
 
   async removeUploadedFile(filePath: string): Promise<void> {

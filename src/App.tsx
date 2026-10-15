@@ -35,8 +35,67 @@ import { Footer } from './components/layout/Footer';
 import { erpStore } from './services/erpStore';
 import { Lead } from './types/database';
 
+function FirstLoginPasswordChange({ onChangePassword }: { onChangePassword: (currentPassword: string, newPassword: string) => Promise<void> }) {
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const submit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setError('');
+    if (!currentPassword) {
+      setError('Temporary password दोबारा दर्ज करें।');
+      return;
+    }
+    if (password.length < 12) {
+      setError('Password कम से कम 12 characters का होना चाहिए।');
+      return;
+    }
+    if (password === currentPassword) {
+      setError('नया password temporary password से अलग होना चाहिए।');
+      return;
+    }
+    if (password !== confirmPassword) {
+      setError('दोनों password एक जैसे नहीं हैं।');
+      return;
+    }
+    setSaving(true);
+    try {
+      await onChangePassword(currentPassword, password);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Password update नहीं हो सका।');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center p-4">
+      <form onSubmit={submit} className="w-full max-w-md rounded-2xl border border-slate-700 bg-slate-900 p-6 space-y-4">
+        <h1 className="text-xl font-bold">पहली बार Login — Password बदलें</h1>
+        <p className="text-sm text-slate-300">सुरक्षा के लिए temporary password बदलना आवश्यक है। नया password कम से कम 12 characters का रखें।</p>
+        <label className="block text-sm">Temporary Password
+          <input className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2" type="password" autoComplete="current-password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} required />
+        </label>
+        <label className="block text-sm">नया Password
+          <input className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2" type="password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={12} />
+        </label>
+        <label className="block text-sm">Password दोबारा लिखें
+          <input className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2" type="password" autoComplete="new-password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required minLength={12} />
+        </label>
+        {error && <p role="alert" className="text-sm text-red-300">{error}</p>}
+        <button type="submit" disabled={saving} className="w-full rounded-lg bg-amber-400 px-4 py-2 font-bold text-slate-950 disabled:opacity-60">
+          {saving ? 'Password बदल रहा है…' : 'Password बदलें और आगे बढ़ें'}
+        </button>
+      </form>
+    </div>
+  );
+}
+
 function ErpAppShell() {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, mustChangePassword, changePassword } = useAuth();
   const [activeTab, setActiveTab] = useState<string>('dashboard');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isCommissionTestOpen, setIsCommissionTestOpen] = useState(false);
@@ -112,6 +171,10 @@ function ErpAppShell() {
   // If not authenticated, show dedicated Login Page
   if (!isAuthenticated) {
     return <LoginPage />;
+  }
+
+  if (mustChangePassword) {
+    return <FirstLoginPasswordChange onChangePassword={changePassword} />;
   }
 
   const handleOpenCustomer = (customerId: string) => {
