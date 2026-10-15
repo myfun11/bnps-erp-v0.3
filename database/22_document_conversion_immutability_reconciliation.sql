@@ -77,7 +77,7 @@ BEGIN
 END;
 $$;
 
-DO $
+DO $$
 BEGIN
   IF NOT EXISTS (
     SELECT 1
@@ -92,7 +92,7 @@ BEGIN
       EXECUTE FUNCTION public.enforce_document_entity_access();
   END IF;
 END;
-$;
+$$;
 
 REVOKE ALL ON FUNCTION public.enforce_document_entity_access() FROM PUBLIC, anon, authenticated;
 
