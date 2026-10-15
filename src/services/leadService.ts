@@ -43,6 +43,8 @@ export const leadService = {
     p_pincode: leadInput.pincode ?? null,
     p_notes: leadInput.notes ?? null,
     p_is_test: leadInput.is_test ?? false,
+    p_father_name: leadInput.father_name ?? null,
+    p_dob: leadInput.dob ?? null,
   });
 
   if (error) {
@@ -62,6 +64,33 @@ export const leadService = {
 
   return result.lead;
 },
+
+  async convertLeadAtomic(
+    leadId: string,
+    consumerNumber: string,
+    actorProfileId: string
+  ): Promise<{ success: boolean; customer?: { id: string; customer_code: string }; error?: string; message?: string }> {
+    if (!isSupabaseConfigured) throw new Error('Supabase is not configured.');
+    const { data, error } = await supabase.rpc('convert_lead_atomic', {
+      p_lead_id: leadId,
+      p_consumer_number: consumerNumber,
+      p_actor_id: actorProfileId,
+    });
+    if (error) throw error;
+    const result = data as { success?: boolean; customer_id?: string; customer_code?: string; message?: string };
+    if (!result?.success || !result.customer_id) {
+      throw new Error(result?.message || 'Lead conversion failed.');
+    }
+    const { data: customer, error: customerError } = await supabase
+      .from('customers')
+      .select('id, customer_code')
+      .eq('id', result.customer_id)
+      .single();
+    if (customerError || !customer) {
+      throw new Error(customerError?.message || 'Customer was created but could not be reloaded from Supabase.');
+    }
+    return { success: true, customer: customer as { id: string; customer_code: string } };
+  },
 
   async updateLead(leadId: string, updates: Partial<Lead>): Promise<Lead> {
     if (!isSupabaseConfigured) {

@@ -1280,7 +1280,7 @@ class ErpDataStore {
         if (
           (doc.entity_type === 'lead' || doc.entity_type === 'leads') &&
           doc.entity_id === leadId &&
-          ['aadhaar', 'bank_proof', 'electricity_bill', 'pan'].includes(doc.doc_category)
+          ['aadhaar', 'aadhaar_front', 'bank_proof', 'electricity_bill', 'pan'].includes(doc.doc_category)
         ) {
           if (doc.status !== 'VERIFIED') {
             updatedAny = true;
@@ -1289,6 +1289,8 @@ class ErpDataStore {
             ...doc,
             status: 'VERIFIED' as DocStatusType,
             auto_verified: true,
+            kyc_match_status: 'MATCHED',
+            extraction_status: 'MATCHED',
             verified_by: 'Auto-KYC Engine',
             verified_at: doc.verified_at || now,
           };
@@ -1322,6 +1324,26 @@ class ErpDataStore {
           };
         }
       }
+    } else {
+      // Revert documents that were auto-verified if identity is no longer matching
+      this.documents = this.documents.map((doc) => {
+        if (
+          (doc.entity_type === 'lead' || doc.entity_type === 'leads') &&
+          doc.entity_id === leadId &&
+          doc.auto_verified === true &&
+          ['aadhaar', 'aadhaar_front', 'bank_proof', 'electricity_bill', 'pan'].includes(doc.doc_category)
+        ) {
+          return {
+            ...doc,
+            status: 'UPLOADED' as DocStatusType,
+            auto_verified: false,
+            kyc_match_status: matchResult.mismatches.length > 0 ? 'MISMATCH' : 'PENDING',
+            verified_by: null,
+            verified_at: null,
+          };
+        }
+        return doc;
+      });
     }
 
     this.notify();

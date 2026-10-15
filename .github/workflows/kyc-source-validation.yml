@@ -1,0 +1,186 @@
+name: KYC Source Validation # Includes storage-object and immutable-document reassignment regression checks
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "database/15_kyc_ocr_and_atomic_conversion.sql"
+      - "database/16_test_agent_mode_guardrails.sql"
+      - "database/17_atomic_test_agent_creation.sql"
+      - "database/18_harden_sensitive_views.sql"
+      - "database/19_restrict_legacy_create_agent_rpc.sql"
+      - "database/20_unlimited_admin_agent_hierarchy.sql"
+      - "database/21_document_storage_object_gate.sql"
+      - "database/22_document_conversion_immutability_reconciliation.sql"
+      - "supabase/functions/**"
+      - "src/**"
+      - "tests/sql/**"
+      - "package.json"
+      - "vite.config.*"
+      - ".github/workflows/kyc-source-validation.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  frontend:
+    name: Frontend TypeScript and production build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --no-package-lock
+      - run: npm run lint
+      - run: npm run build
+
+  edge-functions:
+    name: Supabase Edge Function typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - run: deno check supabase/functions/verify-kyc-document/index.ts
+      - run: deno check supabase/functions/change-initial-password/index.ts
+      - run: deno check supabase/functions/create-agent/index.ts
+      - run: deno check supabase/functions/reset-agent-password/index.ts
+      - run: deno check supabase/functions/repair-test-agent-auth/index.ts
+
+  sql-parse:
+    name: PostgreSQL migration parse
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install --disable-pip-version-check pglast
+      - name: Parse migration SQL
+        run: python -c "from pathlib import Path; from pglast import parse_sql; files=[Path('database/15_kyc_ocr_and_atomic_conversion.sql'),Path('database/16_test_agent_mode_guardrails.sql'),Path('database/17_atomic_test_agent_creation.sql'),Path('database/18_harden_sensitive_views.sql'),Path('database/19_restrict_legacy_create_agent_rpc.sql'),Path('database/20_unlimited_admin_agent_hierarchy.sql'),Path('database/21_document_storage_object_gate.sql'),Path('database/22_document_conversion_immutability_reconciliation.sql'),Path('database/23_electricity_bill_kyc_auto_verification.sql'),Path('tests/sql/assert_agent_hierarchy_migration.sql'),Path('tests/sql/assert_document_storage_gate.sql'),Path('tests/sql/assert_document_immutability_reconciliation.sql')]; [parse_sql(p.read_text()) for p in files]; print('Parsed '+', '.join(str(p) for p in files)+' successfully')"
+
+  sql-runtime:
+    name: Disposable PostgreSQL migration execution
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: bnps_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d bnps_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install PostgreSQL client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+      - name: Create disposable BNPS schema fixture
+        env:
+          PGPASSWORD: postgres
+        run: psql -h 127.0.0.1 -U postgres -d bnps_test -v ON_ERROR_STOP=1 -f tests/sql/kyc_migration_fixture.sql
+      - name: Execute migration against disposable fixture only
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -h 127.0.0.1 -U postgres -d bnps_test -v ON_ERROR_STOP=1 -f database/15_kyc_ocr_and_atomic_conversion.sql
+          psql -h 127.0.0.1 -U postgres -d bnps_test -v ON_ERROR_STOP=1 -f database/16_test_agent_mode_guardrails.sql
+          psql -h 127.0.0.1 -U postgres -d bnps_test -v ON_ERROR_STOP=1 -f database/17_atomic_test_agent_creation.sql
+          psql -h 127.0.0.1 -U postgres -d bnps_test -v ON_ERROR_STOP=1 -f database/18_harden_sensitive_views.sql
+          psql -h 127.0.0.1 -U postgres -d bnps_test -v ON_ERROR_STOP=1 -f database/19_restrict_legacy_create_agent_rpc.sql
+          psql -h 127.0.0.1 -U postgres -d bnps_test -v ON_ERROR_STOP=1 -f database/20_unlimited_admin_agent_hierarchy.sql
+          psql -h 127.0.0.1 -U postgres -d bnps_test -v ON_ERROR_STOP=1 -c "CREATE SCHEMA IF NOT EXISTS storage; CREATE TABLE IF NOT EXISTS storage.objects (bucket_id text NOT NULL, name text NOT NULL, PRIMARY KEY (bucket_id, name));"
+          psql -h 127.0.0.1 -U postgres -d bnps_test -v ON_ERROR_STOP=1 -f database/21_document_storage_object_gate.sql
+          psql -h 127.0.0.1 -U postgres -d bnps_test -v ON_ERROR_STOP=1 -f database/22_document_conversion_immutability_reconciliation.sql
+          psql -h 127.0.0.1 -U postgres -d bnps_test -v ON_ERROR_STOP=1 -f database/23_electricity_bill_kyc_auto_verification.sql
+      - name: Assert Storage-object document gate on disposable PostgreSQL
+        env:
+          PGPASSWORD: postgres
+        run: psql -h 127.0.0.1 -U postgres -d bnps_test -v ON_ERROR_STOP=1 -f tests/sql/assert_document_storage_gate.sql
+      - name: Assert document immutability reconciliation on disposable PostgreSQL
+        env:
+          PGPASSWORD: postgres
+        run: psql -h 127.0.0.1 -U postgres -d bnps_test -v ON_ERROR_STOP=1 -f tests/sql/assert_document_immutability_reconciliation.sql
+      - name: Assert >10-level hierarchy, wrapper authorization, and delegate contract on disposable PostgreSQL
+        env:
+          PGPASSWORD: postgres
+        run: psql -h 127.0.0.1 -U postgres -d bnps_test -v ON_ERROR_STOP=1 -f tests/sql/assert_agent_hierarchy_migration.sql
+      - name: Race two PostgreSQL sessions against sponsor-cycle guard
+        env:
+          PGPASSWORD: postgres
+        shell: bash
+        run: |
+          set -euo pipefail
+          DB="psql -h 127.0.0.1 -U postgres -d bnps_test -v ON_ERROR_STOP=1"
+          A="20000000-0000-0000-0000-000000000001"
+          B="20000000-0000-0000-0000-000000000002"
+
+          psql -h 127.0.0.1 -U postgres -d bnps_test -v ON_ERROR_STOP=1 <<SQL
+          INSERT INTO public.agents(id, agent_code, sponsor_agent_id, is_active)
+          VALUES ('$A', 'RACE-AGENT-A', NULL, true), ('$B', 'RACE-AGENT-B', NULL, true);
+          CREATE OR REPLACE FUNCTION public.test_pause_after_sponsor_guard()
+          RETURNS trigger LANGUAGE plpgsql AS \$pause\$
+          BEGIN
+            IF NEW.id = '$A'::uuid AND NEW.sponsor_agent_id = '$B'::uuid THEN
+              PERFORM pg_sleep(3);
+            END IF;
+            RETURN NEW;
+          END;
+          \$pause\$;
+          DROP TRIGGER IF EXISTS zz_test_pause_after_sponsor_guard ON public.agents;
+          CREATE TRIGGER zz_test_pause_after_sponsor_guard
+          AFTER UPDATE OF sponsor_agent_id ON public.agents
+          FOR EACH ROW EXECUTE FUNCTION public.test_pause_after_sponsor_guard();
+          SQL
+
+          psql -h 127.0.0.1 -U postgres -d bnps_test -v ON_ERROR_STOP=1 \
+            -c "BEGIN; UPDATE public.agents SET sponsor_agent_id='$B' WHERE id='$A'; COMMIT;" \
+            > /tmp/race-a.log 2>&1 &
+          PID_A=$!
+          sleep 0.5
+
+          set +e
+          psql -h 127.0.0.1 -U postgres -d bnps_test -v ON_ERROR_STOP=1 \
+            -c "BEGIN; UPDATE public.agents SET sponsor_agent_id='$A' WHERE id='$B'; COMMIT;" \
+            > /tmp/race-b.log 2>&1
+          RC_B=$?
+          set -e
+          wait "$PID_A"
+
+          if [ "$RC_B" -eq 0 ]; then
+            echo "FAIL: concurrent reverse sponsor assignment committed; cycle guard is race-unsafe"
+            cat /tmp/race-a.log /tmp/race-b.log
+            exit 1
+          fi
+          if ! grep -q "AGENT_HIERARCHY_CYCLE" /tmp/race-b.log; then
+            echo "FAIL: second transaction failed for an unexpected reason"
+            cat /tmp/race-a.log /tmp/race-b.log
+            exit 1
+          fi
+
+          psql -h 127.0.0.1 -U postgres -d bnps_test -v ON_ERROR_STOP=1 <<SQL
+          DO \$assert\$
+          BEGIN
+            IF (SELECT sponsor_agent_id FROM public.agents WHERE id='$A') IS DISTINCT FROM '$B'::uuid
+               OR (SELECT sponsor_agent_id FROM public.agents WHERE id='$B') IS NOT NULL THEN
+              RAISE EXCEPTION 'FAIL: final sponsor edges differ from expected acyclic result';
+            END IF;
+          END;
+          \$assert\$;
+          DROP TRIGGER IF EXISTS zz_test_pause_after_sponsor_guard ON public.agents;
+          DROP FUNCTION IF EXISTS public.test_pause_after_sponsor_guard();
+          DELETE FROM public.agents WHERE id IN ('$A'::uuid, '$B'::uuid);
+          SQL
+          echo "PASS: two overlapping PostgreSQL sessions; reverse edge rejected with AGENT_HIERARCHY_CYCLE"
+      - name: Assert post-migration grants and schema
+        env:
+          PGPASSWORD: postgres
+        run: psql -h 127.0.0.1 -U postgres -d bnps_test -v ON_ERROR_STOP=1 -f tests/sql/assert_kyc_migration.sql

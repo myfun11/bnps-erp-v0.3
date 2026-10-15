@@ -9,6 +9,8 @@ interface AuthContextType {
   currentProfile: Profile;
   currentAgent?: Agent;
   userRole: UserRoleType;
+  mustChangePassword: boolean;
+  changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
   loginWithPassword?: (email: string, password: string) => Promise<void>;
   logout: () => void;
   hasPermission: (permissionCode: string) => boolean;
@@ -30,6 +32,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [customProfile, setCustomProfile] = useState<Profile | null>(null);
   const [customAgent, setCustomAgent] = useState<Agent | null>(null);
+  const [mustChangePassword, setMustChangePassword] = useState<boolean>(false);
 
   const isLiveSupabase = authService.isConfigured();
 
@@ -48,6 +51,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (session && session.user && mounted) {
           const profile = await authService.fetchProfileByAuthUserId(session.user.id);
           if (profile?.is_active && mounted) {
+            setMustChangePassword(session.user.app_metadata?.must_change_password === true);
             setCustomProfile(profile);
             if (profile.role === 'agent') {
               const agent = await authService.fetchAgentByProfileId(profile.id);
@@ -76,6 +80,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (event === 'SIGNED_IN' && session?.user) {
         const profile = await authService.fetchProfileByAuthUserId(session.user.id);
         if (profile?.is_active && mounted) {
+          setMustChangePassword(session.user.app_metadata?.must_change_password === true);
           setCustomProfile(profile);
           if (profile.role === 'agent') {
             const agent = await authService.fetchAgentByProfileId(profile.id);
@@ -91,6 +96,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       } else if (event === 'SIGNED_OUT') {
         setCustomProfile(null);
         setCustomAgent(null);
+        setMustChangePassword(false);
         setIsAuthenticated(false);
       }
     });
@@ -140,6 +146,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           throw new Error('Your BNPS account is inactive or not authorized.');
         }
 
+        setMustChangePassword(data.user.app_metadata?.must_change_password === true);
         setCustomProfile(profile);
         if (profile.role === 'agent') {
           const agent = await authService.fetchAgentByProfileId(profile.id);
@@ -152,12 +159,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const changePassword = async (currentPassword: string, newPassword: string) => {
+    if (!isLiveSupabase) throw new Error('Supabase live backend is not configured.');
+    await authService.updatePasswordAndClearMustChange(currentPassword, newPassword);
+    setMustChangePassword(false);
+  };
+
   const logout = async () => {
     if (isLiveSupabase) {
       await authService.signOut();
     }
     setCustomProfile(null);
     setCustomAgent(null);
+    setMustChangePassword(false);
     setIsAuthenticated(false);
   };
 
@@ -230,6 +244,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         currentProfile,
         currentAgent,
         userRole: currentRole,
+        mustChangePassword,
+        changePassword,
         loginWithPassword,
         logout,
         hasPermission,

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Lead, DocumentRecord } from '../../types/database';
 import { erpStore } from '../../services/erpStore';
 import { documentService } from '../../services/documentService';
+import { leadService } from '../../services/leadService';
 import { useAuth } from '../../context/AuthContext';
 import { ERROR_MESSAGES } from '../../lib/constants';
 import { 
@@ -58,8 +59,8 @@ const DOCUMENT_REQUIREMENTS: DocumentRequirement[] = [
   },
   {
     category: 'bank_proof',
-    label: 'Bank Passbook / Bank Proof',
-    description: 'Mandatory for Direct Benefit Transfer (DBT) central subsidy disbursement',
+    label: 'Bank Passbook',
+    description: 'Mandatory for DBT; account-holder name and father name must be readable',
     required: true,
     isCoreKyc: true,
   },
@@ -86,10 +87,10 @@ const DOCUMENT_REQUIREMENTS: DocumentRequirement[] = [
   },
   {
     category: 'pan',
-    label: 'PAN Card (Optional)',
-    description: 'Optional tax identification document (never blocks conversion)',
+    label: 'PAN Card',
+    description: 'Optional. If provided, trusted OCR must match Aadhaar and lead identity.',
     required: false,
-    isCoreKyc: false,
+    isCoreKyc: true,
   },
 ];
 
@@ -130,9 +131,9 @@ export const ConvertLeadModal: React.FC<ConvertLeadModalProps> = ({
       const docs = await documentService.fetchDocumentsByEntity('lead', leadId);
       setLeadDocuments(docs);
     } catch (err: any) {
-      console.warn('[ConvertLeadModal] Failed to fetch documents:', err);
-      const localDocs = erpStore.getDocuments({ entityType: 'lead', entityId: leadId });
-      setLeadDocuments(localDocs);
+      console.error('[ConvertLeadModal] Failed to fetch authoritative documents:', err);
+      setLeadDocuments([]);
+      setUploadError(err?.message || 'Unable to load KYC documents from Supabase. Local demo data will not be used.');
     } finally {
       setLoadingDocs(false);
     }
@@ -143,21 +144,14 @@ export const ConvertLeadModal: React.FC<ConvertLeadModalProps> = ({
     if (lead && isOpen) {
       setConsumerNumber(lead.consumer_number || '');
       setFullName(lead.full_name || '');
-      setFatherName(lead.father_name || 'Ram Prasad Kashyap');
-      setDob(lead.dob || '1984-06-15');
+      setFatherName(lead.father_name || '');
+      setDob(lead.dob || '');
       setErrorMsg(null);
       setUploadError(null);
       setExpandedDocCategory(null);
       setDocKycEdits({});
       refreshDocuments(lead.id);
 
-      // Auto-populate lead father_name & dob if not already set
-      if (!lead.father_name || !lead.dob) {
-        erpStore.updateLeadDetails(lead.id, {
-          father_name: lead.father_name || 'Ram Prasad Kashyap',
-          dob: lead.dob || '1984-06-15',
-        });
-      }
     }
   }, [lead, isOpen, refreshDocuments]);
 
@@ -185,18 +179,19 @@ export const ConvertLeadModal: React.FC<ConvertLeadModalProps> = ({
   );
 
   // Check required documents presence & statuses (Active/valid: UPLOADED or VERIFIED)
-  const isCategoryComplete = (cat: RequiredCategory) => {
-    return Boolean(
-      leadDocuments.find(
-        (d) => d.doc_category === cat && (d.status === 'UPLOADED' || d.status === 'VERIFIED')
-      )
-    );
+  // Documents are fetched newest-first. Only the latest record for each category counts.
+  // This keeps an older VERIFIED upload from bypassing a newer pending/rejected replacement.
+  const getCategoryDoc = (cat: RequiredCategory) => {
+    return leadDocuments.find((d) => d.doc_category === cat);
   };
 
-  const getCategoryDoc = (cat: RequiredCategory) => {
-    return leadDocuments.find(
-      (d) => d.doc_category === cat && (d.status === 'UPLOADED' || d.status === 'VERIFIED')
-    );
+  const isCategoryComplete = (cat: RequiredCategory) => {
+    const latest = getCategoryDoc(cat);
+    if (!latest) return false;
+    if (['aadhaar', 'pan', 'bank_proof', 'electricity_bill'].includes(cat)) {
+      return latest.status === 'VERIFIED' && (latest.kyc_match_status === 'MATCHED' || !leadService.isConfigured());
+    }
+    return latest.status === 'UPLOADED' || latest.status === 'VERIFIED';
   };
 
   const isElectricityBillComplete = isCategoryComplete('electricity_bill');
@@ -216,31 +211,51 @@ export const ConvertLeadModal: React.FC<ConvertLeadModalProps> = ({
     allRequiredDocsComplete &&
     hasCompleteLocation &&
     consumerNumber.trim().length > 0 &&
+    kycResult.allMatch &&
     !loading &&
     uploadingCategory === null;
 
   // Live duplicate check against Single Customer Master
-  const existingCustomers = erpStore.getCustomers();
+  const existingCustomers = leadService.isConfigured() ? [] : erpStore.getCustomers();
   const duplicateByMobile = existingCustomers.find((c) => c.primary_mobile === lead.mobile);
   const duplicateByConsumer = consumerNumber.trim() 
     ? existingCustomers.find((c) => c.consumer_number === consumerNumber.trim()) 
     : undefined;
 
   // Save updated Lead Master Identity
-  const handleSaveLeadIdentity = () => {
+  const handleSaveLeadIdentity = async () => {
+    if (!fullName.trim() || !fatherName.trim() || !dob.trim()) {
+      setUploadError('Name, father name and DOB are required before KYC matching.');
+      return;
+    }
     setSavingIdentity(true);
+    setUploadError(null);
     try {
-      erpStore.updateLeadDetails(lead.id, {
-        full_name: fullName.trim(),
-        father_name: fatherName.trim(),
-        dob: dob.trim(),
-      });
-      // Re-trigger auto-verification and document status update
-      erpStore.runLeadKycAutoVerification(lead.id);
-      refreshDocuments(lead.id);
+      if (leadService.isConfigured()) {
+        await leadService.updateLead(lead.id, {
+          full_name: fullName.trim(),
+          father_name: fatherName.trim(),
+          dob: dob.trim(),
+        });
+        if (leadDocuments.length > 0) {
+          const result = await documentService.evaluateKycEntity('lead', lead.id);
+          if (result.evaluation?.status === 'MISMATCH') {
+            setUploadError('KYC mismatch detected. Customer conversion remains blocked.');
+          }
+        }
+      } else {
+        erpStore.updateLeadDetails(lead.id, {
+          full_name: fullName.trim(),
+          father_name: fatherName.trim(),
+          dob: dob.trim(),
+        });
+        erpStore.runLeadKycAutoVerification(lead.id);
+      }
+      await refreshDocuments(lead.id);
       setIsEditingIdentity(false);
     } catch (err: any) {
-      console.error('[ConvertLeadModal] Failed to update lead identity:', err);
+      console.error('[ConvertLeadModal] Failed to save lead identity:', err);
+      setUploadError(err?.message || 'Lead identity could not be saved to the authoritative backend.');
     } finally {
       setSavingIdentity(false);
     }
@@ -255,7 +270,7 @@ export const ConvertLeadModal: React.FC<ConvertLeadModalProps> = ({
     setErrorMsg(null);
 
     try {
-      await documentService.uploadDocument(
+      const uploaded = await documentService.uploadDocument(
         file,
         'lead',
         lead.id,
@@ -263,10 +278,22 @@ export const ConvertLeadModal: React.FC<ConvertLeadModalProps> = ({
         lead.is_test
       );
 
-      // Re-run auto verification in store
-      erpStore.runLeadKycAutoVerification(lead.id);
+      if (leadService.isConfigured()) {
+        if (['aadhaar', 'aadhaar_front', 'pan', 'bank_proof', 'electricity_bill'].includes(category)) {
+          if (!uploaded?.id) throw new Error('Document uploaded but its Supabase record could not be reloaded for OCR.');
+          const ocr = await documentService.extractKycDocument(uploaded.id);
+          if (ocr.extraction_status !== 'EXTRACTED') {
+            setUploadError(ocr.message || 'OCR needs manual review. This document is not verified.');
+          }
+          if ((ocr.evaluation as { status?: string } | undefined)?.status === 'MISMATCH') {
+            setUploadError('KYC information does not match. Customer conversion remains blocked.');
+          }
+        }
+      } else {
+        erpStore.runLeadKycAutoVerification(lead.id);
+      }
 
-      // Refresh documents to verify actual creation and auto-verified status
+      // Refresh from Supabase after OCR / matching, never from the local store in live mode.
       await refreshDocuments(lead.id);
     } catch (err: any) {
       console.error('[ConvertLeadModal] Upload error:', err);
@@ -274,35 +301,6 @@ export const ConvertLeadModal: React.FC<ConvertLeadModalProps> = ({
     } finally {
       setUploadingCategory(null);
     }
-  };
-
-  // Update specific document KYC extracted attributes to simulate/test matching
-  const handleSaveDocKyc = (category: string, docId: string) => {
-    const edits = docKycEdits[category];
-    if (!edits) return;
-
-    erpStore.updateDocumentKyc(docId, {
-      extracted_name: edits.name.trim(),
-      extracted_father_name: edits.fatherName.trim(),
-      extracted_dob: edits.dob.trim(),
-    });
-
-    erpStore.runLeadKycAutoVerification(lead.id);
-    refreshDocuments(lead.id);
-    setExpandedDocCategory(null);
-  };
-
-  // Quick action: sync document extracted data directly to match Lead customer info
-  const handleQuickMatchDoc = (docId: string) => {
-    erpStore.updateDocumentKyc(docId, {
-      extracted_name: activeLead.full_name,
-      extracted_father_name: activeLead.father_name || '',
-      extracted_dob: activeLead.dob || '',
-    });
-
-    erpStore.runLeadKycAutoVerification(lead.id);
-    refreshDocuments(lead.id);
-    setExpandedDocCategory(null);
   };
 
   const handleConvert = async () => {
@@ -322,26 +320,48 @@ export const ConvertLeadModal: React.FC<ConvertLeadModalProps> = ({
       setErrorMsg(ERROR_MESSAGES.DOCUMENTS_INCOMPLETE);
       return;
     }
+    if (!kycResult.allMatch) {
+      setErrorMsg('KYC verification is pending. Aadhaar and bank passbook must match the lead identity; PAN is optional, but if uploaded it must also match.');
+      return;
+    }
+
+    // Open a tab synchronously from the user's click so browser popup blockers
+    // do not prevent navigation after the asynchronous server conversion succeeds.
+    let portalWindow: Window | null = null;
+    try {
+      portalWindow = window.open('about:blank', '_blank');
+      if (portalWindow) {
+        portalWindow.opener = null;
+        portalWindow.document.title = 'PM Surya Ghar Portal';
+        portalWindow.document.body.innerText = 'Customer conversion is in progress. This tab will open the PM Surya Ghar Consumer Portal after successful conversion.';
+      }
+    } catch {
+      portalWindow = null;
+    }
 
     setLoading(true);
     setErrorMsg(null);
 
     try {
       // Call atomic transactional command
-      const res = await erpStore.convertLeadAtomic(
-        lead.id, 
-        consumerNumber.trim(), 
-        currentProfile?.id || 'prof-super-admin-01'
-      );
+      const res = leadService.isConfigured()
+        ? await leadService.convertLeadAtomic(lead.id, consumerNumber.trim(), currentProfile.id)
+        : await erpStore.convertLeadAtomic(lead.id, consumerNumber.trim(), currentProfile?.id || 'demo-profile');
 
       if (res.success && res.customer) {
+        if (portalWindow && !portalWindow.closed) {
+          portalWindow.location.href = 'https://consumer.pmsuryaghar.gov.in/consumer/#/login';
+        }
         onConversionSuccess(res.customer.customer_code);
         onClose();
       } else {
-        const code = res.error || 'INVALID_TRANSITION';
+        const code = typeof res.error === 'string' && res.error in ERROR_MESSAGES
+          ? res.error as keyof typeof ERROR_MESSAGES
+          : 'INVALID_TRANSITION';
         setErrorMsg(ERROR_MESSAGES[code] || res.message || 'Conversion failed.');
       }
     } catch (err: any) {
+      if (portalWindow && !portalWindow.closed) portalWindow.close();
       console.error('[ConvertLeadModal] Conversion error:', err);
       setErrorMsg(err.message || 'An unexpected error occurred during lead conversion.');
     } finally {
@@ -414,7 +434,7 @@ export const ConvertLeadModal: React.FC<ConvertLeadModalProps> = ({
                       type="text"
                       value={fatherName}
                       onChange={(e) => setFatherName(e.target.value)}
-                      placeholder="e.g. Ram Prasad Kashyap"
+                      placeholder="Enter exact name as printed on the documents"
                       className="w-full px-2.5 py-1.5 rounded bg-slate-800 border border-slate-700 text-slate-100 text-xs focus:outline-none focus:border-amber-400"
                     />
                   </div>
@@ -607,9 +627,9 @@ export const ConvertLeadModal: React.FC<ConvertLeadModalProps> = ({
                   const isExpanded = expandedDocCategory === req.category;
 
                   const currentDocKyc = docKycEdits[req.category] || {
-                    name: doc?.extracted_name || activeLead.full_name,
-                    fatherName: doc?.extracted_father_name || activeLead.father_name || '',
-                    dob: doc?.extracted_dob || activeLead.dob || '',
+                    name: doc?.extracted_name || '',
+                    fatherName: doc?.extracted_father_name || '',
+                    dob: doc?.extracted_dob || '',
                   };
 
                   return (
@@ -730,13 +750,7 @@ export const ConvertLeadModal: React.FC<ConvertLeadModalProps> = ({
                             <span className="font-semibold text-amber-300">
                               Extracted KYC Identity on this Document:
                             </span>
-                            <button
-                              type="button"
-                              onClick={() => handleQuickMatchDoc(doc.id)}
-                              className="text-[10px] text-emerald-400 hover:text-emerald-300 underline cursor-pointer"
-                            >
-                              Auto-fill matching Customer Identity
-                            </button>
+
                           </div>
                           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                             <div>
@@ -744,6 +758,7 @@ export const ConvertLeadModal: React.FC<ConvertLeadModalProps> = ({
                               <input
                                 type="text"
                                 value={currentDocKyc.name}
+                                disabled={leadService.isConfigured()}
                                 onChange={(e) => {
                                   const val = e.target.value;
                                   setDocKycEdits((prev) => ({
@@ -751,7 +766,7 @@ export const ConvertLeadModal: React.FC<ConvertLeadModalProps> = ({
                                     [req.category]: { ...currentDocKyc, name: val },
                                   }));
                                 }}
-                                className="w-full px-2 py-1 rounded bg-slate-900 border border-slate-700 text-slate-100 text-[11px] focus:outline-none focus:border-amber-400"
+                                className="w-full px-2 py-1 rounded bg-slate-900 border border-slate-700 text-slate-100 text-[11px] focus:outline-none focus:border-amber-400 disabled:opacity-80"
                               />
                             </div>
                             <div>
@@ -759,6 +774,7 @@ export const ConvertLeadModal: React.FC<ConvertLeadModalProps> = ({
                               <input
                                 type="text"
                                 value={currentDocKyc.fatherName}
+                                disabled={leadService.isConfigured()}
                                 onChange={(e) => {
                                   const val = e.target.value;
                                   setDocKycEdits((prev) => ({
@@ -766,7 +782,7 @@ export const ConvertLeadModal: React.FC<ConvertLeadModalProps> = ({
                                     [req.category]: { ...currentDocKyc, fatherName: val },
                                   }));
                                 }}
-                                className="w-full px-2 py-1 rounded bg-slate-900 border border-slate-700 text-slate-100 text-[11px] focus:outline-none focus:border-amber-400"
+                                className="w-full px-2 py-1 rounded bg-slate-900 border border-slate-700 text-slate-100 text-[11px] focus:outline-none focus:border-amber-400 disabled:opacity-80"
                               />
                             </div>
                             <div>
@@ -774,6 +790,7 @@ export const ConvertLeadModal: React.FC<ConvertLeadModalProps> = ({
                               <input
                                 type="text"
                                 value={currentDocKyc.dob}
+                                disabled={leadService.isConfigured()}
                                 placeholder="YYYY-MM-DD or DD/MM/YYYY"
                                 onChange={(e) => {
                                   const val = e.target.value;
@@ -782,18 +799,33 @@ export const ConvertLeadModal: React.FC<ConvertLeadModalProps> = ({
                                     [req.category]: { ...currentDocKyc, dob: val },
                                   }));
                                 }}
-                                className="w-full px-2 py-1 rounded bg-slate-900 border border-slate-700 text-slate-100 text-[11px] focus:outline-none focus:border-amber-400"
+                                className="w-full px-2 py-1 rounded bg-slate-900 border border-slate-700 text-slate-100 text-[11px] focus:outline-none focus:border-amber-400 disabled:opacity-80"
                               />
                             </div>
                           </div>
-                          <div className="flex justify-end pt-1">
-                            <button
-                              type="button"
-                              onClick={() => handleSaveDocKyc(req.category, doc.id)}
-                              className="px-2.5 py-1 rounded bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-[11px] font-bold"
-                            >
-                              Apply & Check Auto-Verification
-                            </button>
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-1">
+                            <p className="text-[10px] text-amber-300">
+                              {leadService.isConfigured()
+                                ? 'Authoritative backend OCR extraction. Auto-verification requires matching all identity fields.'
+                                : 'Demo Mode: Edit extracted fields to test matching (Auto-Verified) or mismatching behavior.'}
+                            </p>
+                            {!leadService.isConfigured() && (
+                              <button
+                                type="button"
+                                onClick={async () => {
+                                  if (!doc) return;
+                                  erpStore.updateDocumentKyc(doc.id, {
+                                    extracted_name: currentDocKyc.name,
+                                    extracted_father_name: currentDocKyc.fatherName,
+                                    extracted_dob: currentDocKyc.dob,
+                                  });
+                                  await refreshDocuments(lead.id);
+                                }}
+                                className="px-2.5 py-1 rounded bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-[10px] cursor-pointer whitespace-nowrap self-end sm:self-auto"
+                              >
+                                Update & Test Auto-Verify
+                              </button>
+                            )}
                           </div>
                         </div>
                       )}
@@ -837,7 +869,7 @@ export const ConvertLeadModal: React.FC<ConvertLeadModalProps> = ({
             <div>
               Automated KYC & Conversion Rules:
               <ul className="list-disc pl-4 mt-1 space-y-0.5 text-slate-300">
-                <li><strong className="text-emerald-300">Automatic Document Verification:</strong> Aadhaar, Bank Passbook और Electricity Bill में Customer Name, Father Name और DOB मैच होने पर documents अपने आप VERIFIED हो जाते हैं।</li>
+                <li><strong className="text-emerald-300">Automatic KYC Verification:</strong> Aadhaar और Bank Passbook पर Name/Father Name match तथा Aadhaar पर DOB match होना आवश्यक है। PAN optional है; upload करने पर उसका OCR और identity match भी पास होना चाहिए। Electricity Bill अलग से VERIFIED होना आवश्यक है।</li>
                 <li>All 5 required items uploaded (Electricity Bill, Aadhaar, Bank Proof, NOC/B1, Site Photo)</li>
                 <li>Complete geographic location hierarchy verified</li>
                 <li>Customer views query lead KYC documents directly through verified relationship</li>

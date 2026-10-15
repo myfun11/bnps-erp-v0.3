@@ -34,6 +34,24 @@ export const authService = {
     return data;
   },
 
+  async updatePasswordAndClearMustChange(currentPassword: string, newPassword: string) {
+    if (!isSupabaseConfigured) {
+      throw new Error('Supabase is not configured.');
+    }
+    const { data, error } = await supabase.functions.invoke('change-initial-password', {
+      body: { current_password: currentPassword, new_password: newPassword },
+    });
+    if (error) throw new Error(`Password update failed: ${error.message}`);
+    if (!data?.success) throw new Error(data?.message || 'Password update failed.');
+    // Refresh so the client receives the server-controlled app_metadata flag.
+    const { error: refreshError } = await supabase.auth.refreshSession();
+    if (refreshError) {
+      await supabase.auth.signOut();
+      throw new Error('Password changed. Please log in again with the new password.');
+    }
+    return data;
+  },
+
   async signOut() {
     if (!isSupabaseConfigured) return;
     const { error } = await supabase.auth.signOut();

@@ -19,9 +19,14 @@ import {
 } from 'lucide-react';
 import { BRANCHES_LIST } from '../../services/mockData';
 import { agentNetworkService } from '../../services/agentNetworkService';
+import { useAuth } from '../../context/AuthContext';
+import { isSupabaseConfigured } from '../../lib/supabaseClient';
 
 export const AgentTreeView: React.FC = () => {
+  const { userRole } = useAuth();
+  const canInspectTestAgents = userRole === 'super_admin' || userRole === 'office_admin';
   const [agents, setAgents] = useState<Agent[]>([]);
+  const [showTestAgents, setShowTestAgents] = useState(false);
   const [selectedBranch, setSelectedBranch] = useState<string>('ALL');
   const [expandedAgentIds, setExpandedAgentIds] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -47,30 +52,30 @@ export const AgentTreeView: React.FC = () => {
     };
 
     fetchTreeAgents();
-    const unsub = erpStore.subscribe(() => {
-      fetchTreeAgents();
-    });
-    return () => {
-      mounted = false;
-      unsub();
-    };
+    if (!isSupabaseConfigured) {
+      const unsub = erpStore.subscribe(() => { fetchTreeAgents(); });
+      return () => { mounted = false; unsub(); };
+    }
+    return () => { mounted = false; };
   }, []);
 
-  // Filter agents by branch if specified
+  // Branch-filtered trees must be self-contained: an Agent whose sponsor is outside
+  // the selected branch becomes a visible root instead of disappearing from the view.
+  const visibleAgents = agents.filter(a => !a.is_test || (canInspectTestAgents && showTestAgents));
   const filteredAgents = selectedBranch === 'ALL'
-    ? agents
-    : agents.filter(a => a.branch === selectedBranch);
+    ? visibleAgents
+    : visibleAgents.filter(a => a.branch === selectedBranch);
 
-  // Group agents by hierarchy: identify root agents (no sponsor or sponsor not found in current dataset)
-  const agentMap = new Map<string, Agent>();
-  agents.forEach(a => agentMap.set(a.id, a));
+  const filteredAgentIds = new Set(filteredAgents.map(a => a.id));
+  const rootAgents = filteredAgents.filter(
+    a => !a.sponsor_agent_id || !filteredAgentIds.has(a.sponsor_agent_id),
+  );
 
-  const rootAgents = filteredAgents.filter(a => !a.sponsor_agent_id || !agentMap.has(a.sponsor_agent_id));
-  
-  // Downline lookup map
+  // Render only nodes in the selected branch. Cross-branch sponsors are represented
+  // by the root boundary, not by pulling out-of-branch Agent records into the tree.
   const downlineMap = new Map<string, Agent[]>();
-  agents.forEach(a => {
-    if (a.sponsor_agent_id) {
+  filteredAgents.forEach(a => {
+    if (a.sponsor_agent_id && filteredAgentIds.has(a.sponsor_agent_id)) {
       const list = downlineMap.get(a.sponsor_agent_id) || [];
       list.push(a);
       downlineMap.set(a.sponsor_agent_id, list);
@@ -86,16 +91,27 @@ export const AgentTreeView: React.FC = () => {
     });
   };
 
-  const getTierColor = (level: number) => {
-    if (level === 10) return { bg: 'from-emerald-950/70 to-slate-900', border: 'border-emerald-500/50', badge: 'bg-emerald-500 text-slate-950', text: 'text-emerald-400' };
-    if (level === 9) return { bg: 'from-amber-950/70 to-slate-900', border: 'border-amber-500/50', badge: 'bg-amber-500 text-slate-950', text: 'text-amber-400' };
-    if (level === 8) return { bg: 'from-purple-950/70 to-slate-900', border: 'border-purple-500/50', badge: 'bg-purple-500 text-slate-950', text: 'text-purple-400' };
+  const getDepthColor = (depth: number) => {
+    if (depth === 0) return { bg: 'from-emerald-950/70 to-slate-900', border: 'border-emerald-500/50', badge: 'bg-emerald-500 text-slate-950', text: 'text-emerald-400' };
+    if (depth === 1) return { bg: 'from-amber-950/70 to-slate-900', border: 'border-amber-500/50', badge: 'bg-amber-500 text-slate-950', text: 'text-amber-400' };
+    if (depth === 2) return { bg: 'from-purple-950/70 to-slate-900', border: 'border-purple-500/50', badge: 'bg-purple-500 text-slate-950', text: 'text-purple-400' };
     return { bg: 'from-blue-950/70 to-slate-900', border: 'border-blue-500/50', badge: 'bg-blue-500 text-slate-950', text: 'text-blue-400' };
   };
 
-  const renderAgentNode = (agent: Agent, depth = 0) => {
+  const renderAgentNode = (agent: Agent, depth = 0, ancestors = new Set<string>()) => {
+    // Defensive rendering guard for legacy/corrupt cycles; the database trigger
+    // prevents new circular sponsor assignments.
+    if (ancestors.has(agent.id)) {
+      return (
+        <div key={agent.id} className="w-full rounded-lg border border-red-500/50 bg-red-950/30 p-3 text-xs text-red-300">
+          Circular hierarchy detected at {agent.agent_code}. Please ask an Admin to correct the sponsor chain.
+        </div>
+      );
+    }
+    const nextAncestors = new Set(ancestors);
+    nextAncestors.add(agent.id);
     const downlines = downlineMap.get(agent.id) || [];
-    const colors = getTierColor(agent.hierarchy_level);
+    const colors = getDepthColor(depth);
     const isExpanded = expandedAgentIds.has(agent.id) || depth === 0;
 
     return (
@@ -103,7 +119,7 @@ export const AgentTreeView: React.FC = () => {
         <div className={`w-full max-w-xl p-4 rounded-2xl bg-gradient-to-r ${colors.bg} border-2 ${colors.border} shadow-lg transition-all`}>
           <div className="flex justify-between items-center mb-2">
             <span className={`text-[10px] font-mono px-2 py-0.5 rounded font-black ${colors.badge}`}>
-              TIER {agent.hierarchy_level} {agent.hierarchy_level === 10 ? 'DIRECT (7%)' : agent.hierarchy_level === 9 ? 'SPONSOR (1%)' : 'UPLINE (1%)'}
+              HIERARCHY DEPTH {depth + 1}
             </span>
             <div className="flex items-center gap-2">
               <span className="text-xs font-mono text-slate-300 font-bold">{agent.agent_code}</span>
@@ -171,7 +187,7 @@ export const AgentTreeView: React.FC = () => {
           <div className="w-full flex flex-col items-center">
             <div className="w-0.5 h-6 bg-gradient-to-b from-amber-500 to-slate-700 my-1" />
             <div className="w-full space-y-4 pl-4 sm:pl-8 border-l-2 border-slate-800/60 my-2">
-              {downlines.map(downline => renderAgentNode(downline, depth + 1))}
+              {downlines.map(downline => renderAgentNode(downline, depth + 1, nextAncestors))}
             </div>
           </div>
         )}
@@ -186,18 +202,24 @@ export const AgentTreeView: React.FC = () => {
         <div>
           <h2 className="text-lg font-bold text-slate-100 flex items-center gap-2">
             <GitFork className="w-5 h-5 text-amber-400" />
-            <span>Agent Tree View (10-Tier Network Hierarchy)</span>
+            <span>Unlimited-Depth Agent Tree</span>
             <span className="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-amber-400 font-mono font-bold border border-slate-700">
-              {agents.length} Total Authoritative Operational Agents
+              {filteredAgents.length} Agents Shown
             </span>
           </h2>
           <p className="text-xs text-slate-400 mt-0.5">
-            Deterministic Sponsor Tree • Position 10 (7% Direct Sourcing) to Position 1 (0.5% Super Upline) • Direct sync with Agent Master & Sidebar
+            Sponsor depth is independent of commission payout position • Commission calculation follows the existing 10-position rules • Direct sync with Agent Master
           </p>
         </div>
 
         {/* Branch Filter */}
         <div className="flex items-center gap-2">
+          {isSupabaseConfigured && canInspectTestAgents && (
+            <label className="flex items-center gap-2 rounded-lg border border-amber-500/30 px-2.5 py-2 text-xs text-amber-200">
+              <input type="checkbox" checked={showTestAgents} onChange={(e) => setShowTestAgents(e.target.checked)} className="accent-amber-500" />
+              <span>Show TEST ONLY Agents</span>
+            </label>
+          )}
           <div className="flex items-center gap-1.5 bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-2 text-xs">
             <Building className="w-3.5 h-3.5 text-slate-400" />
             <select
@@ -205,9 +227,9 @@ export const AgentTreeView: React.FC = () => {
               onChange={(e) => setSelectedBranch(e.target.value)}
               className="bg-transparent text-slate-200 focus:outline-none text-xs"
             >
-              <option value="ALL">All Branches ({agents.length} Agents)</option>
+              <option value="ALL">All Branches ({visibleAgents.length} Agents)</option>
               {BRANCHES_LIST.map((b) => {
-                const count = agents.filter(a => a.branch === b).length;
+                const count = visibleAgents.filter(a => a.branch === b).length;
                 return (
                   <option key={b} value={b}>{b} ({count})</option>
                 );
@@ -222,7 +244,7 @@ export const AgentTreeView: React.FC = () => {
         <div className="flex items-center justify-between mb-6">
           <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
             <Layers className="w-4 h-4 text-amber-400" />
-            <span>Active Hierarchy Tree Structure (Chhattisgarh Operational Network)</span>
+            <span>Sponsor Hierarchy (Chhattisgarh Operational Network)</span>
           </h3>
           <span className="text-xs text-slate-400 font-mono">
             Showing {filteredAgents.length} Agents ({rootAgents.length} Hierarchy Roots)
@@ -249,7 +271,7 @@ export const AgentTreeView: React.FC = () => {
             <span>Deterministic Hierarchy Rule (Section 16 Invariant):</span>
           </div>
           <p>
-            Whenever payment is received for any project, the commission engine traces the sponsor chain starting from Position 10 upwards. In every transaction, the current tree snapshot is permanently frozen as JSONB, ensuring that historical financial calculations and audit trails remain completely immutable even if upline sponsors change in the future.
+            This tree displays sponsor depth only. Commission payout position and rates are calculated separately by the commission engine under the existing 10-position rules; tree depth must never be interpreted as a payout position or rate. Each transaction's hierarchy snapshot is retained for financial auditability.
           </p>
         </div>
       </div>

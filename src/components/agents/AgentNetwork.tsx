@@ -5,6 +5,7 @@ import { documentService } from '../../services/documentService';
 import { erpStore } from '../../services/erpStore';
 import { useAuth } from '../../context/AuthContext';
 import { STANDARD_COMMISSION_RATES } from '../../lib/constants';
+import { supabase, isSupabaseConfigured } from '../../lib/supabaseClient';
 import { BRANCHES_LIST } from '../../services/mockData';
 import { 
   Layers, 
@@ -32,27 +33,31 @@ import {
   X,
   FileCheck,
   Eye,
-  AlertCircle
+  AlertCircle,
+  UserPlus
 } from 'lucide-react';
 
 export const AgentNetwork: React.FC = () => {
-  const { userRole, canViewSensitiveAgentPii } = useAuth();
-  const [agents, setAgents] = useState<Agent[]>(erpStore.getAgents());
+  const { userRole, canViewSensitiveAgentPii, hasPermission } = useAuth();
+  const [agents, setAgents] = useState<Agent[]>(isSupabaseConfigured ? [] : erpStore.getAgents());
   const [showNewAgentModal, setShowNewAgentModal] = useState(false);
   const [successBanner, setSuccessBanner] = useState<string | null>(null);
   const [errorBanner, setErrorBanner] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [newlyCreatedAgent, setNewlyCreatedAgent] = useState<Agent | null>(null);
+  const [newlyCreatedCredentials, setNewlyCreatedCredentials] = useState<{ agentId: string; agentCode: string; fullName: string; branch: string; loginEmail: string; temporaryPassword: string } | null>(null);
+  const [selectedAgentDocuments, setSelectedAgentDocuments] = useState<DocumentRecord[]>([]);
 
   // Search & Filter States
   const [searchQuery, setSearchQuery] = useState('');
   const [branchFilter, setBranchFilter] = useState<string>('ALL');
   const [levelFilter, setLevelFilter] = useState<string>('ALL');
+  const [showTestAgents, setShowTestAgents] = useState(false);
   const [showCommissionRules, setShowCommissionRules] = useState(false);
 
   // Selected Agent for KYC & Documents Drawer
   const [selectedAgentForKyc, setSelectedAgentForKyc] = useState<Agent | null>(null);
-  const [drawerDocCategory, setDrawerDocCategory] = useState<string>('aadhaar');
+  const [drawerDocCategory, setDrawerDocCategory] = useState<string>('aadhaar_front');
   const [drawerDocFile, setDrawerDocFile] = useState<File | null>(null);
   const [isUploadingDrawerDoc, setIsUploadingDrawerDoc] = useState(false);
 
@@ -67,12 +72,12 @@ export const AgentNetwork: React.FC = () => {
     email: '',
     branch: 'Jaijaipur' as BranchLocation,
     sponsor_agent_id: '',
-    login_password: '',
     pan_number: '',
     bank_account_no: '',
     bank_name: '',
     bank_ifsc: '',
     tds_percentage: 5.0,
+    is_test: false,
   });
 
   // Required KYC Documents for Agent Onboarding
@@ -94,14 +99,64 @@ export const AgentNetwork: React.FC = () => {
   };
 
   useEffect(() => {
-    // Authoritative single-store sync
+    if (isSupabaseConfigured) {
+      // Production must render only authoritative Supabase data; no mock-store flash/fallback.
+      void loadData();
+      return;
+    }
+    // Disconnected verification mode only.
     setAgents(erpStore.getAgents());
-    const unsub = erpStore.subscribe(() => {
-      setAgents(erpStore.getAgents());
-    });
+    const unsub = erpStore.subscribe(() => setAgents(erpStore.getAgents()));
     void loadData();
     return unsub;
   }, []);
+
+  const handleResetAgentPassword = async (agent: Agent) => {
+    if (!isSupabaseConfigured) {
+      alert('Password reset is available only in live Supabase mode.');
+      return;
+    }
+    if (!agent.profile?.email) {
+      alert('This agent has no login email. Password was not changed.');
+      return;
+    }
+    if (!window.confirm(`Reset the password for ${agent.profile.full_name || agent.agent_code}? The current password will stop working and a temporary password will be shown once.`)) return;
+    try {
+      const { data, error } = await supabase.functions.invoke('reset-agent-password', { body: { agent_id: agent.id } });
+      if (error) throw error;
+      if (!data?.success || !data?.temporary_password) throw new Error(data?.message || 'Agent password reset failed.');
+      alert(`Password reset successfully.\nAgent: ${data.agent_code}\nLogin email: ${data.login_email}\nTemporary password: ${data.temporary_password}\n\nThe agent must change this password after login. Share it securely; it will not be shown again.`);
+    } catch (error) {
+      alert(error instanceof Error ? error.message : 'Agent password reset failed.');
+    }
+  };
+
+
+  const handleRepairTestAgentAuth = async (agent: Agent) => {
+    if (!isSupabaseConfigured || agent.is_test !== true || agent.profile?.email) {
+      alert('Only an unlinked TEST Agent can use this repair action.');
+      return;
+    }
+    const email = window.prompt(`Enter the login email to assign to ${agent.agent_code} (${agent.profile?.full_name || 'TEST Agent'}):`);
+    if (!email) return;
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+      alert('Enter a valid email address. No changes were made.');
+      return;
+    }
+    if (!window.confirm(`Create a Supabase Auth login for existing TEST Agent ${agent.agent_code} using ${normalizedEmail}? A temporary password will be shown once.`)) return;
+    try {
+      const { data, error } = await supabase.functions.invoke('repair-test-agent-auth', {
+        body: { agent_code: agent.agent_code, email: normalizedEmail },
+      });
+      if (error) throw error;
+      if (!data?.success || !data?.temporary_password) throw new Error(data?.message || data?.error || 'TEST Agent Auth repair failed.');
+      alert(`TEST Agent login repaired.\\nAgent: ${data.agent_code}\\nLogin email: ${data.login_email}\\nTemporary password: ${data.temporary_password}\\n\\nCopy this password now; it is shown only once. The Agent must change it after first login.`);
+      await loadData();
+    } catch (error) {
+      alert(error instanceof Error ? error.message : 'TEST Agent Auth repair failed.');
+    }
+  };
 
   const handleCopy = (text: string, id: string) => {
     navigator.clipboard.writeText(text);
@@ -123,29 +178,39 @@ export const AgentNetwork: React.FC = () => {
       return;
     }
 
-    // Mandatory document checks per business rule (Sections 7-11)
-    if (!panFile) {
-      alert('PAN Card document upload is mandatory for agent onboarding.');
-      return;
+    // Normal Agent onboarding always requires all four KYC documents.
+    // TEST ONLY workflow mode may create an unverified test Agent without files,
+    // but partial document sets are rejected to avoid ambiguous KYC state.
+    const kycFiles = [panFile, aadhaarFrontFile, aadhaarBackFile, bankProofFile];
+    const hasAnyKycFile = kycFiles.some(Boolean);
+    const hasAllKycFiles = kycFiles.every(Boolean);
+    const testWorkflowOnly = newAgentForm.is_test && !hasAnyKycFile;
+
+    if (!newAgentForm.is_test || hasAnyKycFile) {
+      if (!panFile) {
+        alert('PAN Card document upload is mandatory for agent onboarding.');
+        return;
+      }
+      if (!aadhaarFrontFile) {
+        alert('Aadhaar Card Front document upload is mandatory.');
+        return;
+      }
+      if (!aadhaarBackFile) {
+        alert('Aadhaar Card Back document upload is mandatory.');
+        return;
+      }
+      if (!bankProofFile) {
+        alert('Bank Passbook document upload is mandatory. The account-holder name and father name must be readable.');
+        return;
+      }
     }
-    if (!aadhaarFrontFile) {
-      alert('Aadhaar Card Front document upload is mandatory.');
-      return;
-    }
-    if (!aadhaarBackFile) {
-      alert('Aadhaar Card Back document upload is mandatory.');
-      return;
-    }
-    if (!bankProofFile) {
-      alert('Bank Proof (Passbook or Cancelled Cheque) document upload is mandatory.');
+
+    if (newAgentForm.is_test && hasAnyKycFile && !hasAllKycFiles) {
+      alert('For TEST ONLY accounts, upload all four KYC files or clear all four file selections for workflow-only testing.');
       return;
     }
 
     setIsSubmittingOnboarding(true);
-
-    const defaultPwd =
-      newAgentForm.login_password ||
-      `${newAgentForm.full_name.split(' ')[0]}@${newAgentForm.branch}2026`;
 
     try {
       // 1. Create Agent record
@@ -155,23 +220,44 @@ export const AgentNetwork: React.FC = () => {
         email: newAgentForm.email,
         branch: newAgentForm.branch,
         sponsor_agent_id: newAgentForm.sponsor_agent_id || undefined,
-        password: defaultPwd,
         pan_number: newAgentForm.pan_number || undefined,
         bank_account_no: newAgentForm.bank_account_no || undefined,
         bank_name: newAgentForm.bank_name || undefined,
         bank_ifsc: newAgentForm.bank_ifsc || undefined,
         tds_percentage: Number(newAgentForm.tds_percentage),
+        is_test: newAgentForm.is_test,
       });
 
       const agentId = result.agent_id;
+      if (result.password_display_once && result.temporary_password && result.login_email) {
+        setNewlyCreatedCredentials({ agentId, agentCode: result.agent_code, fullName: newAgentForm.full_name, branch: newAgentForm.branch, loginEmail: result.login_email, temporaryPassword: result.temporary_password });
+      }
 
-      // 2. Upload mandatory KYC documents in parallel
-      await Promise.all([
-        documentService.uploadDocument(panFile, 'agents', agentId, 'pan', false),
-        documentService.uploadDocument(aadhaarFrontFile, 'agents', agentId, 'aadhaar_front', false),
-        documentService.uploadDocument(aadhaarBackFile, 'agents', agentId, 'aadhaar_back', false),
-        documentService.uploadDocument(bankProofFile, 'agents', agentId, 'bank_proof', false),
-      ]);
+      // 2. Workflow-only test Agents intentionally have no document rows.
+      // They remain KYC-pending; the backend lead-conversion document gate is unchanged.
+      const uploadedDocs: (DocumentRecord | null | undefined)[] = testWorkflowOnly
+        ? []
+        : await Promise.all([
+            documentService.uploadDocument(panFile!, 'agent', agentId, 'pan', newAgentForm.is_test),
+            documentService.uploadDocument(aadhaarFrontFile!, 'agent', agentId, 'aadhaar_front', newAgentForm.is_test),
+            documentService.uploadDocument(aadhaarBackFile!, 'agent', agentId, 'aadhaar_back', newAgentForm.is_test),
+            documentService.uploadDocument(bankProofFile!, 'agent', agentId, 'bank_proof', newAgentForm.is_test),
+          ]);
+
+      let ocrNeedsReview = 0;
+      if (documentService.isConfigured()) {
+        const ocrResults = await Promise.allSettled(
+          uploadedDocs.filter((doc): doc is DocumentRecord => Boolean(doc?.id))
+            .map((doc) => documentService.extractKycDocument(doc.id))
+        );
+        ocrNeedsReview = ocrResults.filter((result) =>
+          result.status === 'rejected' ||
+          (result.status === 'fulfilled' && (
+            result.value.extraction_status !== 'EXTRACTED' ||
+            (result.value.evaluation as { status?: string } | undefined)?.status === 'MISMATCH'
+          ))
+        ).length;
+      }
 
       await loadData();
 
@@ -185,7 +271,11 @@ export const AgentNetwork: React.FC = () => {
 
       setShowNewAgentModal(false);
       setSuccessBanner(
-        `Agent ${result.agent_code} (${newAgentForm.full_name}) successfully onboarded with 4 verified KYC documents!`
+        testWorkflowOnly
+          ? `TEST ONLY Agent ${result.agent_code} created for workflow testing WITHOUT KYC documents. KYC remains PENDING; document upload, verification and lead-to-customer conversion requirements are not bypassed.`
+          : ocrNeedsReview > 0
+            ? `Agent ${result.agent_code} created. All four KYC documents were uploaded; ${ocrNeedsReview} document(s) need OCR retry/manual review. Agent KYC remains unverified until identity fields match.`
+            : `Agent ${result.agent_code} created. KYC OCR ran; automatic verification is only completed when name, father name and DOB match across the required documents.`
       );
       setTimeout(() => setSuccessBanner(null), 6000);
 
@@ -196,12 +286,12 @@ export const AgentNetwork: React.FC = () => {
         email: '',
         branch: 'Jaijaipur',
         sponsor_agent_id: '',
-        login_password: '',
         pan_number: '',
         bank_account_no: '',
         bank_name: '',
         bank_ifsc: '',
         tds_percentage: 5.0,
+        is_test: false,
       });
       setPanFile(null);
       setAadhaarFrontFile(null);
@@ -224,15 +314,24 @@ export const AgentNetwork: React.FC = () => {
 
     setIsUploadingDrawerDoc(true);
     try {
-      await documentService.uploadDocument(
+      const uploaded = await documentService.uploadDocument(
         drawerDocFile,
-        'agents',
+        'agent',
         selectedAgentForKyc.id,
         drawerDocCategory,
         false
       );
+      let ocrMessage = '';
+      if (documentService.isConfigured() && ['aadhaar_front', 'aadhaar_back', 'pan', 'bank_proof'].includes(drawerDocCategory)) {
+        if (!uploaded?.id) throw new Error('Document uploaded but its Supabase record could not be reloaded for OCR.');
+        const ocr = await documentService.extractKycDocument(uploaded.id);
+        ocrMessage = ocr.extraction_status === 'EXTRACTED'
+          ? ' OCR extracted; auto-verification depends on all identity fields matching.'
+          : ' OCR needs manual review; the document remains unverified.';
+      }
+      setSelectedAgentDocuments(await documentService.fetchDocumentsByEntity('agent', selectedAgentForKyc.id));
       setDrawerDocFile(null);
-      alert('Document uploaded successfully to Agent KYC Vault.');
+      alert(`Document uploaded to Agent KYC Vault.${ocrMessage}`);
     } catch (err: any) {
       console.error('Drawer document upload failed:', err);
       alert(err?.message || 'Failed to upload document.');
@@ -244,6 +343,7 @@ export const AgentNetwork: React.FC = () => {
   const handleVerifyAgentDoc = async (docId: string) => {
     try {
       await documentService.verifyDocument(docId);
+      if (selectedAgentForKyc) setSelectedAgentDocuments(await documentService.fetchDocumentsByEntity('agent', selectedAgentForKyc.id));
       alert('Document marked as VERIFIED.');
     } catch (err: any) {
       alert(err?.message || 'Verification failed.');
@@ -257,6 +357,7 @@ export const AgentNetwork: React.FC = () => {
     }
     try {
       await documentService.rejectDocument(rejectDocId, rejectReason.trim());
+      if (selectedAgentForKyc) setSelectedAgentDocuments(await documentService.fetchDocumentsByEntity('agent', selectedAgentForKyc.id));
       setRejectDocId(null);
       setRejectReason('');
       alert('Document marked as REJECTED.');
@@ -278,16 +379,23 @@ export const AgentNetwork: React.FC = () => {
       (agent.branch || '').toLowerCase().includes(q) ||
       (sponsor?.profile?.full_name || '').toLowerCase().includes(q);
 
+    const canInspectTestAgents = userRole === 'super_admin' || userRole === 'office_admin';
+    const matchesTestMode = !agent.is_test || (canInspectTestAgents && showTestAgents);
     const matchesBranch = branchFilter === 'ALL' || agent.branch === branchFilter;
     const matchesLevel = levelFilter === 'ALL' || String(agent.hierarchy_level) === levelFilter;
 
-    return matchesSearch && matchesBranch && matchesLevel;
+    return matchesTestMode && matchesSearch && matchesBranch && matchesLevel;
   });
 
-  // Current documents for selected drawer agent
-  const selectedAgentDocuments = selectedAgentForKyc
-    ? erpStore.getDocuments({ entityType: 'agents', entityId: selectedAgentForKyc.id })
-    : [];
+  // Agent documents are read from the authoritative backend, not the local demo store.
+  useEffect(() => {
+    let cancelled = false;
+    if (!selectedAgentForKyc) { setSelectedAgentDocuments([]); return; }
+    documentService.fetchDocumentsByEntity('agent', selectedAgentForKyc.id)
+      .then((rows) => { if (!cancelled) setSelectedAgentDocuments(rows); })
+      .catch((error) => { if (!cancelled) setErrorBanner(error instanceof Error ? error.message : 'Could not load agent KYC documents.'); });
+    return () => { cancelled = true; };
+  }, [selectedAgentForKyc?.id]);
 
   return (
     <div className="space-y-6 animate-fade-in font-sans">
@@ -364,6 +472,19 @@ export const AgentNetwork: React.FC = () => {
         </div>
       )}
 
+      {newlyCreatedCredentials && (
+        <div className="p-5 rounded-2xl bg-emerald-950/60 border-2 border-emerald-500/50 space-y-3">
+          <div className="flex items-center justify-between gap-3"><h3 className="text-sm font-bold text-emerald-300">Agent login credentials — shown once</h3><button type="button" onClick={() => setNewlyCreatedCredentials(null)} className="text-xs text-slate-300 hover:text-white">Hide credentials</button></div>
+          <p className="text-xs text-amber-200">Share securely with the agent. The temporary password is not stored by BNPS; the agent must change it after first login.</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-slate-950/70 p-3 rounded-xl border border-emerald-500/30 text-xs font-mono">
+            <div><span className="block text-slate-400 text-[10px] uppercase">Agent ID</span><span className="text-amber-300 font-bold">{newlyCreatedCredentials.agentCode}</span></div>
+            <div><span className="block text-slate-400 text-[10px] uppercase">Login email</span><span className="text-emerald-300 font-bold">{newlyCreatedCredentials.loginEmail}</span></div>
+            <div className="sm:col-span-2"><span className="block text-slate-400 text-[10px] uppercase">Temporary password</span><span className="text-white break-all">{newlyCreatedCredentials.temporaryPassword}</span></div>
+          </div>
+          <button type="button" onClick={() => handleCopy(`BNPS Agent Login\nAgent ID: ${newlyCreatedCredentials.agentCode}\nName: ${newlyCreatedCredentials.fullName}\nBranch: ${newlyCreatedCredentials.branch}\nLogin email: ${newlyCreatedCredentials.loginEmail}\nTemporary password: ${newlyCreatedCredentials.temporaryPassword}\nChange password after first login.`, `credentials-${newlyCreatedCredentials.agentId}`)} className="px-3 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-bold">{copiedId === `credentials-${newlyCreatedCredentials.agentId}` ? 'Copied' : 'Copy login ID and temporary password'}</button>
+        </div>
+      )}
+
       {/* Header & Hierarchy Overview */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-slate-900/80 p-4 rounded-xl border border-slate-800">
         <div>
@@ -371,7 +492,7 @@ export const AgentNetwork: React.FC = () => {
             <Layers className="w-5 h-5 text-amber-400" />
             <span>Agent Network Roster (Authoritative Operational Master)</span>
             <span className="text-xs px-2 py-0.5 rounded-full bg-slate-800 text-amber-400 font-mono font-bold border border-slate-700">
-              {filteredAgents.length} Active Operational Agents
+              {filteredAgents.length} Agents Shown
             </span>
           </h2>
           <p className="text-xs text-slate-400 mt-0.5">
@@ -380,6 +501,12 @@ export const AgentNetwork: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2">
+          {isSupabaseConfigured && (userRole === 'super_admin' || userRole === 'office_admin') && (
+            <label className="flex items-center gap-2 rounded-lg border border-amber-500/30 px-2.5 py-2 text-xs text-amber-200">
+              <input type="checkbox" checked={showTestAgents} onChange={(e) => setShowTestAgents(e.target.checked)} className="accent-amber-500" />
+              <span>Show TEST ONLY Agents</span>
+            </label>
+          )}
           <button
             onClick={() => setShowCommissionRules(!showCommissionRules)}
             className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold border border-slate-700 transition-all cursor-pointer"
@@ -545,7 +672,7 @@ export const AgentNetwork: React.FC = () => {
                 const sponsor = agents.find((a) => a.id === agent.sponsor_agent_id);
                 const isOwnProfile = agent.id === 'ag-mukesh-101' && userRole === 'agent';
                 const canViewPii = canViewSensitiveAgentPii || isOwnProfile;
-                const agentDocs = erpStore.getDocuments({ entityType: 'agents', entityId: agent.id });
+                const agentDocs = erpStore.getDocuments({ entityType: 'agent', entityId: agent.id });
 
                 return (
                   <tr key={agent.id} className="hover:bg-slate-800/40 transition-colors">
@@ -646,6 +773,25 @@ export const AgentNetwork: React.FC = () => {
                           <span>KYC ({agentDocs.length})</span>
                         </button>
 
+                        {(userRole === 'super_admin' || userRole === 'office_admin') && (
+                          <button
+                            onClick={() => void handleResetAgentPassword(agent)}
+                            className="p-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 transition cursor-pointer"
+                            title="Reset agent password; temporary password is shown once"
+                          >
+                            <Lock className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+
+                        {(userRole === 'super_admin' || userRole === 'office_admin') && hasPermission('agent.create') && agent.is_test === true && !agent.profile?.email && isSupabaseConfigured && (
+                          <button
+                            onClick={() => void handleRepairTestAgentAuth(agent)}
+                            className="p-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 transition cursor-pointer"
+                            title="Create and link Supabase Auth login for this existing TEST Agent"
+                          >
+                            <UserPlus className="w-3.5 h-3.5" />
+                          </button>
+                        )}
                         <button
                           onClick={() => handleCopy(
                             `Agent: ${agent.agent_code} (${agent.profile?.full_name})\nPhone: ${agent.profile?.phone}\nBranch: ${agent.branch}\nTier: ${agent.hierarchy_level}`,
@@ -767,6 +913,17 @@ export const AgentNetwork: React.FC = () => {
                     ))}
                   </select>
                 </div>
+                {isSupabaseConfigured && (userRole === 'super_admin' || userRole === 'office_admin') && (
+                  <label className="flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 text-xs text-amber-200">
+                    <input
+                      type="checkbox"
+                      checked={newAgentForm.is_test}
+                      onChange={(e) => setNewAgentForm({ ...newAgentForm, is_test: e.target.checked })}
+                      className="mt-0.5 accent-amber-500"
+                    />
+                    <span><strong>TEST ONLY account</strong><br />Workflow-only test: leave all four document fields empty to skip uploads. KYC stays PENDING; document verification and Lead-to-Customer conversion rules are not bypassed. If testing uploads, select all four synthetic test files.</span>
+                  </label>
+                )}
               </div>
 
               {/* Banking & Statutory Details */}
@@ -1048,7 +1205,7 @@ export const AgentNetwork: React.FC = () => {
                       <option value="pan">PAN Card Document</option>
                       <option value="aadhaar_front">Aadhaar Card Front</option>
                       <option value="aadhaar_back">Aadhaar Card Back</option>
-                      <option value="bank_proof">Bank Passbook / Cheque</option>
+                      <option value="bank_proof">Bank Passbook (Name + Father Name)</option>
                       <option value="agent_agreement">Agent Agreement</option>
                     </select>
                     <input

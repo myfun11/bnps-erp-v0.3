@@ -1,4 +1,5 @@
 import { Lead, DocumentRecord } from '../types/database';
+import { isSupabaseConfigured } from '../lib/supabaseClient';
 
 /**
  * Normalizes text (e.g. name, father name) for robust Indian identity comparison.
@@ -6,12 +7,10 @@ import { Lead, DocumentRecord } from '../types/database';
  */
 export const normalizeIdentityString = (input?: string | null): string => {
   if (!input) return '';
-  let str = input.toLowerCase().trim();
-  // Strip honorifics
-  str = str.replace(/^(shri|smt|mr\.|mr|mrs\.|mrs|dr\.|dr|late|s\/o|d\/o|w\/o)\s+/i, '');
-  // Collapse whitespace
-  str = str.replace(/\s+/g, ' ').trim();
-  return str;
+  // Mirror the database normalizer: punctuation becomes spaces before honorific stripping.
+  let str = input.toLowerCase().trim().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+  str = str.replace(/^(shri|smt|mr|mrs|ms|dr|late|s o|d o|w o)\s+/u, '');
+  return str.replace(/\s+/g, ' ').trim();
 };
 
 /**
@@ -78,6 +77,12 @@ export interface KycMatchResult {
   badgeType: 'success' | 'warning' | 'pending';
 }
 
+/**
+ * All core identity documents required for lead conversion KYC cross-matching:
+ * 1. Aadhaar Card (Customer Name, Father Name, DOB)
+ * 2. Bank Passbook / Proof (Account-holder Name, Father Name)
+ * 3. Electricity Bill (Consumer / Customer Name, Father Name if present)
+ */
 export const CORE_KYC_CATEGORIES = [
   { category: 'aadhaar', label: 'Aadhaar Card' },
   { category: 'bank_proof', label: 'Bank Passbook / Proof' },
@@ -86,7 +91,8 @@ export const CORE_KYC_CATEGORIES = [
 
 /**
  * Evaluates whether customer identity across uploaded documents
- * (Aadhaar, Bank Passbook, Electricity Bill) matches the Lead customer information.
+ * (Aadhaar, Bank Passbook, Electricity Bill, and optional PAN)
+ * matches the Lead customer information (Name, Father Name, DOB) and matches each other.
  */
 export const evaluateLeadKycMatching = (
   lead: Lead,
@@ -95,6 +101,7 @@ export const evaluateLeadKycMatching = (
   const normLeadName = normalizeIdentityString(lead.full_name);
   const normLeadFather = normalizeIdentityString(lead.father_name || '');
   const normLeadDob = normalizeDobString(lead.dob || '');
+  const isLive = isSupabaseConfigured;
 
   const docExtractions: DocumentKycExtraction[] = [];
   const missingDocs: string[] = [];
@@ -104,30 +111,40 @@ export const evaluateLeadKycMatching = (
   let fatherNameMatch = true;
   let dobMatch = true;
   let coreDocsCount = 0;
+  let backendMatchedCount = 0;
+  let backendMismatch = false;
 
   for (const core of CORE_KYC_CATEGORIES) {
-    const doc = documents.find(
-      (d) => d.doc_category === core.category && (d.status === 'UPLOADED' || d.status === 'VERIFIED')
-    );
+    // The document list is newest-first; the newest upload is authoritative even if rejected/pending.
+    const doc = documents.find((d) => d.doc_category === core.category);
 
-    if (!doc) {
+    if (!doc || doc.status === 'REJECTED') {
       missingDocs.push(core.label);
       continue;
     }
 
     coreDocsCount++;
 
-    // Extracted attributes: fallback to lead's attributes if not explicitly populated,
-    // reflecting successful automated OCR on genuine customer document.
-    const extractedName = doc.extracted_name !== undefined ? doc.extracted_name : lead.full_name;
-    const extractedFather = doc.extracted_father_name !== undefined ? doc.extracted_father_name : (lead.father_name || '');
-    const extractedDob = doc.extracted_dob !== undefined ? doc.extracted_dob : (lead.dob || '');
+    const backendMatched = isLive
+      ? (doc.status === 'VERIFIED' && doc.extraction_status === 'MATCHED' && doc.kyc_match_status === 'MATCHED')
+      : (doc.status === 'VERIFIED' || doc.auto_verified === true);
+
+    if (backendMatched) backendMatchedCount++;
+    if (doc.extraction_status === 'MISMATCH' || doc.kyc_match_status === 'MISMATCH') backendMismatch = true;
+    if (isLive && !backendMatched && !backendMismatch) {
+      missingDocs.push(`${core.label} (pending trusted auto-verification)`);
+    }
+
+    // Extracted values from document OCR / metadata
+    const extractedName = doc.extracted_name || '';
+    const extractedFather = doc.extracted_father_name || '';
+    const extractedDob = doc.extracted_dob || '';
 
     const normDocName = normalizeIdentityString(extractedName);
     const normDocFather = normalizeIdentityString(extractedFather);
     const normDocDob = normalizeDobString(extractedDob);
 
-    // Name comparison (mandatory for all 3)
+    // 1. Name comparison: Customer name is mandatory across all 3 documents
     const docNameMatches = normDocName.length > 0 && normLeadName.length > 0 && normDocName === normLeadName;
     if (!docNameMatches) {
       nameMatch = false;
@@ -136,31 +153,35 @@ export const evaluateLeadKycMatching = (
       );
     }
 
-    // Father Name comparison (checked if either lead or doc has father_name)
-    let docFatherMatches = true;
-    if (normLeadFather.length > 0 || normDocFather.length > 0) {
-      docFatherMatches = normDocFather.length > 0 && normDocFather === normLeadFather;
-      if (!docFatherMatches) {
-        fatherNameMatch = false;
-        mismatches.push(
-          `${core.label} Father Name ("${extractedFather || 'Missing'}") does not match Lead Father Name ("${lead.father_name || 'N/A'}")`
-        );
-      }
+    // 2. Father name comparison:
+    // Mandatory on Aadhaar. On Bank Passbook and Electricity Bill, if printed/extracted, it must match.
+    const requiresFatherOnDoc = core.category === 'aadhaar';
+    const docFatherMatches = normDocFather.length > 0
+      ? (normLeadFather.length > 0 && normDocFather === normLeadFather)
+      : (!requiresFatherOnDoc);
+
+    if (!docFatherMatches) {
+      fatherNameMatch = false;
+      mismatches.push(
+        `${core.label} Father Name ("${extractedFather || 'Missing'}") does not match Lead Father Name ("${lead.father_name || 'Missing'}")`
+      );
     }
 
-    // DOB comparison (checked if either lead or doc has dob)
-    let docDobMatches = true;
-    if (normLeadDob.length > 0 || normDocDob.length > 0) {
-      docDobMatches = normDocDob.length > 0 && normDocDob === normLeadDob;
-      if (!docDobMatches) {
-        dobMatch = false;
-        mismatches.push(
-          `${core.label} DOB ("${extractedDob || 'Missing'}") does not match Lead DOB ("${lead.dob || 'N/A'}")`
-        );
-      }
+    // 3. DOB comparison:
+    // Mandatory on Aadhaar. Bank passbooks and Electricity bills do not print customer DOB.
+    const requiresDobOnDoc = core.category === 'aadhaar';
+    const docDobMatches = normDocDob.length > 0
+      ? (normLeadDob.length > 0 && normDocDob === normLeadDob)
+      : (!requiresDobOnDoc);
+
+    if (!docDobMatches) {
+      dobMatch = false;
+      mismatches.push(
+        `${core.label} DOB ("${extractedDob || 'Missing'}") does not match Lead DOB ("${lead.dob || 'Missing'}")`
+      );
     }
 
-    const isFullyMatched = docNameMatches && docFatherMatches && docDobMatches;
+    const isFullyMatched = (isLive ? backendMatched : true) && docNameMatches && docFatherMatches && docDobMatches;
 
     docExtractions.push({
       categoryId: core.category,
@@ -185,22 +206,71 @@ export const evaluateLeadKycMatching = (
     });
   }
 
-  // All 3 core documents must be present to achieve overall match
+  // PAN is optional for lead conversion. If supplied, it must still pass trusted
+  // OCR and match the lead identity; a rejected optional PAN is ignored.
+  const optionalPan = documents.find((d) => d.doc_category === 'pan');
+  let optionalPanPending = false;
+  if (optionalPan && optionalPan.status !== 'REJECTED') {
+    const backendMatched = isLive
+      ? (optionalPan.status === 'VERIFIED' && optionalPan.extraction_status === 'MATCHED' && optionalPan.kyc_match_status === 'MATCHED')
+      : (optionalPan.status === 'VERIFIED' || optionalPan.auto_verified === true);
+
+    optionalPanPending = isLive && !backendMatched;
+    if (optionalPan.extraction_status === 'MISMATCH' || optionalPan.kyc_match_status === 'MISMATCH') {
+      backendMismatch = true;
+    }
+
+    const extractedName = optionalPan.extracted_name || '';
+    const extractedFather = optionalPan.extracted_father_name || '';
+    const extractedDob = optionalPan.extracted_dob || '';
+
+    const panNameMatches = normalizeIdentityString(extractedName) === normLeadName && normLeadName.length > 0;
+    const panFatherMatches = normalizeIdentityString(extractedFather) === normLeadFather && normLeadFather.length > 0;
+    const panDobMatches = normalizeDobString(extractedDob) === normLeadDob && normLeadDob.length > 0;
+
+    if (!panNameMatches) { nameMatch = false; mismatches.push('Optional PAN name does not match lead name.'); }
+    if (!panFatherMatches) { fatherNameMatch = false; mismatches.push('Optional PAN father name does not match lead father name.'); }
+    if (!panDobMatches) { dobMatch = false; mismatches.push('Optional PAN DOB does not match lead DOB.'); }
+    if (optionalPanPending) missingDocs.push('Optional PAN (uploaded; trusted verification pending)');
+
+    docExtractions.push({
+      categoryId: 'pan',
+      categoryLabel: 'PAN Card (optional)',
+      docRecord: optionalPan,
+      name: { value: extractedName, expected: lead.full_name, matches: panNameMatches },
+      fatherName: { value: extractedFather, expected: lead.father_name || '', matches: panFatherMatches },
+      dob: { value: extractedDob, expected: lead.dob || '', matches: panDobMatches },
+      isFullyMatched: backendMatched && panNameMatches && panFatherMatches && panDobMatches,
+    });
+  }
+
   const coreDocsPresent = coreDocsCount === CORE_KYC_CATEGORIES.length;
-  const allMatch = coreDocsPresent && nameMatch && fatherNameMatch && dobMatch && mismatches.length === 0;
+  const allMatch = coreDocsPresent
+    && (!isLive || backendMatchedCount === CORE_KYC_CATEGORIES.length)
+    && !optionalPanPending
+    && nameMatch
+    && fatherNameMatch
+    && dobMatch
+    && mismatches.length === 0;
 
   let summaryMessage = '';
   let badgeType: 'success' | 'warning' | 'pending' = 'pending';
 
   if (!coreDocsPresent) {
-    summaryMessage = `Upload all 3 key KYC documents (Aadhaar, Bank Passbook, Electricity Bill) to activate automated verification. (Pending: ${missingDocs.join(', ')})`;
+    summaryMessage = `Upload all 3 required KYC documents: Aadhaar, Bank Passbook, and Electricity Bill. (Pending: ${missingDocs.join(', ')})`;
     badgeType = 'pending';
-  } else if (allMatch) {
-    summaryMessage = `All customer identity information (Name, Father's Name, DOB) 100% matched across Aadhaar, Bank Passbook, and Electricity Bill. Auto-Verified!`;
-    badgeType = 'success';
-  } else {
+  } else if (backendMismatch || mismatches.length > 0) {
     summaryMessage = `Identity mismatch detected: ${mismatches.join('; ')}`;
     badgeType = 'warning';
+  } else if (isLive && backendMatchedCount !== CORE_KYC_CATEGORIES.length) {
+    summaryMessage = `Documents are uploaded, but trusted OCR matching is still pending. ${missingDocs.join(', ')}`;
+    badgeType = 'pending';
+  } else if (allMatch) {
+    summaryMessage = `Auto-KYC Verification 100% Successful: Customer Name, Father Name, and DOB match across all documents (Aadhaar, Bank Passbook, Electricity Bill). Documents are automatically verified!`;
+    badgeType = 'success';
+  } else {
+    summaryMessage = `Verification pending inspection.`;
+    badgeType = 'pending';
   }
 
   return {
