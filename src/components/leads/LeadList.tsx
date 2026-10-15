@@ -290,7 +290,7 @@ export const LeadList: React.FC<LeadListProps> = ({
           All Stages ({visibleLeads.length})
         </button>
         {(Object.keys(LEAD_STAGES) as LeadStageType[]).map((st) => {
-          const count = leads.filter((l) => l.stage === st).length;
+          const count = visibleLeads.filter((l) => l.stage === st).length;
           const isSelected = selectedStage === st;
           return (
             <button
