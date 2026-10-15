@@ -19,9 +19,14 @@ import {
 } from 'lucide-react';
 import { BRANCHES_LIST } from '../../services/mockData';
 import { agentNetworkService } from '../../services/agentNetworkService';
+import { useAuth } from '../../context/AuthContext';
+import { isSupabaseConfigured } from '../../lib/supabaseClient';
 
 export const AgentTreeView: React.FC = () => {
+  const { userRole } = useAuth();
+  const canInspectTestAgents = userRole === 'super_admin' || userRole === 'office_admin';
   const [agents, setAgents] = useState<Agent[]>([]);
+  const [showTestAgents, setShowTestAgents] = useState(false);
   const [selectedBranch, setSelectedBranch] = useState<string>('ALL');
   const [expandedAgentIds, setExpandedAgentIds] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -47,20 +52,19 @@ export const AgentTreeView: React.FC = () => {
     };
 
     fetchTreeAgents();
-    const unsub = erpStore.subscribe(() => {
-      fetchTreeAgents();
-    });
-    return () => {
-      mounted = false;
-      unsub();
-    };
+    if (!isSupabaseConfigured) {
+      const unsub = erpStore.subscribe(() => { fetchTreeAgents(); });
+      return () => { mounted = false; unsub(); };
+    }
+    return () => { mounted = false; };
   }, []);
 
   // Branch-filtered trees must be self-contained: an Agent whose sponsor is outside
   // the selected branch becomes a visible root instead of disappearing from the view.
+  const visibleAgents = agents.filter(a => !a.is_test || (canInspectTestAgents && showTestAgents));
   const filteredAgents = selectedBranch === 'ALL'
-    ? agents
-    : agents.filter(a => a.branch === selectedBranch);
+    ? visibleAgents
+    : visibleAgents.filter(a => a.branch === selectedBranch);
 
   const filteredAgentIds = new Set(filteredAgents.map(a => a.id));
   const rootAgents = filteredAgents.filter(
@@ -200,7 +204,7 @@ export const AgentTreeView: React.FC = () => {
             <GitFork className="w-5 h-5 text-amber-400" />
             <span>Unlimited-Depth Agent Tree</span>
             <span className="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-amber-400 font-mono font-bold border border-slate-700">
-              {agents.length} Total Authoritative Operational Agents
+              {filteredAgents.length} Agents Shown
             </span>
           </h2>
           <p className="text-xs text-slate-400 mt-0.5">
@@ -210,6 +214,12 @@ export const AgentTreeView: React.FC = () => {
 
         {/* Branch Filter */}
         <div className="flex items-center gap-2">
+          {isSupabaseConfigured && canInspectTestAgents && (
+            <label className="flex items-center gap-2 rounded-lg border border-amber-500/30 px-2.5 py-2 text-xs text-amber-200">
+              <input type="checkbox" checked={showTestAgents} onChange={(e) => setShowTestAgents(e.target.checked)} className="accent-amber-500" />
+              <span>Show TEST ONLY Agents</span>
+            </label>
+          )}
           <div className="flex items-center gap-1.5 bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-2 text-xs">
             <Building className="w-3.5 h-3.5 text-slate-400" />
             <select
@@ -217,9 +227,9 @@ export const AgentTreeView: React.FC = () => {
               onChange={(e) => setSelectedBranch(e.target.value)}
               className="bg-transparent text-slate-200 focus:outline-none text-xs"
             >
-              <option value="ALL">All Branches ({agents.length} Agents)</option>
+              <option value="ALL">All Branches ({visibleAgents.length} Agents)</option>
               {BRANCHES_LIST.map((b) => {
-                const count = agents.filter(a => a.branch === b).length;
+                const count = visibleAgents.filter(a => a.branch === b).length;
                 return (
                   <option key={b} value={b}>{b} ({count})</option>
                 );
