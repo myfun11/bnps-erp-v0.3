@@ -5,6 +5,7 @@ import { erpStore } from '../../services/erpStore';
 import { leadService } from '../../services/leadService';
 import { useAuth } from '../../context/AuthContext';
 import { LEAD_STAGES } from '../../lib/constants';
+import { isSupabaseConfigured } from '../../lib/supabaseClient';
 import { ConvertLeadModal } from './ConvertLeadModal';
 import { CHHATTISGARH_DISTRICTS } from '../../services/mockData';
 import { 
@@ -42,6 +43,7 @@ export const LeadList: React.FC<LeadListProps> = ({
   const [showPortalAction, setShowPortalAction] = useState(false);
   const [selectedStage, setSelectedStage] = useState<string>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
+  const [showTestLeads, setShowTestLeads] = useState(false);
   const [convertTargetLead, setConvertTargetLead] = useState<Lead | null>(null);
   const [showNewLeadModal, setShowNewLeadModal] = useState(openNewLeadDirectly);
   const [successBanner, setSuccessBanner] = useState<string | null>(null);
@@ -116,8 +118,12 @@ export const LeadList: React.FC<LeadListProps> = ({
     return undefined;
   }, [userRole, currentAgent?.id]);
 
+  // Test records are excluded from operational views unless an admin explicitly opts in.
+  const canInspectTestRecords = userRole === 'super_admin' || userRole === 'office_admin';
+  const visibleLeads = leads.filter((lead) => !lead.is_test || (canInspectTestRecords && showTestLeads));
+
   // Filter leads
-  const filteredLeads = leads.filter((lead) => {
+  const filteredLeads = visibleLeads.filter((lead) => {
     const matchesStage = selectedStage === 'ALL' || lead.stage === selectedStage;
     const q = searchQuery.toLowerCase();
     const matchesQuery = 
@@ -235,7 +241,7 @@ export const LeadList: React.FC<LeadListProps> = ({
             <UserPlus className="w-5 h-5 text-amber-400" />
             <span>PM Surya Ghar Lead Pipeline (Chhattisgarh)</span>
             <span className="text-xs px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 border border-slate-700">
-              {leads.length} Total
+              {visibleLeads.length} Operational Leads
             </span>
           </h2>
           <p className="text-xs text-slate-400 mt-0.5">
@@ -244,6 +250,12 @@ export const LeadList: React.FC<LeadListProps> = ({
         </div>
 
         <div className="flex items-center gap-3 w-full sm:w-auto">
+          {isSupabaseConfigured && canInspectTestRecords && (
+            <label className="flex items-center gap-2 rounded-lg border border-amber-500/30 px-2.5 py-2 text-xs text-amber-200 whitespace-nowrap">
+              <input type="checkbox" checked={showTestLeads} onChange={(e) => setShowTestLeads(e.target.checked)} className="accent-amber-500" />
+              <span>Show TEST ONLY</span>
+            </label>
+          )}
           <div className="relative flex-1 sm:w-64">
             <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
             <input
@@ -275,7 +287,7 @@ export const LeadList: React.FC<LeadListProps> = ({
               : 'bg-slate-800/80 text-slate-400 hover:text-slate-200 hover:bg-slate-800'
           }`}
         >
-          All Stages ({leads.length})
+          All Stages ({visibleLeads.length})
         </button>
         {(Object.keys(LEAD_STAGES) as LeadStageType[]).map((st) => {
           const count = leads.filter((l) => l.stage === st).length;
