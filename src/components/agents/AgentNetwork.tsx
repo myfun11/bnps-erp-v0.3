@@ -130,6 +130,33 @@ export const AgentNetwork: React.FC = () => {
     }
   };
 
+
+  const handleRepairTestAgentAuth = async (agent: Agent) => {
+    if (!isSupabaseConfigured || agent.is_test !== true || agent.profile?.email) {
+      alert('Only an unlinked TEST Agent can use this repair action.');
+      return;
+    }
+    const email = window.prompt(`Enter the login email to assign to ${agent.agent_code} (${agent.profile?.full_name || 'TEST Agent'}):`);
+    if (!email) return;
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!/^\\S+@\\S+\\.\\S+$/.test(normalizedEmail)) {
+      alert('Enter a valid email address. No changes were made.');
+      return;
+    }
+    if (!window.confirm(`Create a Supabase Auth login for existing TEST Agent ${agent.agent_code} using ${normalizedEmail}? A temporary password will be shown once.`)) return;
+    try {
+      const { data, error } = await supabase.functions.invoke('repair-test-agent-auth', {
+        body: { agent_code: agent.agent_code, email: normalizedEmail },
+      });
+      if (error) throw error;
+      if (!data?.success || !data?.temporary_password) throw new Error(data?.message || data?.error || 'TEST Agent Auth repair failed.');
+      alert(`TEST Agent login repaired.\\nAgent: ${data.agent_code}\\nLogin email: ${data.login_email}\\nTemporary password: ${data.temporary_password}\\n\\nCopy this password now; it is shown only once. The Agent must change it after first login.`);
+      await loadData();
+    } catch (error) {
+      alert(error instanceof Error ? error.message : 'TEST Agent Auth repair failed.');
+    }
+  };
+
   const handleCopy = (text: string, id: string) => {
     navigator.clipboard.writeText(text);
     setCopiedId(id);
@@ -752,6 +779,16 @@ export const AgentNetwork: React.FC = () => {
                             title="Reset agent password; temporary password is shown once"
                           >
                             <Lock className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+
+                        {userRole === 'super_admin' && agent.is_test === true && !agent.profile?.email && isSupabaseConfigured && (
+                          <button
+                            onClick={() => void handleRepairTestAgentAuth(agent)}
+                            className="p-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 transition cursor-pointer"
+                            title="Create and link Supabase Auth login for this existing TEST Agent"
+                          >
+                            <UserPlus className="w-3.5 h-3.5" />
                           </button>
                         )}
                         <button
