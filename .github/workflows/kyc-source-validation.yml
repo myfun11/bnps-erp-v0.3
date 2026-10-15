@@ -48,6 +48,7 @@ jobs:
       - run: deno check supabase/functions/change-initial-password/index.ts
       - run: deno check supabase/functions/create-agent/index.ts
       - run: deno check supabase/functions/reset-agent-password/index.ts
+      - run: deno check supabase/functions/repair-test-agent-auth/index.ts
 
   sql-parse:
     name: PostgreSQL migration parse
@@ -121,8 +122,6 @@ jobs:
           A="20000000-0000-0000-0000-000000000001"
           B="20000000-0000-0000-0000-000000000002"
 
-          # Seed two active synthetic Agents. The AFTER trigger delays transaction A
-          # only after its BEFORE sponsor guard has accepted A -> B and acquired the lock.
           psql -h 127.0.0.1 -U postgres -d bnps_test -v ON_ERROR_STOP=1 <<SQL
           INSERT INTO public.agents(id, agent_code, sponsor_agent_id, is_active)
           VALUES ('$A', 'RACE-AGENT-A', NULL, true), ('$B', 'RACE-AGENT-B', NULL, true);
@@ -141,8 +140,6 @@ jobs:
           FOR EACH ROW EXECUTE FUNCTION public.test_pause_after_sponsor_guard();
           SQL
 
-          # Start A first; it validates A -> B and then sleeps while holding the
-          # transaction-scoped advisory lock. B begins while A is still uncommitted.
           psql -h 127.0.0.1 -U postgres -d bnps_test -v ON_ERROR_STOP=1 \
             -c "BEGIN; UPDATE public.agents SET sponsor_agent_id='$B' WHERE id='$A'; COMMIT;" \
             > /tmp/race-a.log 2>&1 &
