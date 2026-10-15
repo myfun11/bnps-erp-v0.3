@@ -77,6 +77,20 @@ DO $$
 DECLARE
   v_conversion_definition text;
 BEGIN
+  IF NOT EXISTS (SELECT 1 FROM public.permissions WHERE code = 'lead.convert') THEN
+    RAISE EXCEPTION 'TEST_FAIL: lead.convert permission seed is missing';
+  END IF;
+  IF EXISTS (
+    SELECT 1
+    FROM unnest(ARRAY['super_admin','office_admin','branch_manager','field_officer','backoffice']::user_role_type[]) AS expected(role)
+    WHERE NOT EXISTS (
+      SELECT 1 FROM public.role_permissions rp
+      JOIN public.permissions p ON p.id = rp.permission_id
+      WHERE rp.role = expected.role AND p.code = 'lead.convert'
+    )
+  ) THEN
+    RAISE EXCEPTION 'TEST_FAIL: conversion permission role grants are incomplete';
+  END IF;
   SELECT pg_get_functiondef('public.convert_lead_atomic(uuid,character varying,uuid)'::regprocedure)
     INTO v_conversion_definition;
   IF position('has_erp_permission' IN v_conversion_definition) = 0
