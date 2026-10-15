@@ -73,7 +73,7 @@ $$;
 
 
 -- Guard the server-side conversion contract against accidental regression.
-DO $
+DO $$
 DECLARE
   v_conversion_definition text;
 BEGIN
@@ -92,6 +92,6 @@ BEGIN
     RAISE EXCEPTION 'TEST_FAIL: duplicate customer branch/conflict checks are missing';
   END IF;
 END;
-$;
+$$;
 
 ROLLBACK;
