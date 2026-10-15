@@ -132,7 +132,7 @@ CREATE TABLE public.agents (
   updated_at timestamptz DEFAULT now()
 );
 
-CREATE TABLE public.permissions (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), code text);
+CREATE TABLE public.permissions (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), code text UNIQUE, name text, module text, description text);
 CREATE TABLE public.user_permission_overrides (user_id uuid, permission_id uuid, effect varchar(10));
 CREATE TABLE public.user_roles (user_id uuid, role_id uuid);
 CREATE TABLE public.dynamic_role_permissions (role_id uuid, permission_id uuid);
