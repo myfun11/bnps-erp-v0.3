@@ -1,4 +1,4 @@
-import { supabase, isSupabaseConfigured } from '../lib/supabaseClient';
+import { supabase, isSupabaseConfigured, extractFunctionsHttpError } from '../lib/supabaseClient';
 import { DocumentRecord, DocStatusType } from '../types/database';
 import { erpStore } from './erpStore';
 
@@ -205,7 +205,10 @@ export const documentService = {
     const { data, error } = await supabase.functions.invoke('verify-kyc-document', {
       body: { document_id: documentId },
     });
-    if (error) throw new Error(`KYC OCR request failed: ${error.message}`);
+    if (error) {
+      const parsed = await extractFunctionsHttpError(error, 'KYC OCR request failed.');
+      throw new Error(`KYC OCR request failed [${parsed.code}]: ${parsed.message}`);
+    }
     if (!data?.success) throw new Error(data?.message || 'KYC OCR did not complete; the document remains unverified.');
     return data as { success: boolean; extraction_status: string; evaluation?: unknown; message?: string };
   },
@@ -217,7 +220,10 @@ export const documentService = {
     const { data, error } = await supabase.functions.invoke('verify-kyc-document', {
       body: { action: 'evaluate', entity_type: entityType, entity_id: entityId },
     });
-    if (error) throw new Error(`KYC re-check failed: ${error.message}`);
+    if (error) {
+      const parsed = await extractFunctionsHttpError(error, 'KYC evaluation failed.');
+      throw new Error(`KYC evaluation failed [${parsed.code}]: ${parsed.message}`);
+    }
     if (!data?.success) throw new Error(data?.message || 'KYC re-check failed.');
     return data as { success: boolean; evaluation?: { status?: string; auto_verified?: boolean }; message?: string };
   },

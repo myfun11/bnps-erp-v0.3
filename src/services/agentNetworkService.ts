@@ -1,4 +1,4 @@
-import { supabase, isSupabaseConfigured } from '../lib/supabaseClient';
+import { supabase, isSupabaseConfigured, extractFunctionsHttpError, sanitizeServerErrorMessage } from '../lib/supabaseClient';
 import { Agent, BranchLocation } from '../types/database';
 import { erpStore } from './erpStore';
 
@@ -57,6 +57,20 @@ const mapAgent = (row: any): Agent => ({
   },
 });
 
+export class AgentServiceError extends Error {
+  code: string;
+  status: number;
+  requestId?: string;
+
+  constructor(code: string, message: string, status = 500, requestId?: string) {
+    super(`Agent creation failed [${code}]: ${message}`);
+    this.name = 'AgentServiceError';
+    this.code = code;
+    this.status = status;
+    this.requestId = requestId;
+  }
+}
+
 export const agentNetworkService = {
   isConfigured: () => isSupabaseConfigured,
 
@@ -92,8 +106,13 @@ export const agentNetworkService = {
       });
 
       if (error) {
-        console.error('[agentNetworkService.create] Edge function error:', error.message);
-        throw error;
+        const parsed = await extractFunctionsHttpError(
+          error,
+          'The server encountered an error while processing the agent creation request.'
+        );
+        const serviceErr = new AgentServiceError(parsed.code, parsed.message, parsed.status, parsed.requestId);
+        console.error('[agentNetworkService.create]', serviceErr.message);
+        throw serviceErr;
       }
 
       if (data?.success) {
@@ -109,7 +128,11 @@ export const agentNetworkService = {
           invite_sent: data.invite_sent === true,
         };
       }
-      throw new Error(data?.message || 'Failed to create agent in Supabase');
+
+      const rawErr = data?.message || 'Failed to create agent in Supabase';
+      const safeErr = sanitizeServerErrorMessage(rawErr);
+      const code = data?.error ? String(data.error) : 'AGENT_CREATION_FAILED';
+      throw new AgentServiceError(code, safeErr);
     }
 
     // Disconnected verification mode only

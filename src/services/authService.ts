@@ -1,4 +1,4 @@
-import { supabase, isSupabaseConfigured } from '../lib/supabaseClient';
+import { supabase, isSupabaseConfigured, extractFunctionsHttpError } from '../lib/supabaseClient';
 import { Profile, Agent, UserRoleType } from '../types/database';
 
 export interface AuthSessionState {
@@ -41,7 +41,10 @@ export const authService = {
     const { data, error } = await supabase.functions.invoke('change-initial-password', {
       body: { current_password: currentPassword, new_password: newPassword },
     });
-    if (error) throw new Error(`Password update failed: ${error.message}`);
+    if (error) {
+      const parsed = await extractFunctionsHttpError(error, 'Password update failed.');
+      throw new Error(`Password update failed [${parsed.code}]: ${parsed.message}`);
+    }
     if (!data?.success) throw new Error(data?.message || 'Password update failed.');
     // Refresh so the client receives the server-controlled app_metadata flag.
     const { error: refreshError } = await supabase.auth.refreshSession();

@@ -5,7 +5,7 @@ import { documentService } from '../../services/documentService';
 import { erpStore } from '../../services/erpStore';
 import { useAuth } from '../../context/AuthContext';
 import { STANDARD_COMMISSION_RATES } from '../../lib/constants';
-import { supabase, isSupabaseConfigured } from '../../lib/supabaseClient';
+import { supabase, isSupabaseConfigured, extractFunctionsHttpError } from '../../lib/supabaseClient';
 import { BRANCHES_LIST } from '../../services/mockData';
 import { 
   Layers, 
@@ -34,7 +34,8 @@ import {
   FileCheck,
   Eye,
   AlertCircle,
-  UserPlus
+  UserPlus,
+  Loader2
 } from 'lucide-react';
 
 export const AgentNetwork: React.FC = () => {
@@ -123,7 +124,10 @@ export const AgentNetwork: React.FC = () => {
     if (!window.confirm(`Reset the password for ${agent.profile.full_name || agent.agent_code}? The current password will stop working and a temporary password will be shown once.`)) return;
     try {
       const { data, error } = await supabase.functions.invoke('reset-agent-password', { body: { agent_id: agent.id } });
-      if (error) throw error;
+      if (error) {
+        const parsed = await extractFunctionsHttpError(error, 'Agent password reset failed.');
+        throw new Error(`Password reset failed [${parsed.code}]: ${parsed.message}`);
+      }
       if (!data?.success || !data?.temporary_password) throw new Error(data?.message || 'Agent password reset failed.');
       alert(`Password reset successfully.\nAgent: ${data.agent_code}\nLogin email: ${data.login_email}\nTemporary password: ${data.temporary_password}\n\nThe agent must change this password after login. Share it securely; it will not be shown again.`);
     } catch (error) {
@@ -149,9 +153,12 @@ export const AgentNetwork: React.FC = () => {
       const { data, error } = await supabase.functions.invoke('repair-test-agent-auth', {
         body: { agent_code: agent.agent_code, email: normalizedEmail },
       });
-      if (error) throw error;
+      if (error) {
+        const parsed = await extractFunctionsHttpError(error, 'TEST Agent Auth repair failed.');
+        throw new Error(`TEST Agent Auth repair failed [${parsed.code}]: ${parsed.message}`);
+      }
       if (!data?.success || !data?.temporary_password) throw new Error(data?.message || data?.error || 'TEST Agent Auth repair failed.');
-      alert(`TEST Agent login repaired.\\nAgent: ${data.agent_code}\\nLogin email: ${data.login_email}\\nTemporary password: ${data.temporary_password}\\n\\nCopy this password now; it is shown only once. The Agent must change it after first login.`);
+      alert(`TEST Agent login repaired.\nAgent: ${data.agent_code}\nLogin email: ${data.login_email}\nTemporary password: ${data.temporary_password}\n\nCopy this password now; it is shown only once. The Agent must change it after first login.`);
       await loadData();
     } catch (error) {
       alert(error instanceof Error ? error.message : 'TEST Agent Auth repair failed.');
@@ -259,9 +266,10 @@ export const AgentNetwork: React.FC = () => {
         ).length;
       }
 
-      await loadData();
+      const refreshedAgents = await agentNetworkService.list();
+      setAgents(refreshedAgents);
 
-      const createdAgent = erpStore.getAgents().find(
+      const createdAgent = refreshedAgents.find(
         (agent) => agent.id === agentId
       );
 
@@ -272,12 +280,12 @@ export const AgentNetwork: React.FC = () => {
       setShowNewAgentModal(false);
       setSuccessBanner(
         testWorkflowOnly
-          ? `TEST ONLY Agent ${result.agent_code} created for workflow testing WITHOUT KYC documents. KYC remains PENDING; document upload, verification and lead-to-customer conversion requirements are not bypassed.`
+          ? `Agent onboarded successfully. Agent Code: ${result.agent_code}. (TEST ONLY account created without KYC documents).`
           : ocrNeedsReview > 0
-            ? `Agent ${result.agent_code} created. All four KYC documents were uploaded; ${ocrNeedsReview} document(s) need OCR retry/manual review. Agent KYC remains unverified until identity fields match.`
-            : `Agent ${result.agent_code} created. KYC OCR ran; automatic verification is only completed when name, father name and DOB match across the required documents.`
+            ? `Agent onboarded successfully. Agent Code: ${result.agent_code}. All four KYC documents uploaded; ${ocrNeedsReview} document(s) need OCR retry/manual review.`
+            : `Agent onboarded successfully. Agent Code: ${result.agent_code}. KYC documents uploaded successfully.`
       );
-      setTimeout(() => setSuccessBanner(null), 6000);
+      setTimeout(() => setSuccessBanner(null), 8000);
 
       // Reset form
       setNewAgentForm({
@@ -827,8 +835,11 @@ export const AgentNetwork: React.FC = () => {
                 </div>
               </div>
               <button 
-                onClick={() => setShowNewAgentModal(false)} 
-                className="text-slate-400 hover:text-white p-1"
+                type="button"
+                onClick={() => !isSubmittingOnboarding && setShowNewAgentModal(false)} 
+                disabled={isSubmittingOnboarding}
+                className="text-slate-400 hover:text-white p-1 disabled:opacity-40 disabled:cursor-not-allowed"
+                title={isSubmittingOnboarding ? 'Onboarding in progress…' : 'Close'}
               >
                 ✕
               </button>
@@ -1088,17 +1099,25 @@ export const AgentNetwork: React.FC = () => {
               <div className="flex justify-end gap-3 pt-3 border-t border-slate-800">
                 <button
                   type="button"
-                  onClick={() => setShowNewAgentModal(false)}
-                  className="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 font-semibold cursor-pointer"
+                  onClick={() => !isSubmittingOnboarding && setShowNewAgentModal(false)}
+                  disabled={isSubmittingOnboarding}
+                  className="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed text-xs text-slate-300 font-semibold cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmittingOnboarding}
-                  className="px-6 py-2 rounded-lg bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-xs text-slate-950 font-bold shadow-lg shadow-amber-500/20 cursor-pointer"
+                  className="flex items-center gap-2 px-6 py-2 rounded-lg bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-xs text-slate-950 font-bold shadow-lg shadow-amber-500/20 cursor-pointer"
                 >
-                  {isSubmittingOnboarding ? 'Saving & Uploading Documents...' : 'Confirm & Onboard Agent with KYC'}
+                  {isSubmittingOnboarding ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin text-slate-950" />
+                      <span>Creating Agent and verifying KYC documents…</span>
+                    </>
+                  ) : (
+                    <span>Confirm & Onboard Agent with KYC</span>
+                  )}
                 </button>
               </div>
             </form>
