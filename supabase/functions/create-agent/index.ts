@@ -153,49 +153,28 @@ Deno.serve(async (req) => {
     if (createAuthError || !createdAuth.user) {
       const errMsg = createAuthError?.message || "";
       const isAlreadyRegistered = errMsg.toLowerCase().includes("already registered") ||
-                                  errMsg.toLowerCase().includes("already been registered");
+                                  errMsg.toLowerCase().includes("already been registered") ||
+                                  (errMsg.toLowerCase().includes("user") && errMsg.toLowerCase().includes("registered"));
 
       if (isAlreadyRegistered) {
-        // Safe reconciliation check: is this email attached to an unlinked orphan Auth user
-        // from a prior aborted atomic agent creation?
-        console.warn(`[create-agent:${requestId}] Stage: auth_create found existing email; checking orphan status`);
-        const { data: existingUsers } = await adminClient.auth.admin.listUsers();
-        const existingAuth = existingUsers?.users?.find(
-          (u) => u.email?.toLowerCase() === email
-        );
-
-        if (existingAuth) {
-          const { data: linkedProfile } = await adminClient
-            .from("profiles")
-            .select("id")
-            .eq("auth_user_id", existingAuth.id)
-            .maybeSingle();
-
-          if (!linkedProfile) {
-            // Found unlinked orphan Auth user without a profile. Safely reconcile by updating credentials.
-            console.log(`[create-agent:${requestId}] Stage: reconciling unlinked orphan Auth user ${existingAuth.id}`);
-            const { error: updateErr } = await adminClient.auth.admin.updateUserById(existingAuth.id, {
-              password: temporaryPassword,
-              user_metadata: { full_name, phone, branch, role: "agent" },
-              app_metadata: { ...(existingAuth.app_metadata || {}), must_change_password: true },
-            });
-            if (!updateErr) {
-              authUserId = existingAuth.id;
-              newlyCreatedAuth = false; // Do not delete on rollback since it pre-existed
-            }
-          }
-        }
-      }
-
-      if (!authUserId) {
-        console.warn(`[create-agent:${requestId}] Stage: auth_create failed:`, createAuthError?.message);
+        // Strict safety rule: Never assume email alone proves ownership, and never overwrite credentials
+        // of an unlinked account without explicit administrative authorization.
+        console.warn(`[create-agent:${requestId}] Stage: auth_create rejected - email already exists in Auth`);
         return jsonResponse({
           success: false,
-          error: "AUTH_USER_CREATE_FAILED",
-          message: createAuthError?.message || "Unable to create the agent login account.",
+          error: "AUTH_USER_ALREADY_EXISTS",
+          message: "An authentication account already exists for this email address. Please use a distinct email address or have an administrator reconcile the account.",
           request_id: requestId,
-        }, 400);
+        }, 409);
       }
+
+      console.warn(`[create-agent:${requestId}] Stage: auth_create failed:`, createAuthError?.message);
+      return jsonResponse({
+        success: false,
+        error: "AUTH_USER_CREATE_FAILED",
+        message: createAuthError?.message || "Unable to create the agent login account.",
+        request_id: requestId,
+      }, 400);
     } else {
       authUserId = createdAuth.user.id;
       newlyCreatedAuth = true;
@@ -206,13 +185,28 @@ Deno.serve(async (req) => {
       });
       if (appMetadataError) {
         console.error(`[create-agent:${requestId}] Stage: auth_metadata failed:`, appMetadataError.message);
-        // Rollback created auth user
-        await adminClient.auth.admin.deleteUser(authUserId);
+        let rollbackStatus = "NOT_ATTEMPTED";
+        try {
+          const { error: rollbackDelErr } = await adminClient.auth.admin.deleteUser(authUserId);
+          if (rollbackDelErr) {
+            rollbackStatus = "ROLLBACK_FAILED";
+            console.error(`[create-agent:${requestId}] Stage: auth_metadata rollback failed:`, rollbackDelErr.message);
+          } else {
+            rollbackStatus = "ROLLED_BACK";
+            console.log(`[create-agent:${requestId}] Stage: auth_metadata rollback completed for user`);
+          }
+        } catch (delEx) {
+          rollbackStatus = "ROLLBACK_FAILED";
+          console.error(`[create-agent:${requestId}] Stage: auth_metadata rollback threw exception:`, delEx);
+        }
         return jsonResponse({
           success: false,
           error: "AUTH_METADATA_UPDATE_FAILED",
-          message: "Agent account was created but could not be secured. Do not share credentials; contact the administrator.",
+          message: rollbackStatus === "ROLLED_BACK"
+            ? "Agent account could not be secured. The pending account was rolled back. Please try again."
+            : "Agent account could not be secured and automated rollback was unsuccessful. Contact administrator with reference ID.",
           request_id: requestId,
+          rollback_status: rollbackStatus,
         }, 500);
       }
     }
