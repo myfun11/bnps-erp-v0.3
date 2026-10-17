@@ -968,7 +968,7 @@ class ErpDataStore {
       id: crypto.randomUUID(),
       project_code: `PRJ-CG-2026-${String(prjCount).padStart(3, '0')}`,
       customer_id: targetCustomer.id,
-      primary_agent_id: 'ag-mukesh-101',
+      primary_agent_id: (this.agents[0]?.id as any) || null,
       capacity_kw: q.capacity_kw,
       total_contract_amount: q.total_project_cost,
       discom_subsidy_amount: q.central_subsidy_amount,

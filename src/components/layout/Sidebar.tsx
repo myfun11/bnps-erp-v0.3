@@ -67,7 +67,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   });
 
   return (
-    <aside className="w-64 bg-slate-950 border-r border-slate-800/80 flex flex-col shrink-0 h-full overflow-hidden text-slate-300 z-20 select-none">
+    <aside className="w-64 bg-slate-950 border-r border-slate-800/80 flex flex-col shrink-0 h-full overflow-hidden text-slate-300 z-20 select-none print:hidden">
       {/* Sidebar Header */}
       <div className="px-5 py-4 flex items-center justify-between border-b border-slate-800/60">
         <span className="text-[11px] font-bold text-slate-400 tracking-widest uppercase">

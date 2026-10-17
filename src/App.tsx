@@ -199,9 +199,9 @@ function ErpAppShell() {
   };
 
   return (
-    <div className="h-screen w-screen bg-slate-950 text-slate-100 flex flex-col font-sans overflow-hidden selection:bg-amber-500 selection:text-slate-950">
+    <div className="h-screen w-screen bg-slate-950 text-slate-100 flex flex-col font-sans overflow-hidden selection:bg-amber-500 selection:text-slate-950 print:h-auto print:w-auto print:overflow-visible print:bg-white print:text-slate-950">
       {/* Top Application Header */}
-      <div className="shrink-0 z-40">
+      <div className="shrink-0 z-40 print:hidden">
         <Header
           onOpenSearch={() => setIsSearchOpen(true)}
           onOpenNewLead={() => {
@@ -214,7 +214,7 @@ function ErpAppShell() {
       </div>
 
       {/* Main Layout: Fixed/Static Left Sidebar + Scrollable Dynamic Page Workspace */}
-      <div className="flex-1 flex overflow-hidden min-h-0">
+      <div className="flex-1 flex overflow-hidden min-h-0 print:overflow-visible print:h-auto print:block">
         {/* Left Sidebar Menu (Static / Fixed on Left) */}
         <Sidebar
           activeTab={activeTab}
@@ -225,8 +225,8 @@ function ErpAppShell() {
         />
 
         {/* Right Active Page Workspace (Scrolls up and down) */}
-        <main className="flex-1 h-full overflow-y-auto p-4 sm:p-6 lg:p-8 custom-scrollbar">
-          <div className="max-w-7xl mx-auto">
+        <main className="flex-1 h-full overflow-y-auto p-4 sm:p-6 lg:p-8 custom-scrollbar print:p-0 print:m-0 print:overflow-visible print:h-auto print:w-full print:block">
+          <div className="max-w-7xl mx-auto print:max-w-none print:w-full print:m-0 print:p-0">
             {activeTab === 'dashboard' && (
               <OverviewDashboard
                 onNavigate={(tab) => setActiveTab(tab)}

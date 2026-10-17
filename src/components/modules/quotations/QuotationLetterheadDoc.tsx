@@ -468,14 +468,15 @@ export const QuotationLetterheadDoc: React.FC<QuotationLetterheadDocProps> = ({
           {/* 6. BANK DETAILS & OFFICIAL AUTHORIZED SIGNATORY */}
           <div className="grid grid-cols-1 sm:grid-cols-2 bg-white">
             {/* Left: Bank Details */}
-            <div className="p-3 border-b sm:border-b-0 sm:border-r border-slate-700 space-y-1 text-[11px]">
-              <div className="font-bold text-slate-950 uppercase tracking-wide text-xs">
-                Bank Details:
+            <div className="p-3 border-b sm:border-b-0 sm:border-r border-slate-700 space-y-1.5 text-[11px]">
+              <div className="font-bold text-slate-950 uppercase tracking-wide text-xs border-b border-slate-300 pb-1">
+                BANK DETAILS
               </div>
-              <div>Name: <strong>Punjab National Bank, Jaijaipur / Sakti Branch</strong></div>
-              <div>Account No.: <strong className="font-mono font-bold text-xs">7615002100002482</strong></div>
-              <div>IFSC Code: <strong className="font-mono font-bold text-xs">PUNB0761500</strong></div>
-              <div>Account Holder's Name: <strong>Bhumi Nidhi Powar Solution</strong></div>
+              <div>Account Holder name : <strong>BHUMI NIDHI POWAR SOLUTION</strong></div>
+              <div>Bank Name : <strong>State Bank Of India</strong></div>
+              <div>A/C : <strong className="font-mono font-bold text-xs">45320070413</strong></div>
+              <div>IFSC : <strong className="font-mono font-bold text-xs">SBIN0005772</strong></div>
+              <div>Branch : <strong>Jaijaipur, Distric: sakti, Chhattisgarh</strong></div>
             </div>
 
             {/* Right: Signature & Stamp Box */}

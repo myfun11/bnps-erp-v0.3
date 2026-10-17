@@ -39,7 +39,7 @@ import {
 } from 'lucide-react';
 
 export const AgentNetwork: React.FC = () => {
-  const { userRole, canViewSensitiveAgentPii, hasPermission } = useAuth();
+  const { userRole, canViewSensitiveAgentPii, hasPermission, currentAgent } = useAuth();
   const [agents, setAgents] = useState<Agent[]>(isSupabaseConfigured ? [] : erpStore.getAgents());
   const [showNewAgentModal, setShowNewAgentModal] = useState(false);
   const [successBanner, setSuccessBanner] = useState<string | null>(null);
@@ -678,7 +678,7 @@ export const AgentNetwork: React.FC = () => {
             ) : (
               filteredAgents.map((agent) => {
                 const sponsor = agents.find((a) => a.id === agent.sponsor_agent_id);
-                const isOwnProfile = agent.id === 'ag-mukesh-101' && userRole === 'agent';
+                const isOwnProfile = Boolean(currentAgent?.id && agent.id === currentAgent.id) && userRole === 'agent';
                 const canViewPii = canViewSensitiveAgentPii || isOwnProfile;
                 const agentDocs = erpStore.getDocuments({ entityType: 'agent', entityId: agent.id });
 

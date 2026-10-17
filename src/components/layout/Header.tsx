@@ -39,7 +39,7 @@ export const Header: React.FC<HeaderProps> = ({
   };
 
   return (
-    <header className="sticky top-0 z-40 bg-slate-950 border-b border-slate-800 text-white shadow-lg">
+    <header className="sticky top-0 z-40 bg-slate-950 border-b border-slate-800 text-white shadow-lg print:hidden">
       <div className="px-4 sm:px-6 py-2.5 flex items-center justify-between gap-4">
         {/* Brand Section with Official BNPS Logo */}
         <div className="flex items-center gap-3 shrink-0">
