@@ -76,8 +76,9 @@ BEGIN
     -- Branch Manager has branch-scoped access when holding the required permission
     IF v_actor_role = 'branch_manager' THEN
         IF public.has_erp_permission(p_required_permission) THEN
+            -- A missing actor branch is not an authorization bypass.
             IF v_actor_branch IS NULL OR btrim(v_actor_branch) = '' THEN
-                RETURN true;
+                RETURN false;
             END IF;
 
             -- Resolve entity branch for scoping
@@ -105,7 +106,10 @@ BEGIN
                  WHERE l.id = p_entity_id;
             END IF;
 
-            IF v_entity_branch IS NULL OR lower(btrim(v_entity_branch)) = lower(btrim(v_actor_branch)) THEN
+            -- Unknown entity branch must fail closed; do not grant branch access
+            -- merely because the entity's branch could not be resolved.
+            IF v_entity_branch IS NOT NULL
+               AND lower(btrim(v_entity_branch)) = lower(btrim(v_actor_branch)) THEN
                 RETURN true;
             END IF;
             RETURN false;
@@ -113,7 +117,41 @@ BEGIN
     END IF;
 
     -- 6. Operational & Specialized Staff Roles (Requirement 5)
+    -- Staff roles are branch-scoped. Resolve the entity branch and fail closed
+    -- when either the actor or entity branch is unknown.
     IF v_actor_role IN ('operational_manager', 'accountant', 'field_officer', 'technician', 'backoffice', 'receptionist') THEN
+        IF v_actor_branch IS NULL OR btrim(v_actor_branch) = '' THEN
+            RETURN false;
+        END IF;
+
+        v_entity_branch := NULL;
+        IF v_entity_type = 'agent' THEN
+            SELECT branch INTO v_entity_branch FROM public.agents WHERE id = p_entity_id;
+        ELSIF v_entity_type = 'lead' THEN
+            SELECT branch INTO v_entity_branch FROM public.leads WHERE id = p_entity_id;
+        ELSIF v_entity_type = 'customer' THEN
+            SELECT branch INTO v_entity_branch FROM public.customers WHERE id = p_entity_id;
+        ELSIF v_entity_type = 'project' THEN
+            SELECT c.branch INTO v_entity_branch
+              FROM public.projects pr JOIN public.customers c ON c.id = pr.customer_id
+             WHERE pr.id = p_entity_id;
+        ELSIF v_entity_type = 'installation' THEN
+            SELECT c.branch INTO v_entity_branch
+              FROM public.installations inst
+              JOIN public.projects pr ON pr.id = inst.project_id
+              JOIN public.customers c ON c.id = pr.customer_id
+             WHERE inst.id = p_entity_id;
+        ELSIF v_entity_type = 'loan' THEN
+            SELECT coalesce(l.branch_name, c.branch) INTO v_entity_branch
+              FROM public.loans l JOIN public.customers c ON c.id = l.customer_id
+             WHERE l.id = p_entity_id;
+        END IF;
+
+        IF v_entity_branch IS NULL
+           OR lower(btrim(v_entity_branch)) <> lower(btrim(v_actor_branch)) THEN
+            RETURN false;
+        END IF;
+
         IF public.has_erp_permission(p_required_permission) THEN
             IF v_entity_type = 'agent' AND v_actor_role = 'accountant' THEN
                 RETURN true;

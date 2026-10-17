@@ -50,8 +50,8 @@ BEGIN
     IF v_pan.status='REJECTED' THEN v_pan := NULL; END IF;
     IF v_elec.status='REJECTED' THEN v_elec := NULL; END IF;
 
-    -- Lead conversion requires Aadhaar + bank passbook (+ electricity bill if uploaded).
-    -- PAN is optional; if uploaded, it must pass trusted OCR and all identity checks.
+    -- Lead KYC self-verification requires Aadhaar, bank proof, and electricity bill. Aadhaar front/back existence is separately enforced by the conversion Storage-object gate.
+    -- PAN is optional; if uploaded, it must pass trusted OCR and all identity checks. Electricity bill is mandatory and must match the applicant identity.
     v_complete := v_aadhaar.id IS NOT NULL AND v_bank.id IS NOT NULL
       AND v_aadhaar.extraction_status IN ('EXTRACTED','MATCHED','MISMATCH')
       AND v_bank.extraction_status IN ('EXTRACTED','MATCHED','MISMATCH')
@@ -63,11 +63,11 @@ BEGIN
         AND v_pan.extraction_is_legible IS TRUE
         AND coalesce(v_pan.extraction_confidence,0)>=0.85
       ))
-      AND (v_elec.id IS NULL OR (
-        v_elec.extraction_status IN ('EXTRACTED','MATCHED','MISMATCH')
-        AND v_elec.extraction_is_legible IS TRUE
-        AND coalesce(v_elec.extraction_confidence,0)>=0.85
-      ));
+      AND v_elec.id IS NOT NULL
+      AND v_elec.status <> 'REJECTED'
+      AND v_elec.extraction_status IN ('EXTRACTED','MATCHED','MISMATCH')
+      AND v_elec.extraction_is_legible IS TRUE
+      AND coalesce(v_elec.extraction_confidence,0)>=0.85;
 
     v_docs := array_remove(ARRAY[v_aadhaar.id,v_pan.id,v_bank.id,v_elec.id], NULL);
   ELSE

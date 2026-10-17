@@ -75,11 +75,11 @@ Concessional 7% Loan Monthly EMI        : ~₹${(q.est_monthly_emi || 1650).toLo
 
 ================================================================================
 OFFICIAL BANK ACCOUNT DETAILS
-Bank Name       : Punjab National Bank
-Branch          : Jaijaipur / Sakti Branch
-Account Number  : 7615002100002482
-IFSC Code       : PUNB0761500
-Account Holder  : Bhumi Nidhi Powar Solution
+Account Holder  : BHUMI NIDHI POWAR SOLUTION
+Bank Name       : State Bank Of India
+Account Number  : 45320070413
+IFSC Code       : SBIN0005772
+Branch          : Jaijaipur, District: Sakti, Chhattisgarh
 
 AUTHORIZED SIGNATORY
 BHUMI NIDHI POWAR SOLUTION
