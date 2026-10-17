@@ -16,7 +16,7 @@ DECLARE
 BEGIN
   IF NEW.stage IS DISTINCT FROM OLD.stage AND NEW.stage = 'CONVERTED' THEN
     WITH scoped_documents AS (
-      SELECT d.id, lower(btrim(d.doc_category)) AS doc_category, d.created_at, d.file_path
+      SELECT d.id, lower(btrim(d.doc_category::text)) AS doc_category, d.created_at, d.file_path
       FROM public.documents d
       WHERE (
         (d.entity_type = 'lead' AND d.entity_id = OLD.id)
